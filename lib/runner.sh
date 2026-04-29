@@ -3,20 +3,25 @@
 download_file() {
   local url="$1" output="$2" temp="${2}.tmp"
   mkdir -p "$(dirname "$output")"
+  log_debug "download file: url=$url output=$output"
   if need_cmd curl; then
     if ! curl -fL --retry 3 --connect-timeout 20 -o "$temp" "$url"; then
       rm -f "$temp"
+      log_warn "download failed with curl: url=$url"
       return 1
     fi
   elif need_cmd wget; then
     if ! wget -O "$temp" "$url"; then
       rm -f "$temp"
+      log_warn "download failed with wget: url=$url"
       return 1
     fi
   else
+    log_error "download failed: curl/wget not found"
     return 127
   fi
   mv "$temp" "$output"
+  log_debug "download file saved: output=$output"
 }
 
 effective_install_path() {
@@ -40,14 +45,18 @@ download_installer() {
   while IFS= read -r url; do
     [[ -n "$url" ]] || continue
     info "Downloading: $url"
+    log_info "installer download attempt: project=$key url=$url"
     if download_file "$url" "$output"; then
       info "Saved to: $output"
+      log_info "installer download success: project=$key url=$url output=$output"
       return 0
     fi
     failed_urls+=("$url")
     info "Download failed, trying next source."
+    log_warn "installer download failed: project=$key url=$url"
   done < <(project_installer_urls "$key")
 
+  log_error "installer download failed all sources: project=$key output=$output"
   printf 'Error: 安装器下载失败，已尝试所有下载源。\n' >&2
   for url in "${failed_urls[@]}"; do
     printf '  %s\n' "$url" >&2
@@ -162,25 +171,37 @@ run_pwsh_script() {
   require_pwsh
   [[ -f "$script_path" ]] || die "脚本不存在: $script_path"
   script_dir="$(cd "$(dirname "$script_path")" && pwd)"
+  log_info "pwsh start: script=$script_path args=$(format_log_args "$@")"
   (cd "$script_dir" && pwsh -NoLogo -ExecutionPolicy Bypass -File "./$(basename "$script_path")" "$@")
 }
 
 run_installer() {
-  local key="${1:-$CURRENT_PROJECT}" script args=() confirmation
+  local key="${1:-$CURRENT_PROJECT}" script args=() confirmation status
   load_project_config "$key"
   script="$(installer_cache_path "$key")"
   build_installer_args "$key" args
+  log_info "installer prepared: project=$key script=$script install_path=$(effective_install_path "$key") args=$(format_log_args "${args[@]}")"
   confirmation="$(installer_confirmation_text "$key" "$script" args)"
   confirm_screen "确认运行安装器" "$confirmation" || {
     info "安装任务已取消。"
+    log_warn "installer canceled by user: project=$key"
     return 0
   }
-  download_installer "$key"
+  if ! download_installer "$key"; then
+    log_error "installer download failed before execution: project=$key"
+    return 1
+  fi
   if dialog_available; then
     clear || true
   fi
   info "Running: pwsh -File $script ${args[*]}"
-  run_pwsh_script "$script" "${args[@]}"
+  if run_pwsh_script "$script" "${args[@]}"; then
+    log_info "installer finished: project=$key status=0"
+  else
+    status=$?
+    log_error "installer failed: project=$key status=$status"
+    return "$status"
+  fi
 }
 
 project_uninstall_summary() {
@@ -225,17 +246,21 @@ uninstall_project() {
   load_project_config "$key"
   install_path="$(effective_install_path "$key")"
   if ! validate_uninstall_path "$install_path"; then
+    log_error "project uninstall refused unsafe path: project=$key path=$install_path"
     show_error "卸载路径不安全，已取消: $install_path"
     return 1
   fi
   [[ -e "$install_path" ]] || {
+    log_warn "project uninstall missing path: project=$key path=$install_path"
     show_error "未找到安装目录: $install_path"
     return 1
   }
 
   confirm_text="DELETE $key"
+  log_warn "project uninstall warning shown: project=$key path=$install_path"
   confirm_screen "卸载 $(project_name "$key")" "$(project_uninstall_summary "$key" "$install_path" "$confirm_text")" || {
     info "卸载任务已取消。"
+    log_warn "project uninstall canceled at warning: project=$key path=$install_path"
     return 0
   }
   typed_confirm_screen "最终确认" "将删除安装目录:
@@ -243,11 +268,14 @@ $install_path
 
 如果并非要卸载 $(project_name "$key")，请取消。" "$confirm_text" || {
     info "最终确认失败，卸载任务已取消。"
+    log_warn "project uninstall final confirmation failed: project=$key path=$install_path"
     return 0
   }
 
+  log_warn "project uninstall deleting: project=$key path=$install_path"
   rm -rf -- "$install_path"
   info "已卸载 $(project_name "$key"): $install_path"
+  log_info "project uninstall finished: project=$key path=$install_path"
 }
 
 management_root_candidates() {
@@ -314,20 +342,28 @@ show_management_script_hint() {
 }
 
 run_management_script() {
-  local key="${1:-$CURRENT_PROJECT}" script_name="${2:-}" args_raw="${3-}" script_path args=()
+  local key="${1:-$CURRENT_PROJECT}" script_name="${2:-}" args_raw="${3-}" script_path args=() status
   load_project_config "$key"
   [[ -n "$script_name" ]] || script_name="$(select_management_script "$key")" || return 0
   [[ -n "${args_raw:-}" ]] || args_raw="$(get_script_args "$script_name")"
   if ! script_path="$(find_management_script "$key" "$script_name")"; then
+    log_error "management script not found: project=$key script=$script_name install_path=$(effective_install_path "$key")"
     show_error "未找到 $script_name。请先运行安装器，或检查 INSTALL_PATH。"
     return 1
   fi
   split_args "$args_raw" args
   append_no_pause_arg "$key" args
+  log_info "management script prepared: project=$key script=$script_name path=$script_path args=$(format_log_args "${args[@]}")"
   if dialog_available; then
     clear || true
   fi
   show_management_script_hint "$script_name"
   info "Running: pwsh -File $script_path ${args[*]}"
-  run_pwsh_script "$script_path" "${args[@]}"
+  if run_pwsh_script "$script_path" "${args[@]}"; then
+    log_info "management script finished: project=$key script=$script_name status=0"
+  else
+    status=$?
+    log_error "management script failed: project=$key script=$script_name status=$status"
+    return "$status"
+  fi
 }

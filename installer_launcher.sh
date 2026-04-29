@@ -13,6 +13,16 @@ fi
 
 set -Eeuo pipefail
 
+early_log() {
+  local log_dir log_file message="$*"
+  message="$(printf '%s' "$message" | sed -E 's#(token|password|passwd|secret|api_key|access_key|private_key)=([^[:space:]]+)#\1=<redacted>#Ig')"
+  message="$(printf '%s' "$message" | sed -E 's#(https?://)[^/@[:space:]]+:[^/@[:space:]]+@#\1<redacted>@#Ig')"
+  log_dir="${XDG_STATE_HOME:-$HOME/.local/state}/installer-launcher/logs"
+  mkdir -p "$log_dir" 2>/dev/null || return 0
+  log_file="${log_dir}/installer-launcher-$(date +%Y%m%d).log"
+  printf '%s | ERROR | pid=%s | bootstrap | %s\n' "$(date '+%Y-%m-%d %H:%M:%S')" "$$" "$message" >>"$log_file" 2>/dev/null || true
+}
+
 SCRIPT_PATH="${BASH_SOURCE[0]}"
 while [[ -L "$SCRIPT_PATH" ]]; do
   SCRIPT_LINK_DIR="$(cd -P "$(dirname "$SCRIPT_PATH")" && pwd)"
@@ -28,6 +38,7 @@ if [[ ! -f "$SCRIPT_DIR/lib/bootstrap.sh" ]]; then
 fi
 
 if [[ ! -f "$SCRIPT_DIR/lib/bootstrap.sh" ]]; then
+  early_log "missing bootstrap: script_dir=$SCRIPT_DIR default_dir=${XDG_DATA_HOME:-$HOME/.local/share}/installer-launcher args=$*"
   printf 'Error: 无法找到启动器模块: %s/lib/bootstrap.sh\n' "$SCRIPT_DIR" >&2
   printf '已尝试默认安装目录: %s\n' "${XDG_DATA_HOME:-$HOME/.local/share}/installer-launcher" >&2
   exit 1

@@ -14,6 +14,8 @@
 - [x] 如果解析真实路径后仍找不到 `lib/bootstrap.sh`，入口脚本会回退到 `${XDG_DATA_HOME:-$HOME/.local/share}/installer-launcher`。
 - [x] 支持启动时自动检查启动器更新，默认启用，检查间隔 60 分钟。
 - [x] 支持 TUI 启动欢迎页，默认显示，可在启动器主配置中关闭。
+- [x] 支持统一日志系统，默认 DEBUG 级别，异常退出时记录崩溃上下文。
+- [x] 支持 `show-log [lines]` 查看当前日志路径和最近日志内容。
 - [x] 支持卸载启动器自身，卸载时移除命令注册、配置目录和缓存目录。
 - [x] `AGENTS.md` 已创建，用于记录项目约定、编码风格和验证规则。
 - [x] `README.md` 已创建，用于面向用户说明安装、TUI/CLI 使用、配置、下载策略和卸载。
@@ -23,7 +25,7 @@
 
 ## 项目结构
 
-- [x] `lib/core.sh`：应用常量、通用工具、项目键校验。
+- [x] `lib/core.sh`：应用常量、通用工具、日志系统、崩溃捕获、项目键校验。
 - [x] `lib/projects.sh`：项目注册表、安装器 URL 列表、支持参数、管理脚本列表。
 - [x] `lib/config.sh`：主配置和项目配置的创建、加载、保存、展示。
 - [x] `lib/ui.sh`：dialog/text UI 适配、动态尺寸、确认框、文本查看器。
@@ -35,10 +37,11 @@
 
 ## 配置与项目选择
 
-- [x] 主配置包含 `CURRENT_PROJECT`、`AUTO_UPDATE_ENABLED`、`SHOW_WELCOME_SCREEN`、`AUTO_UPDATE_LAST_CHECK`。
+- [x] 主配置包含 `CURRENT_PROJECT`、`AUTO_UPDATE_ENABLED`、`SHOW_WELCOME_SCREEN`、`LOG_LEVEL`、`AUTO_UPDATE_LAST_CHECK`。
 - [x] `CURRENT_PROJECT` 默认为空，不再隐式回填 `sd_webui`。
 - [x] `AUTO_UPDATE_ENABLED` 默认为 `1`。
 - [x] `SHOW_WELCOME_SCREEN` 默认为 `1`。
+- [x] `LOG_LEVEL` 默认为 `DEBUG`，可设置为 `DEBUG`、`INFO`、`WARN`、`ERROR`。
 - [x] `null` / `NULL` / `none` / `nil` / `undefined` 会被视为未选择。
 - [x] 未选择项目时，TUI 显示“未选择”，需要项目上下文的操作会提示先选择安装器。
 - [x] `set-main CURRENT_PROJECT null` 可清空当前项目。
@@ -66,6 +69,20 @@
 - [x] 所有下载源都失败时返回错误，并打印已尝试的下载地址。
 - [x] 已移除“仅下载安装器”功能。
 - [x] 下载阶段使用普通文本提示，不再使用 dialog 进度条。
+
+## 日志与崩溃记录
+
+- [x] 日志目录为 `${XDG_STATE_HOME:-$HOME/.local/state}/installer-launcher/logs/`。
+- [x] 日志文件按日期写入 `installer-launcher-YYYYMMDD.log`。
+- [x] 默认日志级别为 `DEBUG`，可通过主配置修改，不自动清理旧日志。
+- [x] 已提供 `log_debug`、`log_info`、`log_warn`、`log_error` helper。
+- [x] `main` 启动时初始化日志并注册 `ERR` trap。
+- [x] `die()` 会同时写入 `ERROR` 日志。
+- [x] bootstrap 前找不到 `lib/bootstrap.sh` 时会用 early log 记录有限错误信息。
+- [x] 崩溃日志记录退出码、失败命令、行号、调用栈和当前命令参数。
+- [x] 已记录启动、配置变更、自动更新、下载源尝试、PowerShell 执行、管理脚本运行、项目卸载和启动器卸载等关键操作。
+- [x] 对代理、镜像、额外参数和 token/password/key 类内容做日志脱敏。
+- [x] 日志写入失败不影响主流程，最多向 stderr 提示一次。
 
 ## 启动器自身安装与卸载
 
@@ -134,9 +151,11 @@
 - [x] 已移除 `download-only`。
 - [x] 已添加 `install-launcher` 和 `uninstall-launcher`。
 - [x] 已添加 `uninstall [project]`。
+- [x] 已添加 `show-log [lines]`。
 - [x] CLI 帮助文本已与当前命令保持一致。
 - [x] `set-main AUTO_UPDATE_ENABLED 0/1` 可关闭或开启启动时自动更新。
 - [x] `set-main SHOW_WELCOME_SCREEN 0/1` 可关闭或开启 TUI 启动欢迎页。
+- [x] `set-main LOG_LEVEL DEBUG|INFO|WARN|ERROR` 可修改日志等级。
 
 ## macOS 兼容
 
@@ -150,16 +169,24 @@
 - [x] `AGENTS.md` 已记录项目结构、编码风格、实现规则和验证要求。
 - [x] `README.md` 已记录项目介绍、环境要求、快速开始、安装命令、TUI/CLI 用法、配置位置、下载策略、管理脚本和卸载方式。
 - [x] `README.md` 已补充从 GitHub 获取源码、源码压缩包安装、注册命令和更新启动器的方法。
+- [x] `README.md` 安装章节中的源码目录已改为 `$HOME/.local/share/sd-webui-all-in-one-launcher`。
+- [x] `README.md` 已补充 `install-launcher` 如何创建命令链接、写入 PATH，以及手动注册 PATH 的方法。
 - [x] `README.md` 已补充已安装软件卸载和双确认说明。
 - [x] `README.md` 已补充自动更新和 dialog 操作说明。
 - [x] `todo.md` 已移动到 `docs/todo.md`。
 - [x] `docs/architecture.md` 已记录入口脚本、模块职责、配置数据流、TUI 数据流、安装器运行流程和安装检测逻辑。
 - [x] `docs/architecture.md` 已补充项目卸载流程和双确认要求。
 - [x] `docs/architecture.md` 已补充自动更新和启动欢迎页流程。
+- [x] `docs/architecture.md` 已补充日志系统和崩溃捕获流程。
 - [x] TUI 帮助文档已随用户可见行为更新。
 - [x] `docs/todo.md` 已重新整理为分组状态板。
 - [x] TUI 帮助文档已补充启动器自身安装、命令注册和卸载行为。
 - [x] TUI 帮助文档已补充安装器多下载源重试行为。
+- [x] TUI 帮助文档已补充日志位置、崩溃记录和 CLI 查看日志方法。
+- [x] TUI 帮助文档已补充日志等级设置说明。
+- [x] `README.md` 已补充日志位置、崩溃记录、脱敏策略和 `show-log` 命令。
+- [x] `README.md` 已补充日志等级设置方法。
+- [x] `AGENTS.md` 已补充日志规则和敏感信息脱敏要求。
 
 ## 验证记录
 
@@ -178,9 +205,18 @@
 - [x] 验证版本比较函数可在 `bash -u` 下判断 `0.3.1 > 0.3.0`。
 - [x] 验证 `set-main AUTO_UPDATE_ENABLED 0` 可关闭自动更新，并且普通 CLI 命令不再触发启动更新检查。
 - [x] 验证 `set-main SHOW_WELCOME_SCREEN 0` 可保存欢迎页开关。
+- [x] 验证 `set-main LOG_LEVEL INFO` 可保存日志等级。
+- [x] 验证 `LOG_LEVEL=INFO/WARN` 会按最低等级过滤日志，非法等级会被拒绝。
 - [x] 验证卸载路径保护会拒绝根目录、HOME 目录和相对路径。
 - [x] 验证项目卸载最终确认输入错误时不会删除安装目录。
 - [x] 验证项目卸载最终确认输入正确时会删除安装目录。
+- [x] 验证 `--help` 启动后会生成当天日志文件。
+- [x] 验证 `show-log 20` 可输出日志路径和最近日志内容。
+- [x] 验证 `list-projects` 会记录启动和命令分发日志。
+- [x] 验证下载失败时会记录下载 URL 和失败状态。
+- [x] 验证 `ERR` trap 会记录退出码、失败命令、行号和调用栈。
+- [x] 验证 bootstrap 前找不到模块时会写入 early log，并对 token 类参数脱敏。
+- [x] 验证代理配置和 token/password 类参数在日志中已脱敏。
 
 ## 待办
 

@@ -50,20 +50,21 @@ brew install bash
 推荐使用 `git` 获取启动器源码：
 
 ```bash
-git clone https://github.com/licyk/sd-webui-all-in-one-launcher.git
-cd sd-webui-all-in-one-launcher
+git clone https://github.com/licyk/sd-webui-all-in-one-launcher.git \
+  "$HOME/.local/share/sd-webui-all-in-one-launcher"
+cd "$HOME/.local/share/sd-webui-all-in-one-launcher"
 chmod +x installer_launcher.sh
 ```
 
 如果没有 `git`，也可以下载源码压缩包：
 
 ```bash
-curl -L -o sd-webui-all-in-one-launcher.tar.gz \
+curl -L -o "$HOME/.local/share/sd-webui-all-in-one-launcher.tar.gz" \
   https://github.com/licyk/sd-webui-all-in-one-launcher/archive/refs/heads/main.tar.gz
-mkdir -p sd-webui-all-in-one-launcher
-tar -xzf sd-webui-all-in-one-launcher.tar.gz \
-  --strip-components=1 -C sd-webui-all-in-one-launcher
-cd sd-webui-all-in-one-launcher
+mkdir -p "$HOME/.local/share/sd-webui-all-in-one-launcher"
+tar -xzf "$HOME/.local/share/sd-webui-all-in-one-launcher.tar.gz" \
+  --strip-components=1 -C "$HOME/.local/share/sd-webui-all-in-one-launcher"
+cd "$HOME/.local/share/sd-webui-all-in-one-launcher"
 chmod +x installer_launcher.sh
 ```
 
@@ -79,6 +80,12 @@ chmod +x installer_launcher.sh
 ./installer_launcher.sh install-launcher
 ```
 
+这个命令会做三件事：
+
+1. 将启动器安装到用户数据目录。
+2. 创建命令链接 `$HOME/.local/bin/installer-launcher`。
+3. 根据当前 shell，将 `$HOME/.local/bin` 写入 shell 配置文件中的 PATH 注册块。
+
 默认安装位置：
 
 ```text
@@ -91,10 +98,36 @@ ${XDG_DATA_HOME:-$HOME/.local/share}/installer-launcher
 $HOME/.local/bin/installer-launcher
 ```
 
+自动写入的 shell 配置文件通常是：
+
+```text
+bash: $HOME/.bashrc
+zsh:  $HOME/.zshrc
+其他: $HOME/.profile
+```
+
 安装后重新打开终端，或执行脚本提示的 `source <shell rc file>` 命令，然后可以直接运行：
 
 ```bash
 installer-launcher tui
+```
+
+如果命令注册没有生效，可以手动把下面内容加入当前 shell 的配置文件：
+
+```bash
+export PATH="$HOME/.local/bin:$PATH"
+```
+
+然后重新打开终端，或执行：
+
+```bash
+source ~/.bashrc
+```
+
+如果使用 zsh，则执行：
+
+```bash
+source ~/.zshrc
 ```
 
 更新启动器也使用同一个命令：
@@ -265,6 +298,12 @@ dialog 常用操作：
 ./installer_launcher.sh run-script launch.ps1
 ```
 
+查看当前日志：
+
+```bash
+./installer_launcher.sh show-log 120
+```
+
 ## 配置位置
 
 主配置：
@@ -284,6 +323,41 @@ ${XDG_CONFIG_HOME:-$HOME/.config}/installer-launcher/projects/<project>.conf
 ```text
 ${XDG_CACHE_HOME:-$HOME/.cache}/installer-launcher/installers/<project>/
 ```
+
+日志目录：
+
+```text
+${XDG_STATE_HOME:-$HOME/.local/state}/installer-launcher/logs/
+```
+
+## 日志与崩溃记录
+
+启动器会记录运行日志，默认级别为 `DEBUG`，不会自动删除旧日志。日志按日期写入：
+
+```text
+installer-launcher-YYYYMMDD.log
+```
+
+日志会记录启动参数、配置加载与修改、自动更新检查、安装器下载源尝试、PowerShell 脚本执行、管理脚本运行、项目卸载和启动器卸载等关键操作。
+
+日志等级表示最低写入级别，可选 `DEBUG`、`INFO`、`WARN`、`ERROR`。例如设置为 `WARN` 时，只写入警告和错误。
+
+修改日志等级：
+
+```bash
+./installer_launcher.sh set-main LOG_LEVEL INFO
+```
+
+当脚本因为未处理错误异常退出时，会通过 `ERR` trap 写入崩溃记录，包括退出码、失败命令、行号、调用栈和当前命令参数。这样可以帮助定位“没有任何输出就退出”的问题。
+
+查看最近日志：
+
+```bash
+./installer_launcher.sh show-log
+./installer_launcher.sh show-log 200
+```
+
+日志会保留安装路径、项目名和脚本名，方便排查；代理地址、镜像地址、额外参数中的 token、password、key 等敏感内容会做脱敏处理。
 
 ## 安装器下载策略
 

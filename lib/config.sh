@@ -4,10 +4,12 @@
 ensure_main_config() {
   mkdir -p "$CONFIG_HOME" "$PROJECT_CONFIG_DIR"
   if [[ ! -f "$MAIN_CONFIG_FILE" ]]; then
+    log_info "create main config: $MAIN_CONFIG_FILE"
     {
       printf 'CURRENT_PROJECT=""\n'
       printf 'AUTO_UPDATE_ENABLED="1"\n'
       printf 'SHOW_WELCOME_SCREEN="1"\n'
+      printf 'LOG_LEVEL="DEBUG"\n'
       printf 'AUTO_UPDATE_LAST_CHECK="0"\n'
     } >"$MAIN_CONFIG_FILE"
   fi
@@ -19,6 +21,7 @@ ensure_project_config() {
   branch="$(project_default_branch "$key")"
   mkdir -p "$PROJECT_CONFIG_DIR"
   if [[ ! -f "$file" ]]; then
+    log_info "create project config: project=$key file=$file"
     {
       printf 'INSTALL_PATH=""\n'
       printf 'INSTALL_BRANCH=%s\n' "$(quote_config "$branch")"
@@ -45,6 +48,18 @@ ensure_project_config() {
   fi
 }
 
+load_log_level_hint() {
+  local saved_level
+  [[ -f "$MAIN_CONFIG_FILE" ]] || return 0
+  # shellcheck disable=SC1090
+  source "$MAIN_CONFIG_FILE"
+  if saved_level="$(normalize_log_level "${LOG_LEVEL:-DEBUG}")"; then
+    LOG_LEVEL="$saved_level"
+  else
+    LOG_LEVEL="DEBUG"
+  fi
+}
+
 load_main_config() {
   ensure_main_config
   # shellcheck disable=SC1090
@@ -52,6 +67,10 @@ load_main_config() {
   CURRENT_PROJECT="$(normalize_project_key_value "${CURRENT_PROJECT:-}")"
   AUTO_UPDATE_ENABLED="${AUTO_UPDATE_ENABLED:-1}"
   SHOW_WELCOME_SCREEN="${SHOW_WELCOME_SCREEN:-1}"
+  if ! LOG_LEVEL="$(normalize_log_level "${LOG_LEVEL:-DEBUG}")"; then
+    LOG_LEVEL="DEBUG"
+    log_warn "invalid LOG_LEVEL in main config, reset to DEBUG"
+  fi
   AUTO_UPDATE_LAST_CHECK="${AUTO_UPDATE_LAST_CHECK:-0}"
 }
 
@@ -61,8 +80,10 @@ save_main_config() {
     printf 'CURRENT_PROJECT=%s\n' "$(quote_config "$CURRENT_PROJECT")"
     printf 'AUTO_UPDATE_ENABLED=%s\n' "$(quote_config "$AUTO_UPDATE_ENABLED")"
     printf 'SHOW_WELCOME_SCREEN=%s\n' "$(quote_config "$SHOW_WELCOME_SCREEN")"
+    printf 'LOG_LEVEL=%s\n' "$(quote_config "$LOG_LEVEL")"
     printf 'AUTO_UPDATE_LAST_CHECK=%s\n' "$(quote_config "$AUTO_UPDATE_LAST_CHECK")"
   } >"$MAIN_CONFIG_FILE"
+  log_debug "saved main config: file=$MAIN_CONFIG_FILE current_project=${CURRENT_PROJECT:-<none>} auto_update=$AUTO_UPDATE_ENABLED welcome=$SHOW_WELCOME_SCREEN log_level=$LOG_LEVEL last_check=$AUTO_UPDATE_LAST_CHECK"
 }
 
 reset_project_config_vars() {
@@ -114,6 +135,7 @@ save_project_config() {
       printf '%s=%s\n' "$var" "$(quote_config "${!var:-}")"
     done < <(script_entries_for_project "$key")
   } >"$file"
+  log_debug "saved project config: project=$key file=$file install_path=${INSTALL_PATH:-<default>} branch=${INSTALL_BRANCH:-<none>} extra_args=$(sanitize_config_log_value EXTRA_INSTALL_ARGS "${EXTRA_INSTALL_ARGS:-}")"
 }
 
 load_all_config() {
@@ -166,6 +188,7 @@ set_project_config_key() {
       config_key_supported_by_project "$key" "$config_key" || die "$(project_name "$key") 不支持配置项: $config_key"
       printf -v "$config_key" '%s' "$value"
       save_project_config "$key"
+      log_info "project config updated: project=$key key=$config_key value=$(sanitize_config_log_value "$config_key" "$value")"
       ;;
     *) die "不支持的项目配置项: $config_key" ;;
   esac
@@ -182,6 +205,7 @@ Project config: $(project_config_file "$key")
 CURRENT_PROJECT=$CURRENT_PROJECT
 AUTO_UPDATE_ENABLED=$AUTO_UPDATE_ENABLED
 SHOW_WELCOME_SCREEN=$SHOW_WELCOME_SCREEN
+LOG_LEVEL=$LOG_LEVEL
 AUTO_UPDATE_LAST_CHECK=$AUTO_UPDATE_LAST_CHECK
 
 [$key] $(project_name "$key")

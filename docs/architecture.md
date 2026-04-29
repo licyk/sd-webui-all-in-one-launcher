@@ -28,6 +28,7 @@ installer_launcher.sh
 - PowerShell 安装器下载和执行集中在 `lib/runner.sh`。
 - 启动器自身安装/卸载集中在 `lib/self_manage.sh`。
 - 启动器自动更新检查集中在 `lib/self_manage.sh`，启动分发由 `lib/cli.sh` 调用。
+- 日志和异常退出记录集中在 `lib/core.sh`，由 `lib/cli.sh` 启动时初始化。
 
 ## 入口脚本
 
@@ -68,11 +69,13 @@ installer_launcher.sh
 主要内容：
 
 - `APP_NAME`、`APP_TITLE`、`APP_VERSION`。
-- 配置和缓存路径常量。
+- 配置、缓存和状态路径常量。
 - 自动更新检查间隔常量。
 - `CURRENT_PROJECT` 默认值。
 - 自动更新和欢迎页默认值。
 - `PROJECT_CONFIG_KEYS`。
+- 日志初始化、日志级别判断、日志写入和敏感信息脱敏。
+- `ERR` trap 崩溃记录和调用栈输出。
 - `die`、`info`、`need_cmd`。
 - `normalize_project_key_value`。
 - `require_project_key`。
@@ -141,6 +144,7 @@ ${XDG_CONFIG_HOME:-$HOME/.config}/installer-launcher/projects/<project>.conf
 - `CURRENT_PROJECT`
 - `AUTO_UPDATE_ENABLED`
 - `SHOW_WELCOME_SCREEN`
+- `LOG_LEVEL`
 - `AUTO_UPDATE_LAST_CHECK`
 
 项目配置保存安装路径、分支、镜像、代理、额外参数和子脚本默认参数。
@@ -288,10 +292,11 @@ uninstall_project
 - `config [project]`
 - `install-launcher`
 - `uninstall-launcher`
+- `show-log [lines]`
 
 未传命令时默认进入 `tui`。
 
-启动时 `main` 会先加载配置、初始化 UI、按间隔执行自动更新检查，再分发具体命令。
+启动时 `main` 会先初始化日志和崩溃捕获，再加载配置、初始化 UI、按间隔执行自动更新检查，最后分发具体命令。
 
 ## 配置数据流
 
@@ -299,6 +304,8 @@ uninstall_project
 
 ```text
 main
+├── init_logging
+├── register_crash_trap
 ├── load_all_config
 │   ├── load_main_config
 │   └── load_project_config 当前项目
@@ -308,6 +315,35 @@ main
 ```
 
 项目配置只在当前项目有效时加载。如果 `CURRENT_PROJECT` 为空或无效，项目配置变量会被重置为空。
+
+## 日志数据流
+
+日志目录：
+
+```text
+${XDG_STATE_HOME:-$HOME/.local/state}/installer-launcher/logs/
+```
+
+日志文件按日期写入：
+
+```text
+installer-launcher-YYYYMMDD.log
+```
+
+日志默认级别为 `DEBUG`，可通过主配置 `LOG_LEVEL` 调整为 `INFO`、`WARN` 或 `ERROR`，不自动清理旧日志。写入失败不会中断主流程。
+
+主要记录内容：
+
+- 启动命令、参数、脚本路径、配置路径和状态路径。
+- 主配置和项目配置创建、保存、修改。
+- 自动更新检查结果、远程版本和更新结果。
+- 安装器下载源尝试、失败和成功源。
+- PowerShell 安装器、管理脚本执行摘要和返回码。
+- 项目卸载和启动器卸载的确认、目标路径和结果。
+
+异常退出时，`ERR` trap 会记录退出码、失败命令、行号、调用栈和当前命令参数。
+
+日志会保留项目名、安装路径和脚本名；代理、镜像、额外参数和 token/password/key 类内容会做脱敏处理。
 
 ## TUI 数据流
 

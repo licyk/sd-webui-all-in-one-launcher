@@ -157,6 +157,7 @@ configure_main() {
       "project" "当前安装器: $(current_project_label)" \
       "auto_update" "启动时自动检查更新: $(flag_state "$AUTO_UPDATE_ENABLED")" \
       "welcome" "启动欢迎界面: $(flag_state "$SHOW_WELCOME_SCREEN")" \
+      "log_level" "日志等级: $LOG_LEVEL" \
       "back" "返回")" || return 0
     case "$choice" in
       project) change_current_project ;;
@@ -172,6 +173,16 @@ configure_main() {
           SHOW_WELCOME_SCREEN=0
         else
           SHOW_WELCOME_SCREEN=1
+        fi
+        ;;
+      log_level)
+        choice="$(menu_select "日志等级" "选择写入日志文件的最低等级" \
+          "DEBUG" "DEBUG: 记录最详细信息，适合排查问题" \
+          "INFO" "INFO: 记录常规操作和警告错误" \
+          "WARN" "WARN: 只记录警告和错误" \
+          "ERROR" "ERROR: 只记录错误和崩溃")" || true
+        if [[ -n "${choice:-}" ]]; then
+          LOG_LEVEL="$choice"
         fi
         ;;
       back) save_main_config; return 0 ;;
@@ -297,6 +308,7 @@ dialog 操作方式
     当前安装器: 可重新选择当前项目，或在 CLI 中使用 null 清空当前项目。
     启动时自动检查更新: 控制是否每 60 分钟检查一次启动器更新。
     启动欢迎界面: 控制进入 TUI 时是否显示第一屏欢迎和操作提示。
+    日志等级: 控制写入日志文件的最低等级，可选 DEBUG、INFO、WARN、ERROR。
     注意: 实际安装路径优先看项目配置里的安装路径；未设置才使用默认安装路径。
 
   安装/更新启动器
@@ -322,6 +334,16 @@ dialog 操作方式
     \${XDG_CONFIG_HOME:-\$HOME/.config}/installer-launcher/projects/<project>.conf
   安装器缓存:
     \${XDG_CACHE_HOME:-\$HOME/.cache}/installer-launcher/installers/<project>/
+  日志目录:
+    \${XDG_STATE_HOME:-\$HOME/.local/state}/installer-launcher/logs/
+
+日志与崩溃记录
+  默认日志级别为 DEBUG，可在 "启动器主配置" 中调整为 INFO、WARN 或 ERROR。
+  日志等级表示最低写入级别；例如 WARN 只写入 WARN 和 ERROR。
+  日志不会自动清理旧文件。
+  启动、配置变更、下载、安装、管理脚本运行、卸载和自动更新都会写入日志。
+  脚本异常退出时，会记录失败命令、退出码、行号和调用栈。
+  日志会脱敏代理、镜像、自定义参数以及 token/password/key 类字段。
 
 常见情况
   提示尚未选择安装器:
@@ -350,8 +372,12 @@ CLI 辅助命令
     关闭启动时自动检查更新；使用 1 可重新开启。
   ./installer_launcher.sh set-main SHOW_WELCOME_SCREEN 0
     关闭 TUI 启动欢迎界面；使用 1 可重新开启。
+  ./installer_launcher.sh set-main LOG_LEVEL INFO
+    设置日志等级。可选 DEBUG、INFO、WARN、ERROR。
   ./installer_launcher.sh config [project]
     查看项目配置。未传 project 时使用当前项目。
+  ./installer_launcher.sh show-log [lines]
+    显示当前日志文件路径和最近日志内容，默认显示 80 行。
   ./installer_launcher.sh uninstall [project]
     卸载某个已安装软件。未传 project 时使用当前项目。
   ./installer_launcher.sh install-launcher
@@ -379,6 +405,7 @@ show_welcome_screen() {
 当前版本: $APP_VERSION
 当前安装器: $(current_project_label)
 自动检查更新: $(flag_state "$AUTO_UPDATE_ENABLED")
+日志等级: $LOG_LEVEL
 更新检查间隔: 60 分钟
 
 启动提示:

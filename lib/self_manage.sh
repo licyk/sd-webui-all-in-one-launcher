@@ -28,17 +28,22 @@ launcher_shell_rc_candidates() {
 download_launcher_source() {
   local target_dir="$1" archive_path
   mkdir -p "$target_dir"
+  log_info "launcher source download start: target=$target_dir"
 
   if need_cmd git; then
+    log_debug "launcher source download using git: repo=$SELF_REPO_URL"
     git clone --depth 1 "$SELF_REPO_URL" "$target_dir"
+    log_info "launcher source download success with git: target=$target_dir"
     return 0
   fi
 
   need_cmd tar || die "未找到 git 或 tar，无法安装启动器。"
   archive_path="${target_dir}.tar.gz"
+  log_debug "launcher source download using archive: url=$SELF_ARCHIVE_URL"
   download_file "$SELF_ARCHIVE_URL" "$archive_path"
   tar -xzf "$archive_path" --strip-components=1 -C "$target_dir"
   rm -f "$archive_path"
+  log_info "launcher source download success with archive: target=$target_dir"
 }
 
 install_launcher_files() {
@@ -48,6 +53,7 @@ install_launcher_files() {
 
   rm -rf "$stage_dir" "$backup_dir"
   mkdir -p "$(dirname "$SELF_INSTALL_DIR")" "$stage_dir"
+  log_info "launcher install files: source=$source_dir target=$SELF_INSTALL_DIR"
   cp -R "$source_dir/." "$stage_dir"
   rm -rf "$stage_dir/.git"
   chmod +x "$stage_dir/installer_launcher.sh"
@@ -57,12 +63,14 @@ install_launcher_files() {
   fi
   mv "$stage_dir" "$SELF_INSTALL_DIR"
   rm -rf "$backup_dir"
+  log_info "launcher install files complete: target=$SELF_INSTALL_DIR"
 }
 
 register_launcher_command() {
   local rc_file
   mkdir -p "$SELF_BIN_DIR"
   ln -sfn "$SELF_INSTALL_DIR/installer_launcher.sh" "$SELF_COMMAND_PATH"
+  log_info "launcher command registered: command=$SELF_COMMAND_PATH target=$SELF_INSTALL_DIR/installer_launcher.sh"
 
   rc_file="$(launcher_shell_rc_file)"
   mkdir -p "$(dirname "$rc_file")"
@@ -74,6 +82,9 @@ register_launcher_command() {
       printf 'export PATH="$HOME/.local/bin:$PATH"\n'
       printf '%s\n' "$SELF_PATH_MARK_END"
     } >>"$rc_file"
+    log_info "launcher PATH block added: rc_file=$rc_file"
+  else
+    log_debug "launcher PATH block already exists: rc_file=$rc_file"
   fi
 }
 
@@ -94,8 +105,10 @@ unregister_launcher_command() {
   local rc_file
   if [[ -L "$SELF_COMMAND_PATH" ]]; then
     rm -f "$SELF_COMMAND_PATH"
+    log_info "launcher command link removed: $SELF_COMMAND_PATH"
   elif [[ -e "$SELF_COMMAND_PATH" ]]; then
     info "跳过删除非符号链接命令文件: $SELF_COMMAND_PATH"
+    log_warn "launcher command path is not symlink, skipped: $SELF_COMMAND_PATH"
   fi
 
   while IFS= read -r rc_file; do
@@ -146,30 +159,37 @@ install_launcher_from_source() {
   local temp_dir source_dir
   temp_dir="$(mktemp -d "${TMPDIR:-/tmp}/installer-launcher-src.XXXXXX")" || return 1
   source_dir="$temp_dir/source"
+  log_info "launcher install from source start: temp=$temp_dir"
   if ! download_launcher_source "$source_dir"; then
     rm -rf "$temp_dir"
+    log_error "launcher install failed while downloading source"
     return 1
   fi
   if ! install_launcher_files "$source_dir"; then
     rm -rf "$temp_dir"
+    log_error "launcher install failed while installing files"
     return 1
   fi
   if ! register_launcher_command; then
     rm -rf "$temp_dir"
+    log_error "launcher install failed while registering command"
     return 1
   fi
   rm -rf "$temp_dir"
+  log_info "launcher install from source finished"
 }
 
 install_launcher() {
   local result
   confirm_screen "安装/更新启动器" "$(launcher_installation_summary)" || {
     info "安装启动器已取消。"
+    log_warn "launcher install canceled by user"
     return 0
   }
 
   if ! result="$(install_launcher_from_source 2>&1)"; then
     [[ -n "$result" ]] && printf '%s\n' "$result" >&2
+    log_error "launcher install failed: $(sanitize_log_message "$result")"
     return 1
   fi
 
@@ -180,17 +200,21 @@ install_launcher() {
 
 uninstall_launcher() {
   local confirm_text="DELETE installer-launcher"
+  log_warn "launcher uninstall warning shown: install_dir=$SELF_INSTALL_DIR config=$CONFIG_HOME cache=$CACHE_HOME"
   confirm_screen "卸载启动器" "$(launcher_uninstall_summary "$confirm_text")" || {
     info "卸载启动器已取消。"
+    log_warn "launcher uninstall canceled at warning"
     return 0
   }
   typed_confirm_screen "最终确认" "将删除启动器安装目录、命令链接、配置目录和缓存目录。
 
 项目本体安装目录不会被删除。" "$confirm_text" || {
     info "最终确认失败，卸载启动器已取消。"
+    log_warn "launcher uninstall final confirmation failed"
     return 0
   }
 
+  log_warn "launcher uninstall deleting: install_dir=$SELF_INSTALL_DIR config=$CONFIG_HOME cache=$CACHE_HOME"
   unregister_launcher_command
   rm -rf "$SELF_INSTALL_DIR" "$CONFIG_HOME" "$CACHE_HOME"
 
@@ -211,6 +235,7 @@ parse_app_version_from_file() {
 fetch_remote_launcher_version() {
   local temp_file version
   temp_file="$(mktemp "${TMPDIR:-/tmp}/installer-launcher-core.XXXXXX")" || return 1
+  log_debug "fetch remote launcher version: url=$SELF_REMOTE_CORE_URL"
   if ! download_file "$SELF_REMOTE_CORE_URL" "$temp_file"; then
     rm -f "$temp_file"
     return 1
@@ -220,6 +245,7 @@ fetch_remote_launcher_version() {
     return 1
   fi
   rm -f "$temp_file"
+  log_info "remote launcher version fetched: version=$version"
   printf '%s' "$version"
 }
 
@@ -265,20 +291,26 @@ check_and_update_launcher_if_due() {
   now="$(date +%s)"
   AUTO_UPDATE_LAST_CHECK="$now"
   save_main_config
+  log_info "auto update check started"
 
   if ! remote_version="$(fetch_remote_launcher_version 2>/dev/null)"; then
     append_startup_notice "自动更新检查失败：无法获取远程版本。将继续运行当前版本。"
+    log_warn "auto update check failed: unable to fetch remote version"
     return 0
   fi
 
   if ! version_is_newer "$remote_version" "$APP_VERSION"; then
+    log_debug "auto update not needed: local=$APP_VERSION remote=$remote_version"
     return 0
   fi
 
+  log_info "auto update available: local=$APP_VERSION remote=$remote_version"
   if update_output="$(install_launcher_from_source 2>&1)"; then
     append_startup_notice "检测到新版本 $remote_version，已自动更新启动器。重新打开终端后将使用新版本。"
+    log_info "auto update success: remote=$remote_version"
   else
     append_startup_notice "检测到新版本 $remote_version，但自动更新失败。将继续运行当前版本。"
     [[ -n "$update_output" ]] && append_startup_notice "$update_output"
+    log_error "auto update failed: remote=$remote_version output=$(sanitize_log_message "$update_output")"
   fi
 }

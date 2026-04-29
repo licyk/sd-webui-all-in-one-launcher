@@ -7,7 +7,7 @@ This project is a Bash-based TUI/CLI launcher for multiple PowerShell installer 
 The entry point is `installer_launcher.sh`. Most behavior lives in `lib/` modules:
 
 - `lib/bootstrap.sh`: sources all modules in the required order.
-- `lib/core.sh`: application constants, global defaults, generic helpers.
+- `lib/core.sh`: application constants, global defaults, logging/crash helpers, generic helpers.
 - `lib/projects.sh`: project registry, installer URLs, supported parameters, management script lists.
 - `lib/config.sh`: main and per-project config creation, loading, saving, validation, display.
 - `lib/ui.sh`: dialog/text UI helpers, dynamic terminal sizing, prompts, viewers.
@@ -55,12 +55,26 @@ Therefore:
 - Avoid command substitutions that may return non-zero unless wrapped safely.
 - Initialize variables before use, especially values passed by name.
 
+## Logging Rules
+
+- Initialize logging from `main` with `init_logging`, then register `register_crash_trap`.
+- Use `log_debug`, `log_info`, `log_warn`, and `log_error` for operational events.
+- Logging must be non-fatal. If log directory or file creation fails, continue the main flow.
+- Default log level is `DEBUG`; users may change it through main config. Do not add automatic old-log cleanup unless explicitly requested.
+- Keep log messages useful for debugging startup, config changes, downloads, PowerShell execution, uninstalls, and auto-update.
+- Do not log obvious secrets directly:
+  - redact `PROXY`, `GITHUB_MIRROR`, `HUGGINGFACE_MIRROR`, and `EXTRA_INSTALL_ARGS` values;
+  - use `format_log_args` or `sanitize_config_log_value` when logging user-provided arguments;
+  - keep project names, script names, install paths, and non-sensitive statuses visible.
+- Bootstrap-before-module errors in `installer_launcher.sh` may use the minimal `early_log` helper.
+
 ## Configuration Rules
 
-- Main config stores `CURRENT_PROJECT`, `AUTO_UPDATE_ENABLED`, `SHOW_WELCOME_SCREEN`, and `AUTO_UPDATE_LAST_CHECK`.
+- Main config stores `CURRENT_PROJECT`, `AUTO_UPDATE_ENABLED`, `SHOW_WELCOME_SCREEN`, `LOG_LEVEL`, and `AUTO_UPDATE_LAST_CHECK`.
 - `CURRENT_PROJECT` defaults to empty. Do not silently default it to a project.
 - `AUTO_UPDATE_ENABLED` defaults to `1`.
 - `SHOW_WELCOME_SCREEN` defaults to `1`.
+- `LOG_LEVEL` defaults to `DEBUG` and must be one of `DEBUG`, `INFO`, `WARN`, or `ERROR`.
 - `null`, `none`, `nil`, and `undefined` are normalized to empty for `CURRENT_PROJECT`.
 - Per-project configs live under:
 
@@ -78,6 +92,12 @@ ${XDG_CONFIG_HOME:-$HOME/.config}/installer-launcher/main.conf
 
 ```text
 ${XDG_CACHE_HOME:-$HOME/.cache}/installer-launcher/installers/<project>/
+```
+
+- Runtime logs live under:
+
+```text
+${XDG_STATE_HOME:-$HOME/.local/state}/installer-launcher/logs/
 ```
 
 - The launcher itself installs to:
