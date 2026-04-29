@@ -34,8 +34,47 @@ using System;
 using System.Runtime.InteropServices;
 
 public class LauncherWindowHelper {
+    [StructLayout(LayoutKind.Sequential)]
+    public struct AccentPolicy {
+        public int AccentState;
+        public int AccentFlags;
+        public int GradientColor;
+        public int AnimationId;
+    }
+
+    [StructLayout(LayoutKind.Sequential)]
+    public struct WindowCompositionAttributeData {
+        public int Attribute;
+        public IntPtr Data;
+        public int SizeOfData;
+    }
+
+    [DllImport("user32.dll")]
+    public static extern int SetWindowCompositionAttribute(IntPtr hwnd, ref WindowCompositionAttributeData data);
+
     [DllImport("dwmapi.dll")]
     public static extern int DwmSetWindowAttribute(IntPtr hwnd, int attr, ref int attrValue, int attrSize);
+
+    public static void SetBlurState(IntPtr hwnd, int state) {
+        var accent = new AccentPolicy();
+        accent.AccentState = state;
+
+        var accentStructSize = Marshal.SizeOf(accent);
+        var accentPtr = Marshal.AllocHGlobal(accentStructSize);
+        Marshal.StructureToPtr(accent, accentPtr, false);
+
+        var data = new WindowCompositionAttributeData();
+        data.Attribute = 19;
+        data.SizeOfData = accentStructSize;
+        data.Data = accentPtr;
+
+        SetWindowCompositionAttribute(hwnd, ref data);
+        Marshal.FreeHGlobal(accentPtr);
+    }
+
+    public static void EnableBlur(IntPtr hwnd) {
+        SetBlurState(hwnd, 3);
+    }
 
     public static void SetDarkMode(IntPtr hwnd, bool enabled) {
         int preference = enabled ? 1 : 0;
@@ -876,6 +915,21 @@ function Collect-ProjectConfigFromUi {
     return $config
 }
 
+function Select-FolderPath {
+    param([string]$InitialPath)
+    $dialog = New-Object System.Windows.Forms.FolderBrowserDialog
+    $dialog.Description = "选择安装路径"
+    $dialog.ShowNewFolderButton = $true
+    if (-not [string]::IsNullOrWhiteSpace($InitialPath) -and (Test-Path -LiteralPath $InitialPath -PathType Container)) {
+        $dialog.SelectedPath = $InitialPath
+    }
+    $result = $dialog.ShowDialog()
+    if ($result -eq [System.Windows.Forms.DialogResult]::OK) {
+        return $dialog.SelectedPath
+    }
+    return $null
+}
+
 function Add-ConfigTextBox {
     param($Panel, $State, [string]$Key, [string]$Label, [string]$Value)
     $block = New-Object System.Windows.Controls.StackPanel
@@ -886,7 +940,31 @@ function Add-ConfigTextBox {
     $box = New-Object System.Windows.Controls.TextBox
     $box.Text = $Value
     $block.Children.Add($text) | Out-Null
-    $block.Children.Add($box) | Out-Null
+    if ($Key -eq "INSTALL_PATH") {
+        $row = New-Object System.Windows.Controls.Grid
+        $col1 = New-Object System.Windows.Controls.ColumnDefinition
+        $col1.Width = New-Object System.Windows.GridLength(1, [System.Windows.GridUnitType]::Star)
+        $col2 = New-Object System.Windows.Controls.ColumnDefinition
+        $col2.Width = New-Object System.Windows.GridLength(86)
+        $row.ColumnDefinitions.Add($col1) | Out-Null
+        $row.ColumnDefinitions.Add($col2) | Out-Null
+        $browseButton = New-Object System.Windows.Controls.Button
+        $browseButton.Content = "选择..."
+        $browseButton.Margin = "8,0,0,0"
+        [System.Windows.Controls.Grid]::SetColumn($box, 0)
+        [System.Windows.Controls.Grid]::SetColumn($browseButton, 1)
+        $row.Children.Add($box) | Out-Null
+        $row.Children.Add($browseButton) | Out-Null
+        $browseButton.Add_Click({
+            $selectedPath = Select-FolderPath $box.Text
+            if (-not [string]::IsNullOrWhiteSpace($selectedPath)) {
+                $box.Text = $selectedPath
+            }
+        }.GetNewClosure())
+        $block.Children.Add($row) | Out-Null
+    } else {
+        $block.Children.Add($box) | Out-Null
+    }
     $Panel.Children.Add($block) | Out-Null
     $State.ConfigControls[$Key] = $box
 }
@@ -1489,46 +1567,274 @@ function Start-App {
         Background="Transparent" ResizeMode="CanResizeWithGrip">
   <Window.Resources>
     <SolidColorBrush x:Key="PrimaryBrush" Color="#0078D4"/>
+    <SolidColorBrush x:Key="PrimaryHoverBrush" Color="#1689DF"/>
+    <SolidColorBrush x:Key="PrimaryPressedBrush" Color="#005A9E"/>
     <SolidColorBrush x:Key="TextMainBrush" Color="$($colors.TextMain)"/>
     <SolidColorBrush x:Key="TextSecBrush" Color="$($colors.TextSec)"/>
     <SolidColorBrush x:Key="BorderBrush" Color="$($colors.Border)"/>
     <SolidColorBrush x:Key="InputBGBrush" Color="$($colors.InputBG)"/>
     <SolidColorBrush x:Key="BtnNormalBrush" Color="$($colors.BtnNormal)"/>
+    <SolidColorBrush x:Key="BtnHoverBrush" Color="$($colors.BtnHover)"/>
+    <SolidColorBrush x:Key="ItemHoverBrush" Color="$($colors.ItemHover)"/>
+    <SolidColorBrush x:Key="HeaderBGBrush" Color="$($colors.HeaderBG)"/>
     <SolidColorBrush x:Key="PanelBGBrush" Color="$($colors.PanelBG)"/>
     <Style TargetType="Button">
       <Setter Property="Background" Value="{DynamicResource BtnNormalBrush}"/>
       <Setter Property="Foreground" Value="{DynamicResource TextMainBrush}"/>
       <Setter Property="BorderBrush" Value="{DynamicResource BorderBrush}"/>
       <Setter Property="BorderThickness" Value="1"/>
-      <Setter Property="Padding" Value="10,6"/>
+      <Setter Property="Padding" Value="12,7"/>
       <Setter Property="Margin" Value="0,0,8,0"/>
+      <Setter Property="Cursor" Value="Hand"/>
+      <Setter Property="Template">
+        <Setter.Value>
+          <ControlTemplate TargetType="Button">
+            <Border x:Name="Bd" Background="{TemplateBinding Background}" BorderBrush="{TemplateBinding BorderBrush}" BorderThickness="{TemplateBinding BorderThickness}" CornerRadius="7" SnapsToDevicePixels="True">
+              <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center" Margin="{TemplateBinding Padding}"/>
+            </Border>
+            <ControlTemplate.Triggers>
+              <Trigger Property="IsMouseOver" Value="True">
+                <Setter TargetName="Bd" Property="Background" Value="{DynamicResource BtnHoverBrush}"/>
+              </Trigger>
+              <Trigger Property="IsPressed" Value="True">
+                <Setter TargetName="Bd" Property="RenderTransform">
+                  <Setter.Value><ScaleTransform ScaleX="0.98" ScaleY="0.98"/></Setter.Value>
+                </Setter>
+              </Trigger>
+              <Trigger Property="IsEnabled" Value="False">
+                <Setter Property="Opacity" Value="0.48"/>
+              </Trigger>
+            </ControlTemplate.Triggers>
+          </ControlTemplate>
+        </Setter.Value>
+      </Setter>
     </Style>
     <Style x:Key="PrimaryButton" TargetType="Button">
-      <Setter Property="Background" Value="#0078D4"/>
+      <Setter Property="Background" Value="{DynamicResource PrimaryBrush}"/>
       <Setter Property="Foreground" Value="White"/>
       <Setter Property="BorderThickness" Value="0"/>
-      <Setter Property="Padding" Value="10,6"/>
+      <Setter Property="Padding" Value="12,7"/>
       <Setter Property="Margin" Value="0,0,8,0"/>
+      <Setter Property="Cursor" Value="Hand"/>
+      <Setter Property="Template">
+        <Setter.Value>
+          <ControlTemplate TargetType="Button">
+            <Border x:Name="Bd" Background="{TemplateBinding Background}" CornerRadius="7" SnapsToDevicePixels="True">
+              <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center" Margin="{TemplateBinding Padding}"/>
+            </Border>
+            <ControlTemplate.Triggers>
+              <Trigger Property="IsMouseOver" Value="True">
+                <Setter TargetName="Bd" Property="Background" Value="{DynamicResource PrimaryHoverBrush}"/>
+              </Trigger>
+              <Trigger Property="IsPressed" Value="True">
+                <Setter TargetName="Bd" Property="Background" Value="{DynamicResource PrimaryPressedBrush}"/>
+                <Setter TargetName="Bd" Property="RenderTransform">
+                  <Setter.Value><ScaleTransform ScaleX="0.98" ScaleY="0.98"/></Setter.Value>
+                </Setter>
+              </Trigger>
+              <Trigger Property="IsEnabled" Value="False">
+                <Setter Property="Opacity" Value="0.48"/>
+              </Trigger>
+            </ControlTemplate.Triggers>
+          </ControlTemplate>
+        </Setter.Value>
+      </Setter>
     </Style>
     <Style TargetType="TextBox">
       <Setter Property="Background" Value="{DynamicResource InputBGBrush}"/>
       <Setter Property="Foreground" Value="{DynamicResource TextMainBrush}"/>
       <Setter Property="BorderBrush" Value="{DynamicResource BorderBrush}"/>
-      <Setter Property="Padding" Value="7,4"/>
+      <Setter Property="BorderThickness" Value="1"/>
+      <Setter Property="Padding" Value="9,6"/>
+      <Setter Property="CaretBrush" Value="{DynamicResource TextMainBrush}"/>
+      <Setter Property="SelectionBrush" Value="{DynamicResource PrimaryBrush}"/>
+      <Setter Property="VerticalContentAlignment" Value="Center"/>
+      <Setter Property="Template">
+        <Setter.Value>
+          <ControlTemplate TargetType="TextBox">
+            <Border x:Name="Bd" Background="{TemplateBinding Background}" BorderBrush="{TemplateBinding BorderBrush}" BorderThickness="{TemplateBinding BorderThickness}" CornerRadius="7">
+              <ScrollViewer x:Name="PART_ContentHost" Margin="{TemplateBinding Padding}" Focusable="False" HorizontalScrollBarVisibility="{TemplateBinding HorizontalScrollBarVisibility}" VerticalScrollBarVisibility="{TemplateBinding VerticalScrollBarVisibility}"/>
+            </Border>
+            <ControlTemplate.Triggers>
+              <Trigger Property="IsKeyboardFocused" Value="True">
+                <Setter TargetName="Bd" Property="BorderBrush" Value="{DynamicResource PrimaryBrush}"/>
+              </Trigger>
+              <Trigger Property="IsEnabled" Value="False">
+                <Setter Property="Opacity" Value="0.55"/>
+              </Trigger>
+            </ControlTemplate.Triggers>
+          </ControlTemplate>
+        </Setter.Value>
+      </Setter>
     </Style>
     <Style TargetType="ComboBox">
       <Setter Property="Background" Value="{DynamicResource InputBGBrush}"/>
       <Setter Property="Foreground" Value="{DynamicResource TextMainBrush}"/>
-      <Setter Property="Padding" Value="6,3"/>
+      <Setter Property="BorderBrush" Value="{DynamicResource BorderBrush}"/>
+      <Setter Property="BorderThickness" Value="1"/>
+      <Setter Property="Padding" Value="9,6"/>
+      <Setter Property="MinHeight" Value="32"/>
+      <Setter Property="SnapsToDevicePixels" Value="True"/>
+      <Setter Property="ScrollViewer.HorizontalScrollBarVisibility" Value="Auto"/>
+      <Setter Property="ScrollViewer.VerticalScrollBarVisibility" Value="Auto"/>
+      <Setter Property="Template">
+        <Setter.Value>
+          <ControlTemplate TargetType="ComboBox">
+            <Grid>
+              <Border x:Name="Bd" Background="{TemplateBinding Background}" BorderBrush="{TemplateBinding BorderBrush}" BorderThickness="{TemplateBinding BorderThickness}" CornerRadius="7"/>
+              <ContentPresenter x:Name="ContentSite" IsHitTestVisible="False" Content="{TemplateBinding SelectionBoxItem}" ContentTemplate="{TemplateBinding SelectionBoxItemTemplate}" ContentStringFormat="{TemplateBinding SelectionBoxItemStringFormat}" Margin="10,0,32,0" VerticalAlignment="Center" HorizontalAlignment="Left"/>
+              <Path x:Name="Arrow" Data="M 0 0 L 4 4 L 8 0 Z" Fill="{DynamicResource TextSecBrush}" HorizontalAlignment="Right" VerticalAlignment="Center" Margin="0,0,12,0"/>
+              <ToggleButton x:Name="ToggleButton" Focusable="False" Background="Transparent" BorderThickness="0" IsChecked="{Binding IsDropDownOpen, Mode=TwoWay, RelativeSource={RelativeSource TemplatedParent}}" ClickMode="Press">
+                <ToggleButton.Template>
+                  <ControlTemplate TargetType="ToggleButton">
+                    <Border Background="Transparent"/>
+                  </ControlTemplate>
+                </ToggleButton.Template>
+              </ToggleButton>
+              <Popup x:Name="Popup" Placement="Bottom" PlacementTarget="{Binding ElementName=ToggleButton}" IsOpen="{TemplateBinding IsDropDownOpen}" AllowsTransparency="True" Focusable="False" PopupAnimation="Slide">
+                <Border Background="{DynamicResource InputBGBrush}" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1" CornerRadius="7" MinWidth="{TemplateBinding ActualWidth}" MaxHeight="{TemplateBinding MaxDropDownHeight}">
+                  <ScrollViewer Margin="4" SnapsToDevicePixels="True">
+                    <ItemsPresenter KeyboardNavigation.DirectionalNavigation="Contained"/>
+                  </ScrollViewer>
+                </Border>
+              </Popup>
+            </Grid>
+            <ControlTemplate.Triggers>
+              <Trigger Property="IsMouseOver" Value="True">
+                <Setter TargetName="Bd" Property="BorderBrush" Value="{DynamicResource PrimaryBrush}"/>
+              </Trigger>
+              <Trigger Property="IsKeyboardFocusWithin" Value="True">
+                <Setter TargetName="Bd" Property="BorderBrush" Value="{DynamicResource PrimaryBrush}"/>
+              </Trigger>
+              <Trigger Property="IsDropDownOpen" Value="True">
+                <Setter TargetName="Arrow" Property="RenderTransform">
+                  <Setter.Value><RotateTransform Angle="180" CenterX="4" CenterY="2"/></Setter.Value>
+                </Setter>
+              </Trigger>
+              <Trigger Property="IsEnabled" Value="False">
+                <Setter Property="Opacity" Value="0.55"/>
+              </Trigger>
+            </ControlTemplate.Triggers>
+          </ControlTemplate>
+        </Setter.Value>
+      </Setter>
+    </Style>
+    <Style TargetType="ComboBoxItem">
+      <Setter Property="Foreground" Value="{DynamicResource TextMainBrush}"/>
+      <Setter Property="Padding" Value="8,6"/>
+      <Setter Property="Template">
+        <Setter.Value>
+          <ControlTemplate TargetType="ComboBoxItem">
+            <Border x:Name="Bd" Background="Transparent" CornerRadius="5" Padding="{TemplateBinding Padding}">
+              <ContentPresenter/>
+            </Border>
+            <ControlTemplate.Triggers>
+              <Trigger Property="IsHighlighted" Value="True">
+                <Setter TargetName="Bd" Property="Background" Value="{DynamicResource ItemHoverBrush}"/>
+              </Trigger>
+              <Trigger Property="IsSelected" Value="True">
+                <Setter TargetName="Bd" Property="Background" Value="{DynamicResource ItemHoverBrush}"/>
+              </Trigger>
+            </ControlTemplate.Triggers>
+          </ControlTemplate>
+        </Setter.Value>
+      </Setter>
     </Style>
     <Style TargetType="TextBlock">
       <Setter Property="Foreground" Value="{DynamicResource TextMainBrush}"/>
     </Style>
     <Style TargetType="CheckBox">
       <Setter Property="Foreground" Value="{DynamicResource TextMainBrush}"/>
+      <Setter Property="Margin" Value="0,0,0,8"/>
+      <Setter Property="Cursor" Value="Hand"/>
+      <Setter Property="Template">
+        <Setter.Value>
+          <ControlTemplate TargetType="CheckBox">
+            <StackPanel Orientation="Horizontal">
+              <Border x:Name="Box" Width="18" Height="18" CornerRadius="5" Background="{DynamicResource InputBGBrush}" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1" Margin="0,0,8,0">
+                <Path x:Name="CheckMark" Data="M 3 9 L 7 13 L 15 4" Stroke="White" StrokeThickness="2" StrokeEndLineCap="Round" StrokeStartLineCap="Round" Visibility="Collapsed"/>
+              </Border>
+              <ContentPresenter VerticalAlignment="Center"/>
+            </StackPanel>
+            <ControlTemplate.Triggers>
+              <Trigger Property="IsMouseOver" Value="True">
+                <Setter TargetName="Box" Property="BorderBrush" Value="{DynamicResource PrimaryBrush}"/>
+              </Trigger>
+              <Trigger Property="IsChecked" Value="True">
+                <Setter TargetName="Box" Property="Background" Value="{DynamicResource PrimaryBrush}"/>
+                <Setter TargetName="Box" Property="BorderBrush" Value="{DynamicResource PrimaryBrush}"/>
+                <Setter TargetName="CheckMark" Property="Visibility" Value="Visible"/>
+              </Trigger>
+              <Trigger Property="IsEnabled" Value="False">
+                <Setter Property="Opacity" Value="0.55"/>
+              </Trigger>
+            </ControlTemplate.Triggers>
+          </ControlTemplate>
+        </Setter.Value>
+      </Setter>
+    </Style>
+    <Style TargetType="TabControl">
+      <Setter Property="Background" Value="Transparent"/>
+      <Setter Property="BorderThickness" Value="0"/>
+    </Style>
+    <Style TargetType="TabItem">
+      <Setter Property="Foreground" Value="{DynamicResource TextMainBrush}"/>
+      <Setter Property="Padding" Value="12,8"/>
+      <Setter Property="Margin" Value="0,0,6,0"/>
+      <Setter Property="Template">
+        <Setter.Value>
+          <ControlTemplate TargetType="TabItem">
+            <Border x:Name="Bd" Background="Transparent" CornerRadius="7" Padding="{TemplateBinding Padding}">
+              <ContentPresenter ContentSource="Header" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+            </Border>
+            <ControlTemplate.Triggers>
+              <Trigger Property="IsMouseOver" Value="True">
+                <Setter TargetName="Bd" Property="Background" Value="{DynamicResource ItemHoverBrush}"/>
+              </Trigger>
+              <Trigger Property="IsSelected" Value="True">
+                <Setter TargetName="Bd" Property="Background" Value="{DynamicResource HeaderBGBrush}"/>
+                <Setter Property="FontWeight" Value="SemiBold"/>
+              </Trigger>
+            </ControlTemplate.Triggers>
+          </ControlTemplate>
+        </Setter.Value>
+      </Setter>
+    </Style>
+    <Style TargetType="ListBox">
+      <Setter Property="Background" Value="{DynamicResource InputBGBrush}"/>
+      <Setter Property="Foreground" Value="{DynamicResource TextMainBrush}"/>
+      <Setter Property="BorderBrush" Value="{DynamicResource BorderBrush}"/>
+      <Setter Property="BorderThickness" Value="1"/>
+      <Setter Property="Padding" Value="4"/>
+    </Style>
+    <Style TargetType="ListBoxItem">
+      <Setter Property="Foreground" Value="{DynamicResource TextMainBrush}"/>
+      <Setter Property="Padding" Value="8,6"/>
+      <Setter Property="HorizontalContentAlignment" Value="Stretch"/>
+      <Setter Property="Template">
+        <Setter.Value>
+          <ControlTemplate TargetType="ListBoxItem">
+            <Border x:Name="Bd" Background="Transparent" CornerRadius="6" Padding="{TemplateBinding Padding}">
+              <ContentPresenter/>
+            </Border>
+            <ControlTemplate.Triggers>
+              <Trigger Property="IsMouseOver" Value="True">
+                <Setter TargetName="Bd" Property="Background" Value="{DynamicResource ItemHoverBrush}"/>
+              </Trigger>
+              <Trigger Property="IsSelected" Value="True">
+                <Setter TargetName="Bd" Property="Background" Value="{DynamicResource HeaderBGBrush}"/>
+                <Setter Property="FontWeight" Value="SemiBold"/>
+              </Trigger>
+            </ControlTemplate.Triggers>
+          </ControlTemplate>
+        </Setter.Value>
+      </Setter>
     </Style>
   </Window.Resources>
   <Border Name="MainBorder" CornerRadius="12" BorderThickness="1" BorderBrush="{DynamicResource BorderBrush}">
+    <Border.Effect>
+      <DropShadowEffect BlurRadius="26" ShadowDepth="0" Opacity="0.22"/>
+    </Border.Effect>
     <Border.Background>
       <LinearGradientBrush StartPoint="0,0" EndPoint="1,1">
         <GradientStop Color="$($colors.WinBG1)" Offset="0"/>
@@ -1549,7 +1855,7 @@ function Start-App {
         </StackPanel>
       </Grid>
       <Grid Grid.Row="1" Margin="18">
-        <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="*"/><RowDefinition Height="150"/></Grid.RowDefinitions>
+        <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="*"/><RowDefinition Height="112"/></Grid.RowDefinitions>
         <Border Grid.Row="0" Background="{DynamicResource PanelBGBrush}" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1" CornerRadius="8" Padding="12" Margin="0,0,0,12">
           <Grid>
             <TextBlock Name="ProjectStatusText" TextWrapping="Wrap"/>
@@ -1557,56 +1863,66 @@ function Start-App {
           </Grid>
         </Border>
         <Grid Grid.Row="1">
-          <Grid.ColumnDefinitions><ColumnDefinition Width="280"/><ColumnDefinition Width="*"/><ColumnDefinition Width="320"/></Grid.ColumnDefinitions>
+          <Grid.ColumnDefinitions><ColumnDefinition Width="300"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
           <Border Grid.Column="0" Background="{DynamicResource PanelBGBrush}" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1" CornerRadius="8" Padding="12" Margin="0,0,12,0">
             <DockPanel>
               <TextBlock DockPanel.Dock="Top" Text="项目" FontSize="16" FontWeight="SemiBold" Margin="0,0,0,10"/>
               <ListBox Name="ProjectList" DisplayMemberPath="Name"/>
             </DockPanel>
           </Border>
-          <Border Grid.Column="1" Background="{DynamicResource PanelBGBrush}" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1" CornerRadius="8" Padding="12" Margin="0,0,12,0">
-            <DockPanel>
-              <StackPanel DockPanel.Dock="Top">
-                <TextBlock Text="安装器配置" FontSize="16" FontWeight="SemiBold" Margin="0,0,0,10"/>
-                <StackPanel Orientation="Horizontal" Margin="0,0,0,10">
-                  <Button Name="SaveConfigBtn" Content="保存配置" Style="{StaticResource PrimaryButton}"/>
-                  <Button Name="RunInstallerBtn" Content="运行安装器" Style="{StaticResource PrimaryButton}"/>
-                  <Button Name="RefreshStatusBtn" Content="刷新状态"/>
-                </StackPanel>
-              </StackPanel>
-              <ScrollViewer VerticalScrollBarVisibility="Auto">
-                <StackPanel Name="ConfigPanel"/>
-              </ScrollViewer>
-            </DockPanel>
-          </Border>
-          <Border Grid.Column="2" Background="{DynamicResource PanelBGBrush}" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1" CornerRadius="8" Padding="12">
-            <StackPanel>
-              <TextBlock Text="管理脚本" FontSize="16" FontWeight="SemiBold" Margin="0,0,0,10"/>
-              <ComboBox Name="ScriptCombo" Margin="0,0,0,8"/>
-              <TextBox Name="ScriptArgsBox" Height="60" AcceptsReturn="True" TextWrapping="Wrap" Margin="0,0,0,10" ToolTip="保存给当前管理脚本的默认参数"/>
-              <StackPanel Orientation="Horizontal" Margin="0,0,0,14">
-                <Button Name="SaveScriptArgsBtn" Content="保存脚本参数"/>
-                <Button Name="RunScriptBtn" Content="运行脚本" Style="{StaticResource PrimaryButton}"/>
-              </StackPanel>
-              <TextBlock Text="启动器设置" FontSize="16" FontWeight="SemiBold" Margin="0,6,0,10"/>
-              <CheckBox Name="AutoUpdateCheck" Content="启动时自动检查更新" Margin="0,0,0,8"/>
-              <CheckBox Name="WelcomeCheck" Content="启动时显示欢迎提示" Margin="0,0,0,8"/>
-              <TextBlock Text="日志等级" Margin="0,0,0,4"/>
-              <ComboBox Name="LogLevelCombo" Margin="0,0,0,8"/>
-              <TextBlock Text="代理模式" Margin="0,0,0,4"/>
-              <ComboBox Name="ProxyModeCombo" Margin="0,0,0,8"/>
-              <TextBlock Text="手动代理地址" Margin="0,0,0,4"/>
-              <TextBox Name="ManualProxyBox" Margin="0,0,0,10"/>
-              <StackPanel Orientation="Horizontal" Margin="0,0,0,10">
-                <Button Name="SaveMainBtn" Content="保存设置" Style="{StaticResource PrimaryButton}"/>
-                <Button Name="CheckUpdateBtn" Content="检查更新"/>
-              </StackPanel>
-              <StackPanel Orientation="Horizontal">
-                <Button Name="UninstallBtn" Content="卸载已安装软件"/>
-                <Button Name="HelpBtn" Content="帮助"/>
-                <Button Name="ShowLogBtn" Content="日志"/>
-              </StackPanel>
-            </StackPanel>
+          <Border Grid.Column="1" Background="{DynamicResource PanelBGBrush}" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1" CornerRadius="8" Padding="12">
+            <TabControl>
+              <TabItem Header="安装器配置">
+                <DockPanel Margin="2,10,2,0">
+                  <StackPanel DockPanel.Dock="Top" Orientation="Horizontal" Margin="0,0,0,12">
+                    <Button Name="SaveConfigBtn" Content="保存配置" Style="{StaticResource PrimaryButton}"/>
+                    <Button Name="RunInstallerBtn" Content="运行安装器" Style="{StaticResource PrimaryButton}"/>
+                    <Button Name="RefreshStatusBtn" Content="刷新状态"/>
+                  </StackPanel>
+                  <ScrollViewer VerticalScrollBarVisibility="Auto">
+                    <StackPanel Name="ConfigPanel"/>
+                  </ScrollViewer>
+                </DockPanel>
+              </TabItem>
+              <TabItem Header="管理脚本">
+                <Grid Margin="2,10,2,0">
+                  <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="*"/>
+                    <RowDefinition Height="Auto"/>
+                  </Grid.RowDefinitions>
+                  <ComboBox Name="ScriptCombo" Grid.Row="0" Margin="0,0,0,10"/>
+                  <TextBox Name="ScriptArgsBox" Grid.Row="1" MinHeight="120" AcceptsReturn="True" VerticalScrollBarVisibility="Auto" TextWrapping="Wrap" Margin="0,0,0,12" ToolTip="保存给当前管理脚本的默认参数"/>
+                  <StackPanel Grid.Row="2" Orientation="Horizontal">
+                    <Button Name="SaveScriptArgsBtn" Content="保存脚本参数"/>
+                    <Button Name="RunScriptBtn" Content="运行脚本" Style="{StaticResource PrimaryButton}"/>
+                  </StackPanel>
+                </Grid>
+              </TabItem>
+              <TabItem Header="启动器设置">
+                <ScrollViewer VerticalScrollBarVisibility="Auto" Margin="2,10,2,0">
+                  <StackPanel MaxWidth="520" HorizontalAlignment="Left">
+                    <CheckBox Name="AutoUpdateCheck" Content="启动时自动检查更新" Margin="0,0,0,8"/>
+                    <CheckBox Name="WelcomeCheck" Content="启动时显示欢迎提示" Margin="0,0,0,14"/>
+                    <TextBlock Text="日志等级" Margin="0,0,0,4"/>
+                    <ComboBox Name="LogLevelCombo" Margin="0,0,0,10"/>
+                    <TextBlock Text="代理模式" Margin="0,0,0,4"/>
+                    <ComboBox Name="ProxyModeCombo" Margin="0,0,0,10"/>
+                    <TextBlock Text="手动代理地址" Margin="0,0,0,4"/>
+                    <TextBox Name="ManualProxyBox" Margin="0,0,0,14"/>
+                    <StackPanel Orientation="Horizontal" Margin="0,0,0,14">
+                      <Button Name="SaveMainBtn" Content="保存设置" Style="{StaticResource PrimaryButton}"/>
+                      <Button Name="CheckUpdateBtn" Content="检查更新"/>
+                    </StackPanel>
+                    <StackPanel Orientation="Horizontal">
+                      <Button Name="UninstallBtn" Content="卸载已安装软件"/>
+                      <Button Name="HelpBtn" Content="帮助"/>
+                      <Button Name="ShowLogBtn" Content="日志"/>
+                    </StackPanel>
+                  </StackPanel>
+                </ScrollViewer>
+              </TabItem>
+            </TabControl>
           </Border>
         </Grid>
         <Border Grid.Row="2" Background="{DynamicResource PanelBGBrush}" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1" CornerRadius="8" Padding="8" Margin="0,12,0,0">
@@ -1713,6 +2029,7 @@ function Start-App {
         try {
             try {
                 $handle = (New-Object System.Windows.Interop.WindowInteropHelper($window)).Handle
+                [LauncherWindowHelper]::EnableBlur($handle)
                 [LauncherWindowHelper]::SetDarkMode($handle, [bool]$colors.IsDark)
                 [LauncherWindowHelper]::SetRounding($handle, $true)
             } catch {
