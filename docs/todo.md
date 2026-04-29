@@ -16,6 +16,7 @@
 - [x] 支持启动时自动检查启动器更新，默认启用，检查间隔 60 分钟。
 - [x] 支持 TUI 启动欢迎页，默认显示，可在启动器主配置中关闭。
 - [x] 支持统一日志系统，默认 DEBUG 级别，异常退出时记录崩溃上下文。
+- [x] 支持启动时按启动器代理模式处理联网代理，默认自动读取系统代理。
 - [x] 支持 `show-log [lines]` 查看当前日志路径和最近日志内容。
 - [x] 支持卸载启动器自身，卸载时移除命令注册、配置目录和缓存目录。
 - [x] `AGENTS.md` 已创建，用于记录项目约定、编码风格和验证规则。
@@ -27,6 +28,7 @@
 ## 项目结构
 
 - [x] `lib/core.sh`：应用常量、通用工具、日志系统、崩溃捕获、项目键校验。
+- [x] `lib/proxy.sh`：系统代理检测和联网前代理环境变量设置。
 - [x] `lib/projects.sh`：项目注册表、安装器 URL 列表、支持参数、管理脚本列表。
 - [x] `lib/config.sh`：主配置和项目配置的创建、加载、保存、展示。
 - [x] `lib/ui.sh`：dialog/text UI 适配、动态尺寸、确认框、文本查看器。
@@ -38,11 +40,13 @@
 
 ## 配置与项目选择
 
-- [x] 主配置包含 `CURRENT_PROJECT`、`AUTO_UPDATE_ENABLED`、`SHOW_WELCOME_SCREEN`、`LOG_LEVEL`、`AUTO_UPDATE_LAST_CHECK`。
+- [x] 主配置包含 `CURRENT_PROJECT`、`AUTO_UPDATE_ENABLED`、`SHOW_WELCOME_SCREEN`、`LOG_LEVEL`、`PROXY_MODE`、`MANUAL_PROXY`、`AUTO_UPDATE_LAST_CHECK`。
 - [x] `CURRENT_PROJECT` 默认为空，不再隐式回填 `sd_webui`。
 - [x] `AUTO_UPDATE_ENABLED` 默认为 `1`。
 - [x] `SHOW_WELCOME_SCREEN` 默认为 `1`。
 - [x] `LOG_LEVEL` 默认为 `DEBUG`，可设置为 `DEBUG`、`INFO`、`WARN`、`ERROR`。
+- [x] `PROXY_MODE` 默认为 `auto`，可设置为 `auto`、`manual`、`off`。
+- [x] `MANUAL_PROXY` 默认为空，仅在 `PROXY_MODE=manual` 时使用。
 - [x] `null` / `NULL` / `none` / `nil` / `undefined` 会被视为未选择。
 - [x] 未选择项目时，TUI 显示“未选择”，需要项目上下文的操作会提示先选择安装器。
 - [x] `set-main CURRENT_PROJECT null` 可清空当前项目。
@@ -72,6 +76,18 @@
 - [x] 所有下载源都失败时返回错误，并打印已尝试的下载地址。
 - [x] 已移除“仅下载安装器”功能。
 - [x] 下载阶段使用普通文本提示，不再使用 dialog 进度条。
+
+## 系统代理
+
+- [x] 启动器启动后、配置加载和自动更新前会按 `PROXY_MODE` 处理代理。
+- [x] `auto` 模式会自动检测系统代理；如果用户已经设置代理环境变量，则不会覆盖。
+- [x] `manual` 模式会使用 `MANUAL_PROXY`，并覆盖当前启动器进程的代理环境变量；手动代理为空时会清理代理环境变量。
+- [x] `off` 模式会清理当前启动器进程的代理环境变量，让启动器不使用代理。
+- [x] 已支持 Windows 注册表代理、GNOME gsettings、KDE kioslaverc、macOS scutil 代理读取。
+- [x] 检测到系统代理后会设置 `HTTP_PROXY`、`HTTPS_PROXY`、小写代理变量和 `NO_PROXY`。
+- [x] 启动器主配置界面可调整代理模式和手动代理地址。
+- [x] CLI 支持 `set-main PROXY_MODE auto|manual|off` 和 `set-main MANUAL_PROXY <url>`。
+- [x] `install.sh` 内置独立代理检测，确保安装 Homebrew、PowerShell 等依赖前也能使用系统代理。
 
 ## 日志与崩溃记录
 
@@ -165,6 +181,8 @@
 - [x] `set-main AUTO_UPDATE_ENABLED 0/1` 可关闭或开启启动时自动更新。
 - [x] `set-main SHOW_WELCOME_SCREEN 0/1` 可关闭或开启 TUI 启动欢迎页。
 - [x] `set-main LOG_LEVEL DEBUG|INFO|WARN|ERROR` 可修改日志等级。
+- [x] `set-main PROXY_MODE auto|manual|off` 可修改启动器代理模式。
+- [x] `set-main MANUAL_PROXY <url>` 可修改手动代理地址。
 
 ## macOS 兼容
 
@@ -177,6 +195,7 @@
 ## 依赖引导安装
 
 - [x] `install.sh` 会先检查命令是否存在，避免重复安装已存在的依赖。
+- [x] `install.sh` 会在安装依赖前自动检测系统代理并设置联网环境变量。
 - [x] `install.sh` 会将 `pwsh` 或 `powershell` 任一命令视为 PowerShell 已可用。
 - [x] macOS 缺少 Homebrew 时，使用 Homebrew 官方安装脚本安装。
 - [x] macOS 缺少 PowerShell 时，使用 `brew install powershell` 安装。
@@ -209,6 +228,7 @@
 - [x] TUI 帮助文档已补充安装器多下载源重试行为。
 - [x] TUI 帮助文档已补充日志位置、崩溃记录和 CLI 查看日志方法。
 - [x] TUI 帮助文档已补充日志等级设置说明。
+- [x] TUI 帮助文档已补充代理模式、手动代理地址和 `off` 模式行为。
 - [x] `README.md` 已补充日志位置、崩溃记录、脱敏策略和 `show-log` 命令。
 - [x] `README.md` 已补充日志等级设置方法。
 - [x] `README.md` 已润色项目定位，突出可通过启动器安装和管理多个 AI WebUI / 训练工具。
@@ -226,6 +246,13 @@
 - [x] 验证 `install.sh` dry-run 在 `pwsh/dialog/git` 已存在时会跳过依赖安装并调用 `install-launcher --yes`。
 - [x] 验证只有 `powershell` mock、没有 `pwsh` 时，运行器会回退到 `powershell`。
 - [x] 验证 `install.sh` dry-run 在仅存在 `powershell` 时会视为 PowerShell 已安装。
+- [x] 验证自动代理不会覆盖已有 `HTTP_PROXY`。
+- [x] 验证手动代理模式会设置 `HTTP_PROXY` 和 `HTTPS_PROXY`。
+- [x] 验证手动代理模式在代理地址为空时会清理已有代理环境变量。
+- [x] 验证关闭代理模式会清理当前启动器进程中的代理环境变量。
+- [x] 验证 `set-main PROXY_MODE manual` 和 `set-main MANUAL_PROXY <url>` 可正确写入主配置。
+- [x] 验证 GNOME 系统代理读取可生成 `http://host:port` 地址。
+- [x] 验证 `install.sh` dry-run 在已有代理环境变量时会跳过系统代理检测。
 - [x] 验证 CLI 帮助中包含 `install-launcher --yes` 示例。
 - [x] 验证 `list-projects` 可列出全部 7 个安装器。
 - [x] 验证空配置下直接运行需要项目上下文的命令会提示先选择安装器。

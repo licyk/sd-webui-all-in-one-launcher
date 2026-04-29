@@ -158,6 +158,8 @@ configure_main() {
       "auto_update" "启动时自动检查更新: $(flag_state "$AUTO_UPDATE_ENABLED")" \
       "welcome" "启动欢迎界面: $(flag_state "$SHOW_WELCOME_SCREEN")" \
       "log_level" "日志等级: $LOG_LEVEL" \
+      "proxy_mode" "代理模式: $PROXY_MODE" \
+      "manual_proxy" "手动代理地址: ${MANUAL_PROXY:-未设置}" \
       "back" "返回")" || return 0
     case "$choice" in
       project) change_current_project ;;
@@ -184,6 +186,18 @@ configure_main() {
         if [[ -n "${choice:-}" ]]; then
           LOG_LEVEL="$choice"
         fi
+        ;;
+      proxy_mode)
+        choice="$(menu_select "代理模式" "选择启动器联网操作使用的代理方式" \
+          "auto" "自动读取系统代理，默认选项" \
+          "manual" "使用手动代理地址" \
+          "off" "清理代理环境变量，不使用代理")" || true
+        if [[ -n "${choice:-}" ]]; then
+          PROXY_MODE="$choice"
+        fi
+        ;;
+      manual_proxy)
+        MANUAL_PROXY="$(input_box "手动代理地址" "例如 http://127.0.0.1:7890 或 socks://127.0.0.1:1080。代理模式为 manual 时生效，留空表示不设置。" "${MANUAL_PROXY:-}")" || true
         ;;
       back) save_main_config; return 0 ;;
     esac
@@ -261,6 +275,9 @@ dialog 操作方式
   如果远程版本高于本地版本，会自动尝试更新启动器自身。
   更新失败不会阻止启动器继续运行，会在启动时显示提示。
   检查和更新过程中会在终端输出简短状态，便于判断当前是否正在联网检查或更新。
+  启动器会在联网前按 "启动器主配置" 中的代理模式处理代理。
+  auto 模式会尝试读取系统代理；如果已设置 HTTP_PROXY/HTTPS_PROXY，则不会覆盖。
+  manual 模式会使用手动代理地址；off 模式会清理代理环境变量，让启动器不使用代理。
 
 主界面顶部状态
   当前安装器: 显示当前选择的 WebUI / 工具。若显示 "未选择"，需要先选择要安装的类型。
@@ -315,6 +332,8 @@ dialog 操作方式
     启动时自动检查更新: 控制是否每 60 分钟检查一次启动器更新。
     启动欢迎界面: 控制进入 TUI 时是否显示第一屏欢迎和操作提示。
     日志等级: 控制写入日志文件的最低等级，可选 DEBUG、INFO、WARN、ERROR。
+    代理模式: 控制启动器联网操作是否使用代理。auto 自动读取系统代理，manual 使用手动代理地址，off 清理代理环境变量。
+    手动代理地址: 代理模式为 manual 时使用，例如 http://127.0.0.1:7890。
     注意: 实际安装路径优先看项目配置里的安装路径；未设置才使用默认安装路径。
 
   安装/更新启动器
@@ -380,6 +399,10 @@ CLI 辅助命令
     关闭 TUI 启动欢迎界面；使用 1 可重新开启。
   ./installer_launcher.sh set-main LOG_LEVEL INFO
     设置日志等级。可选 DEBUG、INFO、WARN、ERROR。
+  ./installer_launcher.sh set-main PROXY_MODE manual
+    设置代理模式。可选 auto、manual、off。
+  ./installer_launcher.sh set-main MANUAL_PROXY http://127.0.0.1:7890
+    设置手动代理地址，仅在 PROXY_MODE=manual 时生效。
   ./installer_launcher.sh config [project]
     查看项目配置。未传 project 时使用当前项目。
   ./installer_launcher.sh show-log [lines]
@@ -414,6 +437,7 @@ show_welcome_screen() {
 当前安装器: $(current_project_label)
 自动检查更新: $(flag_state "$AUTO_UPDATE_ENABLED")
 日志等级: $LOG_LEVEL
+代理模式: $PROXY_MODE
 更新检查间隔: 60 分钟
 
 启动提示:

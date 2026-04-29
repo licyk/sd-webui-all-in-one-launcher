@@ -4,6 +4,8 @@ INSTALLER_LAUNCHER_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 
 # shellcheck source=lib/core.sh
 source "$INSTALLER_LAUNCHER_ROOT/lib/core.sh"
+# shellcheck source=lib/proxy.sh
+source "$INSTALLER_LAUNCHER_ROOT/lib/proxy.sh"
 # shellcheck source=lib/projects.sh
 source "$INSTALLER_LAUNCHER_ROOT/lib/projects.sh"
 # shellcheck source=lib/config.sh

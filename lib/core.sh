@@ -3,7 +3,7 @@
 
 APP_NAME="installer-launcher"
 APP_TITLE="SD WebUI All In One Installer Launcher"
-APP_VERSION="0.3.1"
+APP_VERSION="0.3.2"
 
 CONFIG_HOME="${XDG_CONFIG_HOME:-$HOME/.config}/${APP_NAME}"
 CACHE_HOME="${XDG_CACHE_HOME:-$HOME/.cache}/${APP_NAME}"
@@ -22,6 +22,8 @@ HAS_DIALOG=0
 CURRENT_PROJECT=""
 AUTO_UPDATE_ENABLED=1
 SHOW_WELCOME_SCREEN=1
+PROXY_MODE="auto"
+MANUAL_PROXY=""
 AUTO_UPDATE_LAST_CHECK=0
 STARTUP_NOTICE=""
 
@@ -152,8 +154,17 @@ format_log_args() {
 sanitize_config_log_value() {
   local key="$1" value="$2"
   case "$key" in
-    PROXY|GITHUB_MIRROR|HUGGINGFACE_MIRROR|EXTRA_INSTALL_ARGS) printf '<redacted>' ;;
+    PROXY|MANUAL_PROXY|GITHUB_MIRROR|HUGGINGFACE_MIRROR|EXTRA_INSTALL_ARGS) printf '<redacted>' ;;
     *) sanitize_log_message "$value" ;;
+  esac
+}
+
+normalize_proxy_mode() {
+  local value="${1:-auto}"
+  case "${value,,}" in
+    auto|manual|off) printf '%s' "${value,,}" ;;
+    none|disabled|disable|false|0) printf 'off' ;;
+    *) return 1 ;;
   esac
 }
 

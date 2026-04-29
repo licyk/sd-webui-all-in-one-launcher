@@ -35,6 +35,8 @@
 - 可选：`dialog`，用于 TUI 图形化终端界面。没有 `dialog` 时会退回到文本交互。
 - 可选：`git`，用于安装/更新启动器自身。没有 `git` 时会尝试使用源码压缩包。
 
+启动器启动时会按主配置处理联网代理。默认自动读取系统代理，并在联网前设置 `HTTP_PROXY` / `HTTPS_PROXY` / `NO_PROXY` 等环境变量；也可以在启动器主配置中改为手动代理或不使用代理。自动模式不会覆盖用户已有的代理环境变量；关闭代理模式会清理当前启动器进程中的代理环境变量。`install.sh` 运行在启动器配置可用之前，因此会使用独立的自动系统代理检测。
+
 ### macOS
 
 macOS 自带 Bash 版本通常较低。脚本在 macOS 上会检测 Bash 版本：
@@ -242,7 +244,7 @@ dialog 常用操作：
 - `运行安装后生成的管理脚本`：执行安装目录中的启动、更新、终端等管理脚本。
 - `调整子脚本默认启动参数`：给 `launch.ps1` 等脚本保存默认参数。
 - `当前安装器配置`：配置安装路径、分支、镜像、代理、开关参数等。
-- `启动器主配置`：设置当前项目、自动更新和欢迎页显示。
+- `启动器主配置`：设置当前项目、自动更新、欢迎页、日志等级和代理模式。
 - `查看当前配置`：查看主配置和项目配置。
 - `TUI 使用帮助`：查看更详细的界面说明。
 
@@ -370,6 +372,20 @@ installer-launcher-YYYYMMDD.log
 
 ```bash
 ./installer_launcher.sh set-main LOG_LEVEL INFO
+```
+
+修改代理模式：
+
+```bash
+# 自动读取系统代理，默认模式
+./installer_launcher.sh set-main PROXY_MODE auto
+
+# 使用手动代理地址
+./installer_launcher.sh set-main PROXY_MODE manual
+./installer_launcher.sh set-main MANUAL_PROXY http://127.0.0.1:7890
+
+# 不使用代理，启动器会清理当前进程的代理环境变量
+./installer_launcher.sh set-main PROXY_MODE off
 ```
 
 当脚本因为未处理错误异常退出时，会通过 `ERR` trap 写入崩溃记录，包括退出码、失败命令、行号、调用栈和当前命令参数。这样可以帮助定位“没有任何输出就退出”的问题。

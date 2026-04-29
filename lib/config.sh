@@ -10,6 +10,8 @@ ensure_main_config() {
       printf 'AUTO_UPDATE_ENABLED="1"\n'
       printf 'SHOW_WELCOME_SCREEN="1"\n'
       printf 'LOG_LEVEL="DEBUG"\n'
+      printf 'PROXY_MODE="auto"\n'
+      printf 'MANUAL_PROXY=""\n'
       printf 'AUTO_UPDATE_LAST_CHECK="0"\n'
     } >"$MAIN_CONFIG_FILE"
   fi
@@ -71,6 +73,11 @@ load_main_config() {
     LOG_LEVEL="DEBUG"
     log_warn "invalid LOG_LEVEL in main config, reset to DEBUG"
   fi
+  if ! PROXY_MODE="$(normalize_proxy_mode "${PROXY_MODE:-auto}")"; then
+    PROXY_MODE="auto"
+    log_warn "invalid PROXY_MODE in main config, reset to auto"
+  fi
+  MANUAL_PROXY="${MANUAL_PROXY:-}"
   AUTO_UPDATE_LAST_CHECK="${AUTO_UPDATE_LAST_CHECK:-0}"
 }
 
@@ -81,9 +88,11 @@ save_main_config() {
     printf 'AUTO_UPDATE_ENABLED=%s\n' "$(quote_config "$AUTO_UPDATE_ENABLED")"
     printf 'SHOW_WELCOME_SCREEN=%s\n' "$(quote_config "$SHOW_WELCOME_SCREEN")"
     printf 'LOG_LEVEL=%s\n' "$(quote_config "$LOG_LEVEL")"
+    printf 'PROXY_MODE=%s\n' "$(quote_config "$PROXY_MODE")"
+    printf 'MANUAL_PROXY=%s\n' "$(quote_config "$MANUAL_PROXY")"
     printf 'AUTO_UPDATE_LAST_CHECK=%s\n' "$(quote_config "$AUTO_UPDATE_LAST_CHECK")"
   } >"$MAIN_CONFIG_FILE"
-  log_debug "saved main config: file=$MAIN_CONFIG_FILE current_project=${CURRENT_PROJECT:-<none>} auto_update=$AUTO_UPDATE_ENABLED welcome=$SHOW_WELCOME_SCREEN log_level=$LOG_LEVEL last_check=$AUTO_UPDATE_LAST_CHECK"
+  log_debug "saved main config: file=$MAIN_CONFIG_FILE current_project=${CURRENT_PROJECT:-<none>} auto_update=$AUTO_UPDATE_ENABLED welcome=$SHOW_WELCOME_SCREEN log_level=$LOG_LEVEL proxy_mode=$PROXY_MODE manual_proxy=$(sanitize_config_log_value MANUAL_PROXY "$MANUAL_PROXY") last_check=$AUTO_UPDATE_LAST_CHECK"
 }
 
 reset_project_config_vars() {
@@ -206,6 +215,8 @@ CURRENT_PROJECT=$CURRENT_PROJECT
 AUTO_UPDATE_ENABLED=$AUTO_UPDATE_ENABLED
 SHOW_WELCOME_SCREEN=$SHOW_WELCOME_SCREEN
 LOG_LEVEL=$LOG_LEVEL
+PROXY_MODE=$PROXY_MODE
+MANUAL_PROXY=$MANUAL_PROXY
 AUTO_UPDATE_LAST_CHECK=$AUTO_UPDATE_LAST_CHECK
 
 [$key] $(project_name "$key")

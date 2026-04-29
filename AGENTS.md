@@ -8,6 +8,7 @@ The dependency bootstrap entry point is `install.sh`. The launcher entry point i
 
 - `lib/bootstrap.sh`: sources all modules in the required order.
 - `lib/core.sh`: application constants, global defaults, logging/crash helpers, generic helpers.
+- `lib/proxy.sh`: system proxy detection and environment setup before network access.
 - `lib/projects.sh`: project registry, installer URLs, supported parameters, management script lists.
 - `lib/config.sh`: main and per-project config creation, loading, saving, validation, display.
 - `lib/ui.sh`: dialog/text UI helpers, dynamic terminal sizing, prompts, viewers.
@@ -70,13 +71,23 @@ Therefore:
   - keep project names, script names, install paths, and non-sensitive statuses visible.
 - Bootstrap-before-module errors in `installer_launcher.sh` may use the minimal `early_log` helper.
 
+## Proxy Rules
+
+- Configure proxy before any network operation.
+- `main` should load main config, call `configure_proxy_from_main_config`, then load project config and continue to auto-update/dispatch.
+- In `auto` mode, do not override existing `HTTP_PROXY`, `HTTPS_PROXY`, `http_proxy`, or `https_proxy`.
+- In `manual` mode, use `MANUAL_PROXY`; in `off` mode, clear proxy variables for the launcher process.
+- Keep `install.sh` proxy detection self-contained because it runs before launcher modules are available.
+
 ## Configuration Rules
 
-- Main config stores `CURRENT_PROJECT`, `AUTO_UPDATE_ENABLED`, `SHOW_WELCOME_SCREEN`, `LOG_LEVEL`, and `AUTO_UPDATE_LAST_CHECK`.
+- Main config stores `CURRENT_PROJECT`, `AUTO_UPDATE_ENABLED`, `SHOW_WELCOME_SCREEN`, `LOG_LEVEL`, `PROXY_MODE`, `MANUAL_PROXY`, and `AUTO_UPDATE_LAST_CHECK`.
 - `CURRENT_PROJECT` defaults to empty. Do not silently default it to a project.
 - `AUTO_UPDATE_ENABLED` defaults to `1`.
 - `SHOW_WELCOME_SCREEN` defaults to `1`.
 - `LOG_LEVEL` defaults to `DEBUG` and must be one of `DEBUG`, `INFO`, `WARN`, or `ERROR`.
+- `PROXY_MODE` defaults to `auto` and must be one of `auto`, `manual`, or `off`.
+- `MANUAL_PROXY` defaults to empty and is used only when `PROXY_MODE=manual`.
 - `null`, `none`, `nil`, and `undefined` are normalized to empty for `CURRENT_PROJECT`.
 - Per-project configs live under:
 

@@ -10,6 +10,7 @@
 installer_launcher.sh
 └── lib/bootstrap.sh
     ├── lib/core.sh
+    ├── lib/proxy.sh
     ├── lib/projects.sh
     ├── lib/config.sh
     ├── lib/ui.sh
@@ -29,6 +30,7 @@ installer_launcher.sh
 - 启动器自身安装/卸载集中在 `lib/self_manage.sh`。
 - 启动器自动更新检查集中在 `lib/self_manage.sh`，启动分发由 `lib/cli.sh` 调用。
 - 日志和异常退出记录集中在 `lib/core.sh`，由 `lib/cli.sh` 启动时初始化。
+- 启动器联网代理处理集中在 `lib/proxy.sh`，并在自动更新、下载安装器等联网操作之前执行。
 
 ## 入口脚本
 
@@ -54,13 +56,14 @@ installer_launcher.sh
 加载顺序很重要：
 
 1. `core.sh` 提供全局常量和基础工具。
-2. `projects.sh` 依赖核心 helper，并提供项目元数据。
-3. `config.sh` 依赖项目注册表。
-4. `ui.sh` 提供 TUI/text helper。
-5. `runner.sh` 依赖配置、项目和 UI。
-6. `self_manage.sh` 依赖下载和 UI helper。
-7. `menus.sh` 组合 TUI 交互。
-8. `cli.sh` 提供 `main` 命令分发。
+2. `proxy.sh` 依赖核心 helper，并提供系统代理检测和代理环境设置。
+3. `projects.sh` 依赖核心 helper，并提供项目元数据。
+4. `config.sh` 依赖项目注册表。
+5. `ui.sh` 提供 TUI/text helper。
+6. `runner.sh` 依赖配置、项目和 UI。
+7. `self_manage.sh` 依赖下载和 UI helper。
+8. `menus.sh` 组合 TUI 交互。
+9. `cli.sh` 提供 `main` 命令分发。
 
 ### `lib/core.sh`
 
@@ -83,6 +86,25 @@ installer_launcher.sh
 - `split_args`。
 
 `CURRENT_PROJECT` 默认是空值。需要项目上下文的操作必须调用 `require_project_key`。
+
+### `lib/proxy.sh`
+
+负责启动器运行期的代理处理。`main` 会在加载主配置后、自动更新和命令分发前调用 `configure_proxy_from_main_config`，保证之后的联网操作使用已选代理策略。
+
+代理模式保存在主配置 `PROXY_MODE` 中：
+
+- `auto`：默认模式。若用户已经设置 `HTTP_PROXY`、`HTTPS_PROXY`、`http_proxy` 或 `https_proxy`，则不覆盖；否则尝试读取系统代理并设置到当前启动器进程。
+- `manual`：使用主配置 `MANUAL_PROXY`，并显式覆盖当前启动器进程的代理环境变量；如果手动代理地址为空，则清理代理环境变量。
+- `off`：清理当前启动器进程中的代理环境变量，使启动器联网操作不使用代理。
+
+系统代理读取来源：
+
+- Windows：当前用户 Internet Settings 注册表。
+- Linux GNOME：`gsettings org.gnome.system.proxy`。
+- Linux KDE：`~/.config/kioslaverc`。
+- macOS：`scutil --proxy`。
+
+`install.sh` 在启动器模块加载前运行，因此保留独立的自动代理检测逻辑，不读取启动器主配置。
 
 ### `lib/projects.sh`
 
@@ -145,6 +167,8 @@ ${XDG_CONFIG_HOME:-$HOME/.config}/installer-launcher/projects/<project>.conf
 - `AUTO_UPDATE_ENABLED`
 - `SHOW_WELCOME_SCREEN`
 - `LOG_LEVEL`
+- `PROXY_MODE`
+- `MANUAL_PROXY`
 - `AUTO_UPDATE_LAST_CHECK`
 
 项目配置保存安装路径、分支、镜像、代理、额外参数和子脚本默认参数。
@@ -306,9 +330,9 @@ uninstall_project
 main
 ├── init_logging
 ├── register_crash_trap
-├── load_all_config
-│   ├── load_main_config
-│   └── load_project_config 当前项目
+├── load_main_config
+├── configure_proxy_from_main_config
+├── load_project_config 当前项目
 ├── init_ui
 ├── check_and_update_launcher_if_due
 └── 分发 CLI/TUI 命令
