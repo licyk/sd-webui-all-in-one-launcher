@@ -371,9 +371,9 @@ EOF
 }
 
 show_welcome_screen() {
-  local notice_text="${STARTUP_NOTICE:-无}"
+  local notice_text="${STARTUP_NOTICE:-无}" welcome_text
   [[ "${SHOW_WELCOME_SCREEN:-1}" == "1" ]] || return 0
-  pause_screen "$(cat <<EOF
+  welcome_text="$(cat <<EOF
 欢迎使用 $APP_TITLE
 
 当前版本: $APP_VERSION
@@ -394,12 +394,13 @@ dialog 操作提示:
 可以在 "启动器主配置" 中关闭启动欢迎界面或自动更新。
 EOF
 )"
+  text_viewer "欢迎" "$welcome_text" || true
 }
 
 show_startup_notice_if_needed() {
   [[ -n "${STARTUP_NOTICE:-}" ]] || return 0
   [[ "${SHOW_WELCOME_SCREEN:-1}" == "1" ]] && return 0
-  pause_screen "$STARTUP_NOTICE"
+  pause_screen "$STARTUP_NOTICE" || true
 }
 
 main_menu() {
