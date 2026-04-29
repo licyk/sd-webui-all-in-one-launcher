@@ -59,6 +59,10 @@ download_file() {
   return 1
 }
 
+have_powershell() {
+  have_cmd pwsh || have_cmd powershell
+}
+
 prepend_path_if_dir() {
   local dir="$1"
   if [ -d "$dir" ]; then
@@ -295,20 +299,24 @@ install_powershell_fallback_linux() {
 }
 
 ensure_linux_powershell() {
-  if have_cmd pwsh; then
-    info "PowerShell 已安装: $(command -v pwsh)"
+  if have_powershell; then
+    if have_cmd pwsh; then
+      info "PowerShell 已安装: $(command -v pwsh)"
+    else
+      info "PowerShell 已安装: $(command -v powershell)"
+    fi
     return 0
   fi
 
   load_os_release
   info "未检测到 pwsh，正在尝试自动安装 PowerShell..."
   if install_powershell_official_linux "$OS_ID" "$OS_VERSION_ID" "$OS_ID_LIKE"; then
-    have_cmd pwsh && return 0
+    have_powershell && return 0
   fi
 
   warn "官方仓库安装 PowerShell 失败，正在尝试系统包管理器 fallback..."
   if install_powershell_fallback_linux; then
-    have_cmd pwsh && return 0
+    have_powershell && return 0
   fi
 
   error "当前 Linux 环境不支持自动安装 PowerShell，或自动安装失败。"
@@ -370,10 +378,16 @@ install_macos_dependencies() {
     return 1
   }
 
-  brew_install_if_missing pwsh powershell || {
+  if have_powershell; then
+    if have_cmd pwsh; then
+      info "PowerShell 已安装: $(command -v pwsh)"
+    else
+      info "PowerShell 已安装: $(command -v powershell)"
+    fi
+  elif ! brew_install_if_missing pwsh powershell; then
     error "PowerShell 安装失败。请重试或按官方文档手动安装: $POWERSHELL_MACOS_DOC"
     return 1
-  }
+  fi
   brew_install_if_missing dialog dialog || warn "dialog 安装失败，可稍后手动安装。"
   brew_install_if_missing git git || warn "git 安装失败，可稍后手动安装。"
   printf '%s' "$bash_cmd" >"${TMPDIR:-/tmp}/installer-launcher-bash-cmd.$$"

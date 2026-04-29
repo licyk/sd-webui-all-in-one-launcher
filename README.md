@@ -30,7 +30,7 @@
 ## 环境要求
 
 - Bash 5 或更高版本。
-- PowerShell：需要 `pwsh` 命令，用于执行上游安装器和管理脚本。
+- PowerShell：需要 `pwsh` 或 `powershell` 命令，用于执行上游安装器和管理脚本；启动器会优先使用 `pwsh`，找不到时回退到 `powershell`。
 - 下载工具：`curl` 或 `wget`。
 - 可选：`dialog`，用于 TUI 图形化终端界面。没有 `dialog` 时会退回到文本交互。
 - 可选：`git`，用于安装/更新启动器自身。没有 `git` 时会尝试使用源码压缩包。

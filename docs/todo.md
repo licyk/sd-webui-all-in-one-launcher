@@ -61,6 +61,7 @@
 - [x] 运行安装器前展示确认信息，包括项目、安装器下载源列表、缓存路径、安装路径、PowerShell 参数和当前项目配置。
 - [x] 用户取消确认时不会下载，也不会执行 PowerShell。
 - [x] PowerShell 安装器返回非零退出代码时，会停留在当前终端提示用户查看输出日志，按 Enter 后再返回 TUI。
+- [x] 执行 PowerShell 脚本时优先使用 `pwsh`，找不到时回退到 `powershell`。
 
 ## 下载与缓存
 
@@ -176,6 +177,7 @@
 ## 依赖引导安装
 
 - [x] `install.sh` 会先检查命令是否存在，避免重复安装已存在的依赖。
+- [x] `install.sh` 会将 `pwsh` 或 `powershell` 任一命令视为 PowerShell 已可用。
 - [x] macOS 缺少 Homebrew 时，使用 Homebrew 官方安装脚本安装。
 - [x] macOS 缺少 PowerShell 时，使用 `brew install powershell` 安装。
 - [x] Linux 缺少 PowerShell 时，优先尝试 Microsoft 官方仓库方式，再尝试系统包管理器 fallback。
@@ -222,6 +224,8 @@
 - [x] 运行 `bash -n install.sh installer_launcher.sh lib/*.sh`，通过。
 - [x] 运行 `shellcheck install.sh installer_launcher.sh lib/*.sh`，通过。
 - [x] 验证 `install.sh` dry-run 在 `pwsh/dialog/git` 已存在时会跳过依赖安装并调用 `install-launcher --yes`。
+- [x] 验证只有 `powershell` mock、没有 `pwsh` 时，运行器会回退到 `powershell`。
+- [x] 验证 `install.sh` dry-run 在仅存在 `powershell` 时会视为 PowerShell 已安装。
 - [x] 验证 CLI 帮助中包含 `install-launcher --yes` 示例。
 - [x] 验证 `list-projects` 可列出全部 7 个安装器。
 - [x] 验证空配置下直接运行需要项目上下文的命令会提示先选择安装器。

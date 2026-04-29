@@ -167,7 +167,7 @@ When adding or changing a project:
 
 - Always download the installer fresh before running it.
 - Download into the cache directory, not the project directory.
-- Use `pwsh -NoLogo -ExecutionPolicy Bypass -File`.
+- Use `pwsh -NoLogo -ExecutionPolicy Bypass -File` when available; fall back to `powershell` with the same arguments when `pwsh` is not found.
 - `run_installer` flow:
   1. Load project config.
   2. Build installer args.

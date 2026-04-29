@@ -64,8 +64,20 @@ download_installer() {
   return 1
 }
 
-require_pwsh() {
-  need_cmd pwsh || die "未找到 pwsh。请先安装 PowerShell，再运行 PowerShell 脚本。"
+resolve_powershell_command() {
+  if need_cmd pwsh; then
+    printf 'pwsh'
+    return 0
+  fi
+  if need_cmd powershell; then
+    printf 'powershell'
+    return 0
+  fi
+  return 1
+}
+
+require_powershell() {
+  resolve_powershell_command >/dev/null || die "未找到 pwsh 或 powershell。请先安装 PowerShell，再运行 PowerShell 脚本。"
 }
 
 args_contains_param() {
@@ -166,13 +178,14 @@ EOF
 }
 
 run_pwsh_script() {
-  local script_path="$1" script_dir
+  local script_path="$1" script_dir powershell_cmd
   shift
-  require_pwsh
+  require_powershell
+  powershell_cmd="$(resolve_powershell_command)"
   [[ -f "$script_path" ]] || die "脚本不存在: $script_path"
   script_dir="$(cd "$(dirname "$script_path")" && pwd)"
-  log_info "pwsh start: script=$script_path args=$(format_log_args "$@")"
-  (cd "$script_dir" && pwsh -NoLogo -ExecutionPolicy Bypass -File "./$(basename "$script_path")" "$@")
+  log_info "powershell start: command=$powershell_cmd script=$script_path args=$(format_log_args "$@")"
+  (cd "$script_dir" && "$powershell_cmd" -NoLogo -ExecutionPolicy Bypass -File "./$(basename "$script_path")" "$@")
 }
 
 show_pwsh_failure_notice() {
@@ -208,7 +221,7 @@ run_installer() {
   if dialog_available; then
     clear || true
   fi
-  info "Running: pwsh -File $script ${args[*]}"
+  info "Running: $(resolve_powershell_command) -File $script ${args[*]}"
   if run_pwsh_script "$script" "${args[@]}"; then
     log_info "installer finished: project=$key status=0"
   else
@@ -393,7 +406,7 @@ run_management_script() {
     info "已取消运行 $script_name。"
     return 0
   fi
-  info "Running: pwsh -File $script_path ${args[*]}"
+  info "Running: $(resolve_powershell_command) -File $script_path ${args[*]}"
   if run_pwsh_script "$script_path" "${args[@]}"; then
     log_info "management script finished: project=$key script=$script_name status=0"
   else
