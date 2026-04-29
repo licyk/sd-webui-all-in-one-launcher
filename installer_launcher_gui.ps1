@@ -930,16 +930,42 @@ function Select-FolderPath {
     return $null
 }
 
+function New-ConfigCardRow {
+    param([string]$Label)
+    $card = New-Object System.Windows.Controls.Border
+    $card.Margin = "0,0,0,10"
+    $card.Padding = "14"
+    $card.CornerRadius = 8
+    $card.BorderThickness = 1
+    $card.SetResourceReference([System.Windows.Controls.Border]::BackgroundProperty, "HeaderBGBrush")
+    $card.SetResourceReference([System.Windows.Controls.Border]::BorderBrushProperty, "BorderBrush")
+
+    $grid = New-Object System.Windows.Controls.Grid
+    $left = New-Object System.Windows.Controls.ColumnDefinition
+    $left.Width = New-Object System.Windows.GridLength(260)
+    $right = New-Object System.Windows.Controls.ColumnDefinition
+    $right.Width = New-Object System.Windows.GridLength(1, [System.Windows.GridUnitType]::Star)
+    $grid.ColumnDefinitions.Add($left) | Out-Null
+    $grid.ColumnDefinitions.Add($right) | Out-Null
+
+    $labelBlock = New-Object System.Windows.Controls.TextBlock
+    $labelBlock.Text = $Label
+    $labelBlock.FontWeight = "SemiBold"
+    $labelBlock.TextWrapping = "Wrap"
+    $labelBlock.VerticalAlignment = "Center"
+    $labelBlock.Margin = "0,0,16,0"
+    [System.Windows.Controls.Grid]::SetColumn($labelBlock, 0)
+    $grid.Children.Add($labelBlock) | Out-Null
+    $card.Child = $grid
+
+    return [PSCustomObject]@{ Card = $card; Grid = $grid }
+}
+
 function Add-ConfigTextBox {
     param($Panel, $State, [string]$Key, [string]$Label, [string]$Value)
-    $block = New-Object System.Windows.Controls.StackPanel
-    $block.Margin = "0,0,0,10"
-    $text = New-Object System.Windows.Controls.TextBlock
-    $text.Text = $Label
-    $text.Margin = "0,0,0,4"
+    $rowInfo = New-ConfigCardRow $Label
     $box = New-Object System.Windows.Controls.TextBox
     $box.Text = $Value
-    $block.Children.Add($text) | Out-Null
     if ($Key -eq "INSTALL_PATH") {
         $row = New-Object System.Windows.Controls.Grid
         $col1 = New-Object System.Windows.Controls.ColumnDefinition
@@ -961,21 +987,19 @@ function Add-ConfigTextBox {
                 $box.Text = $selectedPath
             }
         }.GetNewClosure())
-        $block.Children.Add($row) | Out-Null
+        [System.Windows.Controls.Grid]::SetColumn($row, 1)
+        $rowInfo.Grid.Children.Add($row) | Out-Null
     } else {
-        $block.Children.Add($box) | Out-Null
+        [System.Windows.Controls.Grid]::SetColumn($box, 1)
+        $rowInfo.Grid.Children.Add($box) | Out-Null
     }
-    $Panel.Children.Add($block) | Out-Null
+    $Panel.Children.Add($rowInfo.Card) | Out-Null
     $State.ConfigControls[$Key] = $box
 }
 
 function Add-ConfigComboBox {
     param($Panel, $State, [string]$Key, [string]$Label, [System.Collections.IDictionary]$Options, [string]$Value)
-    $block = New-Object System.Windows.Controls.StackPanel
-    $block.Margin = "0,0,0,10"
-    $text = New-Object System.Windows.Controls.TextBlock
-    $text.Text = $Label
-    $text.Margin = "0,0,0,4"
+    $rowInfo = New-ConfigCardRow $Label
     $combo = New-Object System.Windows.Controls.ComboBox
     $combo.IsEditable = $false
     $combo.DisplayMemberPath = "Label"
@@ -994,19 +1018,22 @@ function Add-ConfigComboBox {
         }
     }
     if ($null -eq $combo.SelectedItem -and $items.Count -gt 0) { $combo.SelectedIndex = 0 }
-    $block.Children.Add($text) | Out-Null
-    $block.Children.Add($combo) | Out-Null
-    $Panel.Children.Add($block) | Out-Null
+    [System.Windows.Controls.Grid]::SetColumn($combo, 1)
+    $rowInfo.Grid.Children.Add($combo) | Out-Null
+    $Panel.Children.Add($rowInfo.Card) | Out-Null
     $State.ConfigControls[$Key] = $combo
 }
 
 function Add-ConfigCheckBox {
     param($Panel, $State, [string]$Key, [string]$Label, [bool]$Value)
+    $rowInfo = New-ConfigCardRow $Label
     $box = New-Object System.Windows.Controls.CheckBox
-    $box.Content = $Label
     $box.IsChecked = $Value
-    $box.Margin = "0,0,0,8"
-    $Panel.Children.Add($box) | Out-Null
+    $box.HorizontalAlignment = "Right"
+    $box.VerticalAlignment = "Center"
+    [System.Windows.Controls.Grid]::SetColumn($box, 1)
+    $rowInfo.Grid.Children.Add($box) | Out-Null
+    $Panel.Children.Add($rowInfo.Card) | Out-Null
     $State.ConfigControls[$Key] = $box
 }
 
@@ -1069,7 +1096,13 @@ function Refresh-Status {
     $status = Get-InstallationStatus $project $config
     $proxyMode = $script:MainConfig["PROXY_MODE"]
     $autoUpdate = $script:MainConfig["AUTO_UPDATE_ENABLED"]
-    $UI.ProjectStatusText.Text = "当前项目: $($project.Name)`n安装状态: $($status.Label)`n$($status.Detail)`n代理模式: $proxyMode    自动更新: $autoUpdate"
+    $nextStep = "先在高级选项确认安装路径、分支和镜像，然后运行安装器完成首次安装。"
+    if ($status.Code -eq "installed") {
+        $nextStep = "已安装完成。请进入管理脚本运行 launch.ps1 启动软件，或运行 update.ps1 / terminal.ps1 做维护。"
+    } elseif ($status.Code -eq "incomplete") {
+        $nextStep = "检测到安装目录但缺少管理脚本。请重新运行安装器修复完整安装。"
+    }
+    $UI.ProjectStatusText.Text = "当前项目: $($project.Name)`n安装状态: $($status.Label)`n$($status.Detail)`n下一步: $nextStep`n代理模式: $proxyMode    自动更新: $autoUpdate"
     $scripts = @()
     foreach ($scriptName in $project.Scripts.Keys) {
         $scripts += [PSCustomObject]@{ Name = $scriptName; Label = "$scriptName - $($project.Scripts[$scriptName])" }
@@ -1078,6 +1111,24 @@ function Refresh-Status {
     $UI.ScriptCombo.DisplayMemberPath = "Label"
     $UI.ScriptCombo.SelectedValuePath = "Name"
     if ($scripts.Count -gt 0) { $UI.ScriptCombo.SelectedIndex = 0 }
+}
+
+function Select-RelevantMainTab {
+    param($UI)
+    if ($null -eq $UI.MainTabs) { return }
+    $key = Get-CurrentProjectKey
+    if ([string]::IsNullOrWhiteSpace($key)) {
+        $UI.MainTabs.SelectedIndex = 0
+        return
+    }
+    $project = $script:Projects[$key]
+    $config = Get-ProjectConfig $key
+    $status = Get-InstallationStatus $project $config
+    if ($status.Code -eq "installed") {
+        $UI.MainTabs.SelectedIndex = 1
+    } else {
+        $UI.MainTabs.SelectedIndex = 0
+    }
 }
 
 function Refresh-MainConfigUi {
@@ -1538,11 +1589,11 @@ function Get-ThemeColors {
     } catch {}
     if ($dark) {
         return @{
-            IsDark = $true; WinBG1 = "#CC1E1E1E"; WinBG2 = "#CC121212"; PanelBG = "#44000000"; TextMain = "#FFFFFF"; TextSec = "#AAAAAA"; Border = "#44FFFFFF"; InputBG = "#333333"; BtnNormal = "#4A4A4A"; BtnHover = "#5A5A5A"; ItemHover = "#33FFFFFF"; HeaderBG = "#11FFFFFF"
+            IsDark = $true; WinBG1 = "#E61E1E1E"; WinBG2 = "#E6121212"; PanelBG = "#661F1F1F"; TextMain = "#FFFFFF"; TextSec = "#AAAAAA"; Border = "#44FFFFFF"; InputBG = "#2B2B2B"; BtnNormal = "#3A3A3A"; BtnHover = "#4A4A4A"; ItemHover = "#33FFFFFF"; HeaderBG = "#22FFFFFF"
         }
     }
     return @{
-        IsDark = $false; WinBG1 = "#CCF9FAFB"; WinBG2 = "#CCF3F4F6"; PanelBG = "#44FFFFFF"; TextMain = "#323130"; TextSec = "#666666"; Border = "#88C1C1C1"; InputBG = "#FFFFFF"; BtnNormal = "#FFFFFF"; BtnHover = "#F9F9F9"; ItemHover = "#F2F7FF"; HeaderBG = "#F9FAFB"
+        IsDark = $false; WinBG1 = "#EEF9FAFC"; WinBG2 = "#EEF3F7FB"; PanelBG = "#EEFFFFFF"; TextMain = "#242424"; TextSec = "#646464"; Border = "#FFD7DCE2"; InputBG = "#FCFCFD"; BtnNormal = "#FFFFFFFF"; BtnHover = "#FFF3F8FF"; ItemHover = "#FFEAF4FF"; HeaderBG = "#FFF5F9FF"
     }
 }
 
@@ -1562,7 +1613,7 @@ function Start-App {
     [xml]$xaml = @"
 <Window xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-        Title="$script:APP_TITLE" Height="760" Width="1120" MinHeight="680" MinWidth="980"
+        Title="$script:APP_TITLE" Height="820" Width="1280" MinHeight="720" MinWidth="1040"
         WindowStartupLocation="CenterScreen" WindowStyle="None" AllowsTransparency="True"
         Background="Transparent" ResizeMode="CanResizeWithGrip">
   <Window.Resources>
@@ -1842,92 +1893,133 @@ function Start-App {
       </LinearGradientBrush>
     </Border.Background>
     <Grid>
-      <Grid.RowDefinitions><RowDefinition Height="34"/><RowDefinition Height="*"/></Grid.RowDefinitions>
-      <Grid Name="TitleBar" Grid.Row="0">
-        <StackPanel Orientation="Horizontal" Margin="14,0,0,0" VerticalAlignment="Center">
-          <TextBlock Text="SD WebUI All In One Launcher GUI" FontSize="12" Foreground="{DynamicResource TextSecBrush}"/>
-          <TextBlock Text="  v$script:INSTALLER_LAUNCHER_GUI_VERSION" FontSize="12" Foreground="{DynamicResource TextSecBrush}"/>
+      <Grid.RowDefinitions><RowDefinition Height="48"/><RowDefinition Height="*"/></Grid.RowDefinitions>
+      <Grid Name="TitleBar" Grid.Row="0" Background="#08FFFFFF">
+        <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
+        <StackPanel Orientation="Horizontal" Margin="18,0,0,0" VerticalAlignment="Center">
+          <Border Width="24" Height="24" CornerRadius="7" Background="{DynamicResource PrimaryBrush}" Margin="0,0,10,0">
+            <TextBlock Text="AI" Foreground="White" FontSize="10" FontWeight="SemiBold" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+          </Border>
+          <TextBlock Text="SD WebUI All In One Launcher" FontSize="15" FontWeight="SemiBold"/>
+          <TextBlock Text="  v$script:INSTALLER_LAUNCHER_GUI_VERSION" FontSize="13" Foreground="{DynamicResource TextSecBrush}" VerticalAlignment="Center"/>
         </StackPanel>
-        <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
-          <Button Name="MinBtn" Content="—" Width="44" Height="32" BorderThickness="0" Background="Transparent"/>
-          <Button Name="MaxBtn" Content="□" Width="44" Height="32" BorderThickness="0" Background="Transparent"/>
-          <Button Name="CloseBtn" Content="×" Width="44" Height="32" BorderThickness="0" Background="Transparent"/>
+        <StackPanel Grid.Column="1" Orientation="Horizontal" HorizontalAlignment="Right" VerticalAlignment="Center">
+          <Button Name="HelpBtn" Content="?" Width="34" Height="32" Padding="0" Margin="0,0,2,0" BorderThickness="0" Background="Transparent"/>
+          <Button Name="ShowLogBtn" Content="日志" Width="50" Height="32" Padding="0" Margin="0,0,8,0" BorderThickness="0" Background="Transparent"/>
+          <Button Name="MinBtn" Content="—" Width="44" Height="32" Padding="0" Margin="0" BorderThickness="0" Background="Transparent"/>
+          <Button Name="MaxBtn" Content="□" Width="44" Height="32" Padding="0" Margin="0" BorderThickness="0" Background="Transparent"/>
+          <Button Name="CloseBtn" Content="×" Width="44" Height="32" Padding="0" Margin="0" BorderThickness="0" Background="Transparent"/>
         </StackPanel>
       </Grid>
-      <Grid Grid.Row="1" Margin="18">
-        <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="*"/><RowDefinition Height="112"/></Grid.RowDefinitions>
-        <Border Grid.Row="0" Background="{DynamicResource PanelBGBrush}" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1" CornerRadius="8" Padding="12" Margin="0,0,0,12">
-          <Grid>
-            <TextBlock Name="ProjectStatusText" TextWrapping="Wrap"/>
-            <TextBlock Name="BusyText" HorizontalAlignment="Right" Foreground="{DynamicResource TextSecBrush}"/>
-          </Grid>
+      <Grid Grid.Row="1">
+        <Grid.ColumnDefinitions><ColumnDefinition Width="112"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
+        <Border Grid.Column="0" Background="#22FFFFFF" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="0,1,1,0">
+          <DockPanel Margin="8,16,8,16">
+            <StackPanel DockPanel.Dock="Top">
+              <TextBlock Text="项目" FontSize="12" Foreground="{DynamicResource TextSecBrush}" HorizontalAlignment="Center" Margin="0,0,0,8"/>
+            </StackPanel>
+            <StackPanel DockPanel.Dock="Bottom" Margin="0,14,0,0">
+              <Button Name="SettingsNavBtn" Content="启动器设置" Padding="6,8" Margin="0,0,0,8"/>
+            </StackPanel>
+            <ListBox Name="ProjectList" DisplayMemberPath="ShortName" BorderThickness="0" Background="Transparent"/>
+          </DockPanel>
         </Border>
-        <Grid Grid.Row="1">
-          <Grid.ColumnDefinitions><ColumnDefinition Width="300"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
-          <Border Grid.Column="0" Background="{DynamicResource PanelBGBrush}" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1" CornerRadius="8" Padding="12" Margin="0,0,12,0">
+        <Grid Grid.Column="1" Margin="24,20,24,20">
+          <Grid.RowDefinitions><RowDefinition Height="158"/><RowDefinition Height="*"/><RowDefinition Height="112"/></Grid.RowDefinitions>
+          <Border Grid.Row="0" CornerRadius="10" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1" Padding="24" Margin="0,0,0,18">
+            <Border.Background>
+              <LinearGradientBrush StartPoint="0,0" EndPoint="1,1">
+                <GradientStop Color="#FF0B75C9" Offset="0"/>
+                <GradientStop Color="#CC39D1C8" Offset="0.56"/>
+                <GradientStop Color="#55FFFFFF" Offset="1"/>
+              </LinearGradientBrush>
+            </Border.Background>
+            <Grid>
+              <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
+              <StackPanel VerticalAlignment="Center">
+                <TextBlock Text="AI WebUI 安装与管理" Foreground="White" FontSize="16" Opacity="0.9"/>
+                <TextBlock Text="启动器控制台" Foreground="White" FontSize="30" FontWeight="Bold" Margin="0,6,0,12"/>
+                <TextBlock Name="ProjectStatusText" TextWrapping="Wrap" Foreground="White" FontSize="13" MaxWidth="680"/>
+              </StackPanel>
+              <StackPanel Grid.Column="1" VerticalAlignment="Bottom" HorizontalAlignment="Right">
+                <TextBlock Name="BusyText" HorizontalAlignment="Right" Foreground="White" Opacity="0.9" Margin="0,0,8,12"/>
+                <StackPanel Orientation="Horizontal">
+                  <Button Name="RefreshStatusBtn" Content="刷新状态" Background="#CCFFFFFF" Foreground="#242424" BorderThickness="0"/>
+                  <Button Name="RunInstallerBtn" Content="▶ 运行安装器" Style="{StaticResource PrimaryButton}" Padding="18,10" FontSize="15"/>
+                </StackPanel>
+              </StackPanel>
+            </Grid>
+          </Border>
+          <Grid Grid.Row="1">
+            <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="330"/></Grid.ColumnDefinitions>
+            <Border Grid.Column="0" Background="{DynamicResource PanelBGBrush}" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1" CornerRadius="10" Padding="18" Margin="0,0,18,0">
+              <TabControl Name="MainTabs">
+                <TabItem Header="高级选项">
+                  <DockPanel Margin="2,14,2,0">
+                    <StackPanel DockPanel.Dock="Top" Orientation="Horizontal" Margin="0,0,0,14">
+                      <Button Name="SaveConfigBtn" Content="保存配置" Style="{StaticResource PrimaryButton}"/>
+                    </StackPanel>
+                    <ScrollViewer VerticalScrollBarVisibility="Auto">
+                      <StackPanel Name="ConfigPanel"/>
+                    </ScrollViewer>
+                  </DockPanel>
+                </TabItem>
+                <TabItem Header="管理脚本">
+                  <Grid Margin="2,14,2,0">
+                    <Grid.RowDefinitions>
+                      <RowDefinition Height="Auto"/>
+                      <RowDefinition Height="*"/>
+                      <RowDefinition Height="Auto"/>
+                    </Grid.RowDefinitions>
+                    <ComboBox Name="ScriptCombo" Grid.Row="0" Margin="0,0,0,12"/>
+                    <TextBox Name="ScriptArgsBox" Grid.Row="1" MinHeight="150" AcceptsReturn="True" VerticalScrollBarVisibility="Auto" TextWrapping="Wrap" Margin="0,0,0,14" ToolTip="保存给当前管理脚本的默认参数"/>
+                    <StackPanel Grid.Row="2" Orientation="Horizontal">
+                      <Button Name="SaveScriptArgsBtn" Content="保存脚本参数"/>
+                      <Button Name="RunScriptBtn" Content="运行脚本" Style="{StaticResource PrimaryButton}"/>
+                    </StackPanel>
+                  </Grid>
+                </TabItem>
+                <TabItem Header="启动器设置">
+                  <ScrollViewer VerticalScrollBarVisibility="Auto" Margin="2,14,2,0">
+                    <StackPanel MaxWidth="560" HorizontalAlignment="Left">
+                      <CheckBox Name="AutoUpdateCheck" Content="启动时自动检查更新"/>
+                      <CheckBox Name="WelcomeCheck" Content="启动时显示欢迎提示" Margin="0,0,0,16"/>
+                      <TextBlock Text="日志等级" Margin="0,0,0,5"/>
+                      <ComboBox Name="LogLevelCombo" Margin="0,0,0,12"/>
+                      <TextBlock Text="代理模式" Margin="0,0,0,5"/>
+                      <ComboBox Name="ProxyModeCombo" Margin="0,0,0,12"/>
+                      <TextBlock Text="手动代理地址" Margin="0,0,0,5"/>
+                      <TextBox Name="ManualProxyBox" Margin="0,0,0,16"/>
+                      <StackPanel Orientation="Horizontal" Margin="0,0,0,14">
+                        <Button Name="SaveMainBtn" Content="保存设置" Style="{StaticResource PrimaryButton}"/>
+                        <Button Name="CheckUpdateBtn" Content="检查更新"/>
+                        <Button Name="UninstallBtn" Content="卸载已安装软件"/>
+                      </StackPanel>
+                    </StackPanel>
+                  </ScrollViewer>
+                </TabItem>
+              </TabControl>
+            </Border>
+            <Border Grid.Column="1" Background="{DynamicResource PanelBGBrush}" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1" CornerRadius="10" Padding="18">
+              <StackPanel>
+                <TextBlock Text="快速操作" FontSize="18" FontWeight="SemiBold" Margin="0,0,0,14"/>
+                <TextBlock Text="已安装后：优先进入“管理脚本”，运行 launch.ps1 启动软件，或运行 update.ps1 / terminal.ps1 做维护。" Foreground="{DynamicResource TextSecBrush}" TextWrapping="Wrap" Margin="0,0,0,10"/>
+                <TextBlock Text="未安装时：先在“高级选项”确认安装路径、分支和镜像，再运行安装器完成首次安装。" Foreground="{DynamicResource TextSecBrush}" TextWrapping="Wrap" Margin="0,0,0,10"/>
+                <TextBlock Text="如果检测到安装不完整，请重新运行安装器修复后再启动。" Foreground="{DynamicResource TextSecBrush}" TextWrapping="Wrap" Margin="0,0,0,18"/>
+                <Border Background="{DynamicResource HeaderBGBrush}" CornerRadius="8" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1" Padding="14" Margin="0,0,0,14">
+                  <TextBlock Text="PowerShell 脚本会在独立控制台中运行；如果返回非零退出码，窗口会停留以便查看上游日志。" TextWrapping="Wrap" Foreground="{DynamicResource TextSecBrush}"/>
+                </Border>
+                <TextBlock Text="右上角 ? 可打开完整帮助；日志按钮可查看最近运行记录。" TextWrapping="Wrap" Foreground="{DynamicResource TextSecBrush}"/>
+              </StackPanel>
+            </Border>
+          </Grid>
+          <Border Grid.Row="2" Background="{DynamicResource PanelBGBrush}" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1" CornerRadius="10" Padding="10" Margin="0,18,0,0">
             <DockPanel>
-              <TextBlock DockPanel.Dock="Top" Text="项目" FontSize="16" FontWeight="SemiBold" Margin="0,0,0,10"/>
-              <ListBox Name="ProjectList" DisplayMemberPath="Name"/>
+              <TextBlock DockPanel.Dock="Top" Text="运行日志" FontWeight="SemiBold" Margin="2,0,0,6"/>
+              <TextBox Name="LogBox" IsReadOnly="True" AcceptsReturn="True" TextWrapping="Wrap" VerticalScrollBarVisibility="Auto" Background="Transparent" BorderThickness="0" FontFamily="Consolas"/>
             </DockPanel>
           </Border>
-          <Border Grid.Column="1" Background="{DynamicResource PanelBGBrush}" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1" CornerRadius="8" Padding="12">
-            <TabControl>
-              <TabItem Header="安装器配置">
-                <DockPanel Margin="2,10,2,0">
-                  <StackPanel DockPanel.Dock="Top" Orientation="Horizontal" Margin="0,0,0,12">
-                    <Button Name="SaveConfigBtn" Content="保存配置" Style="{StaticResource PrimaryButton}"/>
-                    <Button Name="RunInstallerBtn" Content="运行安装器" Style="{StaticResource PrimaryButton}"/>
-                    <Button Name="RefreshStatusBtn" Content="刷新状态"/>
-                  </StackPanel>
-                  <ScrollViewer VerticalScrollBarVisibility="Auto">
-                    <StackPanel Name="ConfigPanel"/>
-                  </ScrollViewer>
-                </DockPanel>
-              </TabItem>
-              <TabItem Header="管理脚本">
-                <Grid Margin="2,10,2,0">
-                  <Grid.RowDefinitions>
-                    <RowDefinition Height="Auto"/>
-                    <RowDefinition Height="*"/>
-                    <RowDefinition Height="Auto"/>
-                  </Grid.RowDefinitions>
-                  <ComboBox Name="ScriptCombo" Grid.Row="0" Margin="0,0,0,10"/>
-                  <TextBox Name="ScriptArgsBox" Grid.Row="1" MinHeight="120" AcceptsReturn="True" VerticalScrollBarVisibility="Auto" TextWrapping="Wrap" Margin="0,0,0,12" ToolTip="保存给当前管理脚本的默认参数"/>
-                  <StackPanel Grid.Row="2" Orientation="Horizontal">
-                    <Button Name="SaveScriptArgsBtn" Content="保存脚本参数"/>
-                    <Button Name="RunScriptBtn" Content="运行脚本" Style="{StaticResource PrimaryButton}"/>
-                  </StackPanel>
-                </Grid>
-              </TabItem>
-              <TabItem Header="启动器设置">
-                <ScrollViewer VerticalScrollBarVisibility="Auto" Margin="2,10,2,0">
-                  <StackPanel MaxWidth="520" HorizontalAlignment="Left">
-                    <CheckBox Name="AutoUpdateCheck" Content="启动时自动检查更新" Margin="0,0,0,8"/>
-                    <CheckBox Name="WelcomeCheck" Content="启动时显示欢迎提示" Margin="0,0,0,14"/>
-                    <TextBlock Text="日志等级" Margin="0,0,0,4"/>
-                    <ComboBox Name="LogLevelCombo" Margin="0,0,0,10"/>
-                    <TextBlock Text="代理模式" Margin="0,0,0,4"/>
-                    <ComboBox Name="ProxyModeCombo" Margin="0,0,0,10"/>
-                    <TextBlock Text="手动代理地址" Margin="0,0,0,4"/>
-                    <TextBox Name="ManualProxyBox" Margin="0,0,0,14"/>
-                    <StackPanel Orientation="Horizontal" Margin="0,0,0,14">
-                      <Button Name="SaveMainBtn" Content="保存设置" Style="{StaticResource PrimaryButton}"/>
-                      <Button Name="CheckUpdateBtn" Content="检查更新"/>
-                    </StackPanel>
-                    <StackPanel Orientation="Horizontal">
-                      <Button Name="UninstallBtn" Content="卸载已安装软件"/>
-                      <Button Name="HelpBtn" Content="帮助"/>
-                      <Button Name="ShowLogBtn" Content="日志"/>
-                    </StackPanel>
-                  </StackPanel>
-                </ScrollViewer>
-              </TabItem>
-            </TabControl>
-          </Border>
         </Grid>
-        <Border Grid.Row="2" Background="{DynamicResource PanelBGBrush}" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1" CornerRadius="8" Padding="8" Margin="0,12,0,0">
-          <TextBox Name="LogBox" IsReadOnly="True" AcceptsReturn="True" TextWrapping="Wrap" VerticalScrollBarVisibility="Auto" Background="Transparent" BorderThickness="0" FontFamily="Consolas"/>
-        </Border>
       </Grid>
     </Grid>
   </Border>
@@ -1942,11 +2034,11 @@ function Start-App {
     })
     $UI = [PSCustomObject]@{
         Window = $window; TitleBar = $window.FindName("TitleBar"); MinBtn = $window.FindName("MinBtn"); MaxBtn = $window.FindName("MaxBtn"); CloseBtn = $window.FindName("CloseBtn")
-        MainBorder = $window.FindName("MainBorder"); ProjectList = $window.FindName("ProjectList"); ProjectStatusText = $window.FindName("ProjectStatusText"); BusyText = $window.FindName("BusyText")
+        MainBorder = $window.FindName("MainBorder"); MainTabs = $window.FindName("MainTabs"); ProjectList = $window.FindName("ProjectList"); ProjectStatusText = $window.FindName("ProjectStatusText"); BusyText = $window.FindName("BusyText")
         ConfigPanel = $window.FindName("ConfigPanel"); SaveConfigBtn = $window.FindName("SaveConfigBtn"); RunInstallerBtn = $window.FindName("RunInstallerBtn"); RefreshStatusBtn = $window.FindName("RefreshStatusBtn")
         ScriptCombo = $window.FindName("ScriptCombo"); ScriptArgsBox = $window.FindName("ScriptArgsBox"); SaveScriptArgsBtn = $window.FindName("SaveScriptArgsBtn"); RunScriptBtn = $window.FindName("RunScriptBtn")
         AutoUpdateCheck = $window.FindName("AutoUpdateCheck"); WelcomeCheck = $window.FindName("WelcomeCheck"); LogLevelCombo = $window.FindName("LogLevelCombo"); ProxyModeCombo = $window.FindName("ProxyModeCombo"); ManualProxyBox = $window.FindName("ManualProxyBox")
-        SaveMainBtn = $window.FindName("SaveMainBtn"); CheckUpdateBtn = $window.FindName("CheckUpdateBtn"); UninstallBtn = $window.FindName("UninstallBtn"); HelpBtn = $window.FindName("HelpBtn"); ShowLogBtn = $window.FindName("ShowLogBtn")
+        SaveMainBtn = $window.FindName("SaveMainBtn"); CheckUpdateBtn = $window.FindName("CheckUpdateBtn"); UninstallBtn = $window.FindName("UninstallBtn"); SettingsNavBtn = $window.FindName("SettingsNavBtn"); HelpBtn = $window.FindName("HelpBtn"); ShowLogBtn = $window.FindName("ShowLogBtn")
         LogBox = $window.FindName("LogBox")
     }
     $State = [PSCustomObject]@{ CurrentOperation = $null; ConfigControls = @{}; ProjectConfig = @{} }
@@ -1956,7 +2048,20 @@ function Start-App {
     $UI.ProxyModeCombo.ItemsSource = @("auto", "manual", "off")
     Refresh-MainConfigUi $UI
     $projectItems = @()
-    foreach ($key in $script:Projects.Keys) { $projectItems += [PSCustomObject]@{ Key = $key; Name = $script:Projects[$key].Name } }
+    $projectShortNames = @{
+        sd_webui = "SD WebUI"
+        comfyui = "ComfyUI"
+        invokeai = "InvokeAI"
+        fooocus = "Fooocus"
+        sd_trainer = "Trainer"
+        sd_trainer_script = "Scripts"
+        qwen_tts_webui = "Qwen TTS"
+    }
+    foreach ($key in $script:Projects.Keys) {
+        $shortName = $script:Projects[$key].Name
+        if ($projectShortNames.ContainsKey($key)) { $shortName = $projectShortNames[$key] }
+        $projectItems += [PSCustomObject]@{ Key = $key; Name = $script:Projects[$key].Name; ShortName = $shortName }
+    }
     $UI.ProjectList.ItemsSource = $projectItems
     foreach ($item in $projectItems) {
         if ($item.Key -eq $mainConfig["CURRENT_PROJECT"]) { $UI.ProjectList.SelectedItem = $item; break }
@@ -1969,6 +2074,7 @@ function Start-App {
             Save-MainConfig
             Refresh-ProjectConfigUi $UI $State
             Refresh-Status $UI $State
+            Select-RelevantMainTab $UI
             $currentProject = $mainConfig["CURRENT_PROJECT"]
             Append-UiLog $UI "当前项目已切换: $currentProject"
         } catch {
@@ -2011,6 +2117,9 @@ function Start-App {
         Append-UiLog $UI "启动器设置已保存。"
     }.GetNewClosure())
     $UI.CheckUpdateBtn.Add_Click({ Invoke-UpdateCheck $UI $State $true }.GetNewClosure())
+    $UI.SettingsNavBtn.Add_Click({
+        if ($null -ne $UI.MainTabs) { $UI.MainTabs.SelectedIndex = 2 }
+    }.GetNewClosure())
     $UI.UninstallBtn.Add_Click({ Invoke-UninstallProject $UI $State }.GetNewClosure())
     $UI.HelpBtn.Add_Click({ Show-HelpWindow }.GetNewClosure())
     $UI.ShowLogBtn.Add_Click({ Show-LogWindow }.GetNewClosure())
@@ -2037,6 +2146,7 @@ function Start-App {
             }
             Refresh-ProjectConfigUi $UI $State
             Refresh-Status $UI $State
+            Select-RelevantMainTab $UI
             Append-UiLog $UI "GUI 启动完成。配置: $displayConfigHome 日志: $displayLogFile"
             if ([bool]$mainConfig["SHOW_WELCOME_SCREEN"]) {
                 Append-UiLog $UI "选择项目，调整配置，然后运行安装器。"
