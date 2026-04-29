@@ -175,6 +175,20 @@ run_pwsh_script() {
   (cd "$script_dir" && pwsh -NoLogo -ExecutionPolicy Bypass -File "./$(basename "$script_path")" "$@")
 }
 
+show_pwsh_failure_notice() {
+  local script_path="$1" status="$2"
+  printf '\nPowerShell 脚本异常退出。\n' >&2
+  printf '脚本: %s\n' "$script_path" >&2
+  printf '退出代码: %s\n' "$status" >&2
+  printf '\n请先查看上方 PowerShell 输出日志，确认具体失败原因。\n' >&2
+  printf '按 Enter 返回启动器界面。' >&2
+  if [[ -t 0 ]]; then
+    read -r _ || true
+  else
+    printf '\n' >&2
+  fi
+}
+
 run_installer() {
   local key="${1:-$CURRENT_PROJECT}" script args=() confirmation status
   load_project_config "$key"
@@ -200,6 +214,7 @@ run_installer() {
   else
     status=$?
     log_error "installer failed: project=$key status=$status"
+    show_pwsh_failure_notice "$script" "$status"
     return "$status"
   fi
 }
@@ -336,8 +351,24 @@ set_script_args() {
 
 show_management_script_hint() {
   case "$1" in
-    launch.ps1) pause_screen "即将运行 launch.ps1。运行期间可以按 Ctrl+C 终止。" ;;
-    terminal.ps1) pause_screen "即将进入 terminal.ps1。需要退出终端时，输入 exit 并回车。" ;;
+    launch.ps1)
+      confirm_screen "继续运行 launch.ps1" "即将运行 launch.ps1 启动当前 WebUI / 工具。
+
+运行开始后，PowerShell 输出会显示在当前终端中。
+如果需要终止运行中的服务，可以在终端按 Ctrl+C。
+
+选择 Yes / 确认，或在文本模式输入 y 后回车，即可继续运行。
+选择 No / 取消会返回启动器，不会执行脚本。"
+      ;;
+    terminal.ps1)
+      confirm_screen "继续打开 terminal.ps1" "即将打开 terminal.ps1 交互终端。
+
+打开后可以在已激活的项目环境中输入命令并回车执行。
+需要退出交互终端时，输入 exit 并回车。
+
+选择 Yes / 确认，或在文本模式输入 y 后回车，即可继续打开。
+选择 No / 取消会返回启动器，不会执行脚本。"
+      ;;
   esac
 }
 
@@ -357,13 +388,18 @@ run_management_script() {
   if dialog_available; then
     clear || true
   fi
-  show_management_script_hint "$script_name"
+  if ! show_management_script_hint "$script_name"; then
+    log_info "management script canceled at hint: project=$key script=$script_name"
+    info "已取消运行 $script_name。"
+    return 0
+  fi
   info "Running: pwsh -File $script_path ${args[*]}"
   if run_pwsh_script "$script_path" "${args[@]}"; then
     log_info "management script finished: project=$key script=$script_name status=0"
   else
     status=$?
     log_error "management script failed: project=$key script=$script_name status=$status"
+    show_pwsh_failure_notice "$script_path" "$status"
     return "$status"
   fi
 }

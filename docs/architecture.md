@@ -4,7 +4,7 @@
 
 ## 总体结构
 
-项目是一个 Bash 5+ 编写的 TUI/CLI 启动器。入口脚本只负责运行环境检查和加载模块，业务逻辑拆分在 `lib/` 目录中。
+项目是一个 Bash 5+ 编写的 TUI/CLI 启动器，用于通过 `sd-webui-all-in-one` 系列 PowerShell 安装器安装和管理多个 AI WebUI / 训练工具。入口脚本只负责运行环境检查和加载模块，业务逻辑拆分在 `lib/` 目录中。
 
 ```text
 installer_launcher.sh
