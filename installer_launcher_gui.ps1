@@ -374,6 +374,67 @@ function ConvertTo-SafeLogText {
     return $safe
 }
 
+function Format-LogArgs {
+    param([string[]]$Args)
+    if ($null -eq $Args -or $Args.Count -eq 0) { return "(none)" }
+    $items = @()
+    foreach ($arg in $Args) {
+        $items += ('"{0}"' -f ((ConvertTo-SafeLogText $arg) -replace '"', '\"'))
+    }
+    return ($items -join " ")
+}
+
+function Split-Shlex {
+    param([Parameter(Mandatory)][string]$InputString)
+
+    $result = [System.Collections.Generic.List[string]]::new()
+    $current = ""
+    $inSingleQuote = $false
+    $inDoubleQuote = $false
+    $escapeNext = $false
+
+    foreach ($char in $InputString.ToCharArray()) {
+        if ($escapeNext) {
+            $current += $char
+            $escapeNext = $false
+            continue
+        }
+
+        if (-not $inDoubleQuote -and $char -eq "'") {
+            $inSingleQuote = -not $inSingleQuote
+            continue
+        }
+
+        if (-not $inSingleQuote -and $char -eq '"') {
+            $inDoubleQuote = -not $inDoubleQuote
+            continue
+        }
+
+        if (-not $inSingleQuote -and -not $inDoubleQuote -and [char]::IsWhiteSpace($char)) {
+            if ($current.Length -gt 0) {
+                $result.Add($current)
+                $current = ""
+            }
+            continue
+        }
+
+        $current += $char
+    }
+    if ($current.Length -gt 0) { $result.Add($current) }
+    if ($inSingleQuote -or $inDoubleQuote) { throw "Unterminated quoted string" }
+    return $result
+}
+
+function Join-Shlex {
+    param([Parameter(Mandatory)][string[]]$Arguments)
+    $params = $Arguments.ForEach{
+        if ($_ -match '\s|"') { "'{0}'" -f ($_ -replace "'", "''") }
+        else { $_ }
+    } -join ' '
+
+    return $params
+}
+
 function Write-Log {
     param([string]$Level, [string]$Message)
     if ($null -eq $script:MainConfig) { $minLevel = "DEBUG" } else { $minLevel = $script:MainConfig["LOG_LEVEL"] }
@@ -534,14 +595,6 @@ function Get-InstallerCachePath {
     return (Join-Path $dir $Project.InstallerFile)
 }
 
-function Split-ExtraArgs {
-    param([string]$Text)
-    if ([string]::IsNullOrWhiteSpace($Text)) { return @() }
-    return [System.Management.Automation.PSParser]::Tokenize($Text, [ref]$null) |
-        Where-Object { $_.Type -eq "CommandArgument" -or $_.Type -eq "CommandParameter" -or $_.Type -eq "String" } |
-        ForEach-Object { $_.Content }
-}
-
 function Build-InstallerArgs {
     param($Project, [System.Collections.IDictionary]$Config)
     $args = New-Object System.Collections.Generic.List[string]
@@ -565,7 +618,9 @@ function Build-InstallerArgs {
     if ((Test-ProjectParam $Project "UseCustomHuggingFaceMirror") -and -not [string]::IsNullOrWhiteSpace($Config["HUGGINGFACE_MIRROR"])) { $args.Add("-UseCustomHuggingFaceMirror"); $args.Add($Config["HUGGINGFACE_MIRROR"]) }
     if ((Test-ProjectParam $Project "DisableCUDAMalloc") -and $Config["DISABLE_CUDA_MALLOC"]) { $args.Add("-DisableCUDAMalloc") }
     if ((Test-ProjectParam $Project "DisableEnvCheck") -and $Config["DISABLE_ENV_CHECK"]) { $args.Add("-DisableEnvCheck") }
-    foreach ($arg in (Split-ExtraArgs $Config["EXTRA_INSTALL_ARGS"])) { $args.Add($arg) }
+    if (-not [string]::IsNullOrWhiteSpace($Config["EXTRA_INSTALL_ARGS"])) {
+        foreach ($arg in (Split-Shlex $Config["EXTRA_INSTALL_ARGS"])) { $args.Add($arg) }
+    }
     if ((Test-ProjectParam $Project "NoPause") -and -not (@($args) -contains "-NoPause")) { $args.Add("-NoPause") }
     return @($args)
 }
@@ -597,15 +652,28 @@ function New-ConsoleWrapperScript {
     @'
 param(
     [Parameter(Mandatory=$true)][string]$ScriptPath,
-    [string[]]$ScriptArgs = @()
+    [string]$ArgsTextPath = "",
+    [Parameter(Mandatory=$true)][string]$BaseExpression
 )
 $ErrorActionPreference = "Continue"
+$ScriptArgsText = ""
+if (-not [string]::IsNullOrWhiteSpace($ArgsTextPath) -and (Test-Path -LiteralPath $ArgsTextPath -PathType Leaf)) {
+    $ScriptArgsText = (Get-Content -LiteralPath $ArgsTextPath -Raw).Trim()
+}
 Set-Location -LiteralPath (Split-Path -Parent $ScriptPath)
 Write-Host ""
 Write-Host "Running PowerShell script:" -ForegroundColor Cyan
 Write-Host $ScriptPath -ForegroundColor Gray
+Write-Host "Arguments:" -ForegroundColor Cyan
+if (-not [string]::IsNullOrWhiteSpace($ScriptArgsText)) {
+    Write-Host "  $ScriptArgsText" -ForegroundColor Gray
+} else {
+    Write-Host "  (none)" -ForegroundColor DarkGray
+}
 Write-Host ""
-& $ScriptPath @ScriptArgs
+$Expression = $BaseExpression
+if (-not [string]::IsNullOrWhiteSpace($ScriptArgsText)) { $Expression = "$Expression $ScriptArgsText" }
+Invoke-Expression $Expression
 $code = $LASTEXITCODE
 if ($null -eq $code) { $code = 0 }
 if ($code -ne 0) {
@@ -620,11 +688,32 @@ exit $code
     return $path
 }
 
+function Quote-ProcessArgument {
+    param([string]$Argument)
+    if ($null -eq $Argument) { return '""' }
+    if ($Argument -notmatch '[\s"]' -and $Argument.Length -gt 0) { return $Argument }
+    return '"' + ($Argument -replace '"', '\"') + '"'
+}
+
+function Join-ProcessArguments {
+    param([string[]]$Arguments)
+    $quoted = @()
+    foreach ($arg in $Arguments) { $quoted += (Quote-ProcessArgument $arg) }
+    return ($quoted -join " ")
+}
+
 function Start-PowerShellScriptProcess {
     param([string]$ScriptPath, [string[]]$ScriptArgs)
     $command = Resolve-PowerShellCommand
     if ([string]::IsNullOrWhiteSpace($command)) { throw "未找到 pwsh 或 powershell。" }
     $wrapper = New-ConsoleWrapperScript
+    if ($null -eq $ScriptArgs -or $ScriptArgs.Count -eq 0) { $argsText = "" } else { $argsText = Join-Shlex $ScriptArgs }
+    $argsTextPath = ""
+    if (-not [string]::IsNullOrWhiteSpace($argsText)) {
+        $argsTextPath = Join-Path $env:TEMP ("installer-launcher-args-{0}.txt" -f ([guid]::NewGuid().ToString("N")))
+        Set-Content -LiteralPath $argsTextPath -Encoding UTF8 -Value $argsText
+    }
+    $baseExpression = "& " + (Join-Shlex @($command, "-NoLogo", "-ExecutionPolicy", "Bypass", "-File", $ScriptPath))
     $arguments = New-Object System.Collections.Generic.List[string]
     $arguments.Add("-NoLogo")
     $arguments.Add("-ExecutionPolicy")
@@ -633,12 +722,17 @@ function Start-PowerShellScriptProcess {
     $arguments.Add($wrapper)
     $arguments.Add("-ScriptPath")
     $arguments.Add($ScriptPath)
-    if ($ScriptArgs.Count -gt 0) {
-        $arguments.Add("-ScriptArgs")
-        foreach ($arg in $ScriptArgs) { $arguments.Add($arg) }
+    if (-not [string]::IsNullOrWhiteSpace($argsTextPath)) {
+        $arguments.Add("-ArgsTextPath")
+        $arguments.Add($argsTextPath)
     }
-    $process = Start-Process -FilePath $command -ArgumentList @($arguments) -Wait -PassThru -WindowStyle Normal
+    $arguments.Add("-BaseExpression")
+    $arguments.Add($baseExpression)
+    $argumentLine = Join-ProcessArguments @($arguments)
+    Write-Log DEBUG "powershell process prepared: command=$command script=$ScriptPath args=$(Format-LogArgs $ScriptArgs) process_args=$argumentLine"
+    $process = Start-Process -FilePath $command -ArgumentList $argumentLine -Wait -PassThru -WindowStyle Normal
     Remove-Item -LiteralPath $wrapper -Force -ErrorAction SilentlyContinue
+    if (-not [string]::IsNullOrWhiteSpace($argsTextPath)) { Remove-Item -LiteralPath $argsTextPath -Force -ErrorAction SilentlyContinue }
     return $process.ExitCode
 }
 
@@ -913,6 +1007,8 @@ function Invoke-RunInstaller {
     Save-ProjectConfig $key $config
     $args = Build-InstallerArgs $project $config
     $scriptPath = Get-InstallerCachePath $project
+    if ($null -eq $args -or $args.Count -eq 0) { $argsText = "" } else { $argsText = Join-Shlex $args }
+    Write-Log DEBUG "installer args prepared: project=$key path=$scriptPath args=$(Format-LogArgs $args) args_text=$argsText"
     $confirmation = @"
 即将运行安装任务，请确认配置。
 
@@ -928,7 +1024,7 @@ $($args -join [Environment]::NewLine)
 "@
     if (-not (Confirm-Message $confirmation "确认运行安装器")) { Append-UiLog $UI "安装任务已取消。"; return }
     $operation = {
-        param($Project, $Config, [string[]]$InstallerArgs, [string]$OutputPath)
+        param($Project, $Config, [string]$InstallerArgsText, [string]$OutputPath)
         function Invoke-DownloadWithRetry {
             param([string[]]$Urls, [string]$OutputPath)
             New-Item -ItemType Directory -Force -Path (Split-Path -Parent $OutputPath) | Out-Null
@@ -956,9 +1052,25 @@ $($args -join [Environment]::NewLine)
         function New-ConsoleWrapperScript {
             $path = Join-Path $env:TEMP ("installer-launcher-wrapper-{0}.ps1" -f ([guid]::NewGuid().ToString("N")))
             @'
-param([Parameter(Mandatory=$true)][string]$ScriptPath,[string[]]$ScriptArgs=@())
+param([Parameter(Mandatory=$true)][string]$ScriptPath,[string]$ArgsTextPath="",[Parameter(Mandatory=$true)][string]$BaseExpression)
+$ScriptArgsText = ""
+if (-not [string]::IsNullOrWhiteSpace($ArgsTextPath) -and (Test-Path -LiteralPath $ArgsTextPath -PathType Leaf)) {
+    $ScriptArgsText = (Get-Content -LiteralPath $ArgsTextPath -Raw).Trim()
+}
 Set-Location -LiteralPath (Split-Path -Parent $ScriptPath)
-& $ScriptPath @ScriptArgs
+Write-Host ""
+Write-Host "Running PowerShell script:" -ForegroundColor Cyan
+Write-Host $ScriptPath -ForegroundColor Gray
+Write-Host "Arguments:" -ForegroundColor Cyan
+if (-not [string]::IsNullOrWhiteSpace($ScriptArgsText)) {
+    Write-Host "  $ScriptArgsText" -ForegroundColor Gray
+} else {
+    Write-Host "  (none)" -ForegroundColor DarkGray
+}
+Write-Host ""
+$Expression = $BaseExpression
+if (-not [string]::IsNullOrWhiteSpace($ScriptArgsText)) { $Expression = "$Expression $ScriptArgsText" }
+Invoke-Expression $Expression
 $code = $LASTEXITCODE
 if ($null -eq $code) { $code = 0 }
 if ($code -ne 0) {
@@ -972,6 +1084,26 @@ exit $code
 '@ | Set-Content -LiteralPath $path -Encoding UTF8
             return $path
         }
+        function Quote-ProcessArgument {
+            param([string]$Argument)
+            if ($null -eq $Argument) { return '""' }
+            if ($Argument -notmatch '[\s"]' -and $Argument.Length -gt 0) { return $Argument }
+            return '"' + ($Argument -replace '"', '\"') + '"'
+        }
+        function Join-ProcessArguments {
+            param([string[]]$Arguments)
+            $quoted = @()
+            foreach ($arg in $Arguments) { $quoted += (Quote-ProcessArgument $arg) }
+            return ($quoted -join " ")
+        }
+        function Join-Shlex {
+            param([Parameter(Mandatory)][string[]]$Arguments)
+            $params = $Arguments.ForEach{
+                if ($_ -match '\s|"') { "'{0}'" -f ($_ -replace "'", "''") }
+                else { $_ }
+            } -join ' '
+            return $params
+        }
         $download = Invoke-DownloadWithRetry -Urls ([string[]]$Project.InstallerUrls) -OutputPath $OutputPath
         if (-not $download.Success) {
             return [PSCustomObject]@{ Success = $false; Stage = "download"; ExitCode = 1; Message = "安装器下载失败"; Detail = ($download.Errors -join "`n") }
@@ -981,20 +1113,33 @@ exit $code
             return [PSCustomObject]@{ Success = $false; Stage = "powershell"; ExitCode = 127; Message = "未找到 pwsh 或 powershell"; Detail = "" }
         }
         $wrapper = New-ConsoleWrapperScript
+        $argsTextPath = ""
+        if (-not [string]::IsNullOrWhiteSpace($InstallerArgsText)) {
+            $argsTextPath = Join-Path $env:TEMP ("installer-launcher-args-{0}.txt" -f ([guid]::NewGuid().ToString("N")))
+            Set-Content -LiteralPath $argsTextPath -Encoding UTF8 -Value $InstallerArgsText
+        }
+        $baseExpression = "& " + (Join-Shlex @($command, "-NoLogo", "-ExecutionPolicy", "Bypass", "-File", $OutputPath))
         $argumentList = @("-NoLogo", "-ExecutionPolicy", "Bypass", "-File", $wrapper, "-ScriptPath", $OutputPath)
-        if ($InstallerArgs.Count -gt 0) { $argumentList += "-ScriptArgs"; $argumentList += $InstallerArgs }
-        $process = Start-Process -FilePath $command -ArgumentList $argumentList -Wait -PassThru -WindowStyle Normal
+        if (-not [string]::IsNullOrWhiteSpace($argsTextPath)) { $argumentList += "-ArgsTextPath"; $argumentList += $argsTextPath }
+        $argumentList += "-BaseExpression"; $argumentList += $baseExpression
+        $argumentLine = Join-ProcessArguments ([string[]]$argumentList)
+        $process = Start-Process -FilePath $command -ArgumentList $argumentLine -Wait -PassThru -WindowStyle Normal
         Remove-Item -LiteralPath $wrapper -Force -ErrorAction SilentlyContinue
-        return [PSCustomObject]@{ Success = ($process.ExitCode -eq 0); Stage = "execute"; ExitCode = $process.ExitCode; Message = "安装器执行完成"; Detail = "下载源: $($download.Url)" }
+        if (-not [string]::IsNullOrWhiteSpace($argsTextPath)) { Remove-Item -LiteralPath $argsTextPath -Force -ErrorAction SilentlyContinue }
+        return [PSCustomObject]@{ Success = ($process.ExitCode -eq 0); Stage = "execute"; ExitCode = $process.ExitCode; Message = "安装器执行完成"; Detail = "下载源: $($download.Url)"; ProcessArgs = $argumentLine; ScriptArgsText = $InstallerArgsText }
     }
-    Start-GuiOperation -UI $UI -State $State -Name "运行安装器" -ScriptBlock $operation -Arguments @($project, $config, $args, $scriptPath) -OnComplete {
+    Start-GuiOperation -UI $UI -State $State -Name "运行安装器" -ScriptBlock $operation -Arguments @($project, $config, $argsText, $scriptPath) -OnComplete {
         param($result, $streamErrors)
         $item = $result | Select-Object -First 1
         if ($null -eq $item) { Show-Message "安装任务没有返回结果。" "错误" "Error"; return }
         if ($item.Success) {
+            Write-Log DEBUG "installer process args: $($item.ProcessArgs)"
+            Write-Log DEBUG "installer script args text: $($item.ScriptArgsText)"
             Append-UiLog $UI "安装器执行成功。$($item.Detail)"
             Show-Message "安装器执行成功。`n$($item.Detail)" "完成"
         } else {
+            Write-Log DEBUG "installer process args: $($item.ProcessArgs)"
+            Write-Log DEBUG "installer script args text: $($item.ScriptArgsText)"
             Append-UiLog $UI "安装器执行失败: $($item.Message) exit=$($item.ExitCode) $($item.Detail)"
             Show-Message "安装器执行失败。`n阶段: $($item.Stage)`n退出代码: $($item.ExitCode)`n$($item.Detail)" "失败" "Error"
         }
@@ -1024,10 +1169,11 @@ function Invoke-RunManagementScript {
     }
     $argsText = ""
     if ($null -ne $config["ScriptArgs"] -and (Test-DictionaryKey $config["ScriptArgs"] $scriptName)) { $argsText = [string]$config["ScriptArgs"][$scriptName] }
-    $scriptArgs = @(Split-ExtraArgs $argsText)
-    if ((Test-ProjectParam $project "NoPause") -and -not ($scriptArgs -contains "-NoPause")) { $scriptArgs += "-NoPause" }
+    if ([string]::IsNullOrWhiteSpace($argsText)) { $scriptArgs = @() } else { $scriptArgs = @(Split-Shlex $argsText) }
+    if ($null -eq $scriptArgs -or $scriptArgs.Count -eq 0) { $scriptArgsText = "" } else { $scriptArgsText = Join-Shlex $scriptArgs }
+    Write-Log DEBUG "management script args prepared: project=$key script=$scriptName path=$scriptPath args=$(Format-LogArgs $scriptArgs) args_text=$scriptArgsText"
     $operation = {
-        param([string]$ScriptPath, [string[]]$ScriptArgs)
+        param([string]$ScriptPath, [string]$ScriptArgsText)
         function Resolve-PowerShellCommand {
             $pwsh = Get-Command pwsh -ErrorAction SilentlyContinue
             if ($null -ne $pwsh) { return $pwsh.Source }
@@ -1038,9 +1184,25 @@ function Invoke-RunManagementScript {
         function New-ConsoleWrapperScript {
             $path = Join-Path $env:TEMP ("installer-launcher-wrapper-{0}.ps1" -f ([guid]::NewGuid().ToString("N")))
             @'
-param([Parameter(Mandatory=$true)][string]$ScriptPath,[string[]]$ScriptArgs=@())
+param([Parameter(Mandatory=$true)][string]$ScriptPath,[string]$ArgsTextPath="",[Parameter(Mandatory=$true)][string]$BaseExpression)
+$ScriptArgsText = ""
+if (-not [string]::IsNullOrWhiteSpace($ArgsTextPath) -and (Test-Path -LiteralPath $ArgsTextPath -PathType Leaf)) {
+    $ScriptArgsText = (Get-Content -LiteralPath $ArgsTextPath -Raw).Trim()
+}
 Set-Location -LiteralPath (Split-Path -Parent $ScriptPath)
-& $ScriptPath @ScriptArgs
+Write-Host ""
+Write-Host "Running PowerShell script:" -ForegroundColor Cyan
+Write-Host $ScriptPath -ForegroundColor Gray
+Write-Host "Arguments:" -ForegroundColor Cyan
+if (-not [string]::IsNullOrWhiteSpace($ScriptArgsText)) {
+    Write-Host "  $ScriptArgsText" -ForegroundColor Gray
+} else {
+    Write-Host "  (none)" -ForegroundColor DarkGray
+}
+Write-Host ""
+$Expression = $BaseExpression
+if (-not [string]::IsNullOrWhiteSpace($ScriptArgsText)) { $Expression = "$Expression $ScriptArgsText" }
+Invoke-Expression $Expression
 $code = $LASTEXITCODE
 if ($null -eq $code) { $code = 0 }
 if ($code -ne 0) {
@@ -1054,23 +1216,56 @@ exit $code
 '@ | Set-Content -LiteralPath $path -Encoding UTF8
             return $path
         }
+        function Quote-ProcessArgument {
+            param([string]$Argument)
+            if ($null -eq $Argument) { return '""' }
+            if ($Argument -notmatch '[\s"]' -and $Argument.Length -gt 0) { return $Argument }
+            return '"' + ($Argument -replace '"', '\"') + '"'
+        }
+        function Join-ProcessArguments {
+            param([string[]]$Arguments)
+            $quoted = @()
+            foreach ($arg in $Arguments) { $quoted += (Quote-ProcessArgument $arg) }
+            return ($quoted -join " ")
+        }
         $command = Resolve-PowerShellCommand
         if ([string]::IsNullOrWhiteSpace($command)) {
             return [PSCustomObject]@{ Success = $false; ExitCode = 127; Message = "未找到 pwsh 或 powershell" }
         }
         $wrapper = New-ConsoleWrapperScript
+        function Join-Shlex {
+            param([Parameter(Mandatory)][string[]]$Arguments)
+            $params = $Arguments.ForEach{
+                if ($_ -match '\s|"') { "'{0}'" -f ($_ -replace "'", "''") }
+                else { $_ }
+            } -join ' '
+            return $params
+        }
+        $argsTextPath = ""
+        if (-not [string]::IsNullOrWhiteSpace($ScriptArgsText)) {
+            $argsTextPath = Join-Path $env:TEMP ("installer-launcher-args-{0}.txt" -f ([guid]::NewGuid().ToString("N")))
+            Set-Content -LiteralPath $argsTextPath -Encoding UTF8 -Value $ScriptArgsText
+        }
+        $baseExpression = "& " + (Join-Shlex @($command, "-NoLogo", "-ExecutionPolicy", "Bypass", "-File", $ScriptPath))
         $argumentList = @("-NoLogo", "-ExecutionPolicy", "Bypass", "-File", $wrapper, "-ScriptPath", $ScriptPath)
-        if ($ScriptArgs.Count -gt 0) { $argumentList += "-ScriptArgs"; $argumentList += $ScriptArgs }
-        $process = Start-Process -FilePath $command -ArgumentList $argumentList -Wait -PassThru -WindowStyle Normal
+        if (-not [string]::IsNullOrWhiteSpace($argsTextPath)) { $argumentList += "-ArgsTextPath"; $argumentList += $argsTextPath }
+        $argumentList += "-BaseExpression"; $argumentList += $baseExpression
+        $argumentLine = Join-ProcessArguments ([string[]]$argumentList)
+        $process = Start-Process -FilePath $command -ArgumentList $argumentLine -Wait -PassThru -WindowStyle Normal
         Remove-Item -LiteralPath $wrapper -Force -ErrorAction SilentlyContinue
-        return [PSCustomObject]@{ Success = ($process.ExitCode -eq 0); ExitCode = $process.ExitCode; Message = "管理脚本执行完成" }
+        if (-not [string]::IsNullOrWhiteSpace($argsTextPath)) { Remove-Item -LiteralPath $argsTextPath -Force -ErrorAction SilentlyContinue }
+        return [PSCustomObject]@{ Success = ($process.ExitCode -eq 0); ExitCode = $process.ExitCode; Message = "管理脚本执行完成"; ProcessArgs = $argumentLine; ScriptArgsText = $ScriptArgsText }
     }
-    Start-GuiOperation -UI $UI -State $State -Name "运行管理脚本" -ScriptBlock $operation -Arguments @($scriptPath, $scriptArgs) -OnComplete {
+    Start-GuiOperation -UI $UI -State $State -Name "运行管理脚本" -ScriptBlock $operation -Arguments @($scriptPath, $scriptArgsText) -OnComplete {
         param($result, $streamErrors)
         $item = $result | Select-Object -First 1
         if ($item.Success) {
+            Write-Log DEBUG "management script process args: $($item.ProcessArgs)"
+            Write-Log DEBUG "management script args text: $($item.ScriptArgsText)"
             Append-UiLog $UI "$scriptName 执行成功。"
         } else {
+            Write-Log DEBUG "management script process args: $($item.ProcessArgs)"
+            Write-Log DEBUG "management script args text: $($item.ScriptArgsText)"
             Append-UiLog $UI "$scriptName 执行失败，退出代码: $($item.ExitCode)"
             Show-Message "$scriptName 执行失败。`n退出代码: $($item.ExitCode)`n请查看 PowerShell 控制台输出。" "失败" "Error"
         }
@@ -1145,7 +1340,7 @@ function Invoke-UpdateCheck {
         return [PSCustomObject]@{ Success = $false; Updated = $false; Message = "更新检查失败: $lastError" }
     }
     $manualCheck = $Manual
-    Start-GuiOperation -UI $UI -State $State -Name "检查更新" -ScriptBlock $operation -Arguments @($script:SELF_REMOTE_URLS, $script:INSTALLER_LAUNCHER_GUI_VERSION, $PSCommandPath) -OnComplete {
+    Start-GuiOperation -UI $UI -State $State -Name "检查更新" -ScriptBlock $operation -Arguments @((,[string[]]($script:SELF_REMOTE_URLS)), $script:INSTALLER_LAUNCHER_GUI_VERSION, $PSCommandPath) -OnComplete {
         param($result, $streamErrors)
         $item = $result | Select-Object -First 1
         if ($null -eq $item) {

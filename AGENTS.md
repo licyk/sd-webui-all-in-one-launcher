@@ -171,7 +171,8 @@ When adding or changing a project:
 - TUI and CLI must respect per-project capability tables.
 - Do not show or pass parameters unsupported by the selected project.
 - `NoPause` is not a user-facing config option.
-  - If the selected project supports it, append `-NoPause` automatically.
+  - Append `-NoPause` automatically for installer execution when the selected project supports it.
+  - Do not append `-NoPause` automatically for management scripts; some upstream management scripts treat unknown switches as positional values.
   - Do not add duplicate `-NoPause`.
 - `run-installer` must explicitly pass `-InstallPath` when supported.
 - `EXTRA_INSTALL_ARGS` is appended after structured installer arguments.
@@ -204,7 +205,7 @@ When adding or changing a project:
   5. Execute PowerShell script.
 - `run_management_script` should:
   - find scripts only under the effective install path,
-  - append `-NoPause` when supported,
+  - pass only user-configured script arguments,
   - show special hints:
     - `launch.ps1`: Ctrl+C terminates the running service.
     - `terminal.ps1`: type `exit` and press Enter to leave the terminal.

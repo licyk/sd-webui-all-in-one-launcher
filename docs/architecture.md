@@ -235,7 +235,7 @@ ${XDG_CONFIG_HOME:-$HOME/.config}/installer-launcher/projects/<project>.conf
 - 计算安装器缓存路径。
 - 按项目下载源列表重试下载安装器。
 - 构建 PowerShell 安装器参数。
-- 自动追加 `-NoPause`。
+- 安装器执行时按项目能力自动追加 `-NoPause`。
 - 展示安装确认内容。
 - 执行 `pwsh -NoLogo -ExecutionPolicy Bypass -File`。
 - 根据安装路径检测安装状态。
@@ -433,7 +433,8 @@ main_menu
 - 只有项目支持 `InstallPath` 时才传 `-InstallPath`。
 - 只有项目支持 `InstallBranch` 时才传 `-InstallBranch`。
 - 只有项目支持 `UseCustomProxy` 时才传 `-UseCustomProxy`。
-- `NoPause` 不展示为用户配置项，但项目支持时自动追加 `-NoPause`。
+- `NoPause` 不展示为用户配置项；安装器执行时如果项目支持则自动追加 `-NoPause`。
+- 管理脚本只传用户配置的脚本参数，不自动追加 `-NoPause`，避免上游脚本将未知开关当作位置参数。
 
 `EXTRA_INSTALL_ARGS` 会在结构化参数之后追加，适合临时传递未内置的安装器参数。
 

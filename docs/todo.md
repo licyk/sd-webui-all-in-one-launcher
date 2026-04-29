@@ -61,7 +61,7 @@
 - [x] TUI 配置界面按当前项目支持的参数动态显示字段。
 - [x] 构建安装器参数时只传递当前项目支持的参数。
 - [x] `set-project` 会拒绝设置当前项目不支持的结构化配置项。
-- [x] `NoPause` 不再作为用户配置项；项目支持时自动追加 `-NoPause`。
+- [x] `NoPause` 不再作为用户配置项；运行安装器且项目支持时自动追加 `-NoPause`。
 - [x] 运行安装器时显式传入 `-InstallPath`，未配置时使用 `$HOME/<项目默认目录>`。
 - [x] `EXTRA_INSTALL_ARGS` 会追加到结构化安装器参数之后。
 - [x] 运行安装器前展示确认信息，包括项目、安装器下载源列表、缓存路径、安装路径、PowerShell 参数和当前项目配置。
@@ -256,6 +256,14 @@
 - [x] GUI 错误日志已增强为包含行号、命令和调用栈，便于定位 Windows 端 WPF 事件异常。
 - [x] 修复 GUI WPF 事件闭包中 `$script:MainConfig` 作用域指向变化，导致选择项目时报 `Cannot index into a null array` 的问题。
 - [x] 修复 GUI 残留 `Report-UiError -Exception` 调用，确保初始化、Dispatcher 和自动更新异常都能按新格式记录。
+- [x] GUI 版已记录安装器和管理脚本的最终启动参数摘要，便于定位参数拼接问题。
+- [x] GUI 版执行 PowerShell 时不再把目标脚本参数直接拼进 `Start-Process -ArgumentList`，改为提前处理成已引用的参数字符串并写入临时文本文件，由 wrapper 读取后通过 `powershell/pwsh -File <script> <args>` 传入目标脚本，避免空格路径和复杂参数被二次拆分。
+- [x] GUI/TUI 运行管理脚本时不再自动追加 `-NoPause`，避免 `launch.ps1` 将该未知开关解析为 `CorePrefix` 等位置参数。
+- [x] GUI 后台任务传递字符串数组参数时使用一元逗号保护，避免空数组或参数数组被 PowerShell 展开导致形参绑定偏移。
+- [x] GUI wrapper 不再在当前会话中用 `& $ScriptPath @ScriptArgs` 调用目标脚本，改为再次通过 `powershell/pwsh -File <script> <args>` 启动，保持与用户直接运行脚本相同的参数入口语义。
+- [x] GUI wrapper 启动目标脚本时改用 `Invoke-Expression` 执行完整的 `powershell/pwsh -File` 表达式，并对每个参数做单引号引用，继续排查上游脚本位置参数解析问题。
+- [x] GUI 参数文件不再保存 JSON 数组，改为保存已处理的参数字符串，避免 `-NoPause` 被中间层参数绑定吞掉，以及带空格参数丢失引用格式。
+- [x] GUI 参数分割和合并已统一改为 `Split-Shlex` / `Join-Shlex`，移除旧的 `PSParser` 分割和自定义合并实现。
 - [x] `README.md` 已补充日志位置、崩溃记录、脱敏策略和 `show-log` 命令。
 - [x] `README.md` 已补充日志等级设置方法。
 - [x] `README.md` 已润色项目定位，突出可通过启动器安装和管理多个 AI WebUI / 训练工具。
