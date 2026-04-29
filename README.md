@@ -1,12 +1,12 @@
 # sd-webui-all-in-one-launcher
 
-一个用于安装、启动和维护多个 AI WebUI / 训练工具的 Bash TUI/CLI 启动器。
+一个用于安装、启动和维护多个 AI WebUI / 训练工具的启动器项目，提供 Bash TUI/CLI 和 Windows PowerShell GUI 两种入口。
 
 它基于 `sd-webui-all-in-one` 系列 PowerShell 安装器工作：用户只需要选择要安装的 WebUI 类型，设置安装路径、分支、镜像或代理等参数，启动器会重新下载最新安装器脚本并执行安装。安装完成后，也可以继续通过它运行项目生成的启动、更新、终端、模型下载等管理脚本。
 
 ## 功能
 
-- 支持 TUI 和 CLI 两种使用方式。
+- 支持 Bash TUI、CLI 和 Windows PowerShell GUI 三种使用方式。
 - 可通过同一套界面安装和管理多个 WebUI / 工具：
   - Stable Diffusion WebUI
   - ComfyUI
@@ -26,8 +26,11 @@
 - 默认启动时自动检查启动器更新，检测到新版本会自动尝试更新。
 - TUI 启动时显示欢迎页，包含版本、更新状态和 dialog 操作提示。
 - 支持卸载启动器自身，同时清理命令注册、配置和缓存。
+- Windows 用户可直接运行 `installer_launcher_gui.ps1` 使用 WPF 图形界面。
 
 ## 环境要求
+
+### Bash TUI/CLI
 
 - Bash 5 或更高版本。
 - PowerShell：需要 `pwsh` 或 `powershell` 命令，用于执行上游安装器和管理脚本；启动器会优先使用 `pwsh`，找不到时回退到 `powershell`。
@@ -36,6 +39,29 @@
 - 可选：`git`，用于安装/更新启动器自身。没有 `git` 时会尝试使用源码压缩包。
 
 启动器启动时会按主配置处理联网代理。默认自动读取系统代理，并在联网前设置 `HTTP_PROXY` / `HTTPS_PROXY` / `NO_PROXY` 等环境变量；也可以在启动器主配置中改为手动代理或不使用代理。自动模式不会覆盖用户已有的代理环境变量；关闭代理模式会清理当前启动器进程中的代理环境变量。`install.sh` 运行在启动器配置可用之前，因此会使用独立的自动系统代理检测。
+
+### Windows GUI
+
+- Windows PowerShell 5.1 或 PowerShell 7+。
+- Windows WPF / .NET 桌面环境。
+- 需要 `pwsh` 或 `powershell` 命令用于执行上游安装器和管理脚本。
+
+Windows GUI 版只适配 Windows，入口为：
+
+```powershell
+powershell -NoProfile -ExecutionPolicy Bypass -File .\installer_launcher_gui.ps1
+```
+
+GUI 版会使用 Windows 原生目录保存数据：
+
+```text
+主配置: %APPDATA%\installer-launcher\main.json
+项目配置: %APPDATA%\installer-launcher\projects\<project>.json
+缓存目录: %LOCALAPPDATA%\installer-launcher\cache\installers\<project>\
+日志目录: %LOCALAPPDATA%\installer-launcher\logs\
+```
+
+GUI 版支持项目选择、动态安装器配置、重新下载安装器并执行、安装检测、管理脚本运行、项目卸载、日志、代理模式和 GUI 脚本自动更新。它不会注册 Bash 命令，也不会执行 Linux/macOS 依赖引导或 shell rc 清理。
 
 ### macOS
 
@@ -170,6 +196,24 @@ installer-launcher install-launcher
 3. 返回主界面，选择 `下载安装器并运行`。
 4. 安装完成后，使用 `运行安装后生成的管理脚本` 启动 WebUI、更新项目、进入终端环境或执行其他维护操作。
 
+### Windows GUI 快速开始
+
+在 Windows 中可以直接启动 GUI：
+
+```powershell
+powershell -NoProfile -ExecutionPolicy Bypass -File .\installer_launcher_gui.ps1
+```
+
+推荐流程：
+
+1. 在左侧选择要安装或管理的 WebUI / 工具。
+2. 在“安装器配置”中调整安装路径、分支、镜像、代理和开关参数。
+3. 点击“保存配置”，再点击“运行安装器”。
+4. GUI 会重新下载安装器，并打开独立 PowerShell 控制台运行脚本。
+5. 安装完成后，在“管理脚本”中运行 `launch.ps1`、`update.ps1`、`terminal.ps1` 等脚本。
+
+`launch.ps1` 运行期间可在控制台按 `Ctrl+C` 终止服务；`terminal.ps1` 打开交互终端后，输入 `exit` 并回车退出。
+
 ## 自动更新
 
 启动器默认启用自动检查更新。
@@ -179,6 +223,8 @@ installer-launcher install-launcher
 - 如果远程版本高于本地版本，会自动尝试安装新版启动器。
 - 如果检查或更新失败，会提示用户，但不会阻止当前启动器继续运行。
 - 检查和更新过程中会在终端输出简短状态，例如正在检查、已是最新版本、发现新版本或更新失败。
+
+Windows GUI 版也默认启用自动更新，但只替换 `installer_launcher_gui.ps1` 自身，不处理 Bash 命令注册。
 
 关闭自动更新：
 
@@ -332,6 +378,8 @@ dialog 常用操作：
 
 ## 配置位置
 
+### Bash TUI/CLI
+
 主配置：
 
 ```text
@@ -354,6 +402,15 @@ ${XDG_CACHE_HOME:-$HOME/.cache}/installer-launcher/installers/<project>/
 
 ```text
 ${XDG_STATE_HOME:-$HOME/.local/state}/installer-launcher/logs/
+```
+
+### Windows GUI
+
+```text
+主配置: %APPDATA%\installer-launcher\main.json
+项目配置: %APPDATA%\installer-launcher\projects\<project>.json
+安装器缓存: %LOCALAPPDATA%\installer-launcher\cache\installers\<project>\
+日志目录: %LOCALAPPDATA%\installer-launcher\logs\
 ```
 
 ## 日志与崩溃记录

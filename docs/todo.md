@@ -21,6 +21,7 @@
 - [x] 支持卸载启动器自身，卸载时移除命令注册、配置目录和缓存目录。
 - [x] `AGENTS.md` 已创建，用于记录项目约定、编码风格和验证规则。
 - [x] `README.md` 已创建，用于面向用户说明安装、TUI/CLI 使用、配置、下载策略和卸载。
+- [x] 已新增 Windows PowerShell WPF GUI 版启动器 `installer_launcher_gui.ps1`。
 - [x] `docs/` 已创建，维护类文档已迁移到该目录。
 - [x] `docs/architecture.md` 已创建，用于说明项目架构、模块职责和主要流程。
 - [x] 本文件已整理为分组状态板，避免继续堆叠流水账。
@@ -37,6 +38,7 @@
 - [x] `lib/menus.sh`：TUI 菜单、配置交互、主界面状态、帮助页面。
 - [x] `lib/cli.sh`：CLI 命令分发和帮助文本。
 - [x] `lib/bootstrap.sh`：统一加载模块。
+- [x] `installer_launcher_gui.ps1`：Windows-only 单文件 WPF GUI，内置项目注册表、配置、下载、执行、日志、代理和自动更新。
 
 ## 配置与项目选择
 
@@ -229,6 +231,31 @@
 - [x] TUI 帮助文档已补充日志位置、崩溃记录和 CLI 查看日志方法。
 - [x] TUI 帮助文档已补充日志等级设置说明。
 - [x] TUI 帮助文档已补充代理模式、手动代理地址和 `off` 模式行为。
+
+## Windows GUI
+
+- [x] 新增 `installer_launcher_gui.ps1`，使用 PowerShell/WPF 实现 Windows 图形界面。
+- [x] GUI 版内置 7 个项目的安装器下载源、默认目录、分支、管理脚本和支持参数。
+- [x] GUI 版使用 Windows 原生路径保存配置、缓存和日志。
+- [x] GUI 主界面包含项目选择、安装状态、动态安装器配置、管理脚本、启动器设置和日志输出。
+- [x] GUI 版运行安装器前展示确认信息，确认后重新下载安装器并执行。
+- [x] GUI 版按项目能力动态显示配置项，不显示当前项目不支持的参数。
+- [x] GUI 版执行 PowerShell 脚本时优先使用 `pwsh`，找不到时回退到 `powershell`。
+- [x] GUI 版执行安装器和管理脚本时打开独立 PowerShell 控制台，并在非零退出时保留窗口提示用户查看输出。
+- [x] GUI 版支持 `launch.ps1` 和 `terminal.ps1` 的运行前提示。
+- [x] GUI 版支持项目卸载，卸载前使用警告确认和输入 `DELETE <project>` 的最终确认。
+- [x] GUI 版支持 `auto` / `manual` / `off` 三种代理模式。
+- [x] GUI 版支持按日志等级写入 `%LOCALAPPDATA%\installer-launcher\logs\`。
+- [x] GUI 版支持自动检查并尝试更新 `installer_launcher_gui.ps1` 自身。
+- [x] 修复 GUI 在 Windows 中选择项目时因字典配置使用属性写入导致的 `CURRENT_PROJECT` 崩溃。
+- [x] 修复 GUI 日志中配置路径和日志路径因作用域变量字符串插值不正确显示为空的问题。
+- [x] 修复 GUI 自动更新回调中 `$Manual` 闭包变量丢失导致的更新检查错误。
+- [x] 强化 GUI 启动阶段异常处理：Loaded 回调、WPF Dispatcher 异常和启动时自动更新失败都会写日志，避免直接崩溃。
+- [x] GUI 启动时自动更新改为延迟执行，失败时只写入日志和界面日志，不再用弹窗打断首次渲染。
+- [x] 修复 GUI 动态开关配置使用数组索引导致 PowerShell 数组展开后可能报 `Cannot index into a null array` 的问题。
+- [x] GUI 错误日志已增强为包含行号、命令和调用栈，便于定位 Windows 端 WPF 事件异常。
+- [x] 修复 GUI WPF 事件闭包中 `$script:MainConfig` 作用域指向变化，导致选择项目时报 `Cannot index into a null array` 的问题。
+- [x] 修复 GUI 残留 `Report-UiError -Exception` 调用，确保初始化、Dispatcher 和自动更新异常都能按新格式记录。
 - [x] `README.md` 已补充日志位置、崩溃记录、脱敏策略和 `show-log` 命令。
 - [x] `README.md` 已补充日志等级设置方法。
 - [x] `README.md` 已润色项目定位，突出可通过启动器安装和管理多个 AI WebUI / 训练工具。
@@ -236,6 +263,9 @@
 - [x] `AGENTS.md` 已补充 `install.sh` 需兼容 macOS Bash 3.x 的约定。
 - [x] TUI 欢迎页和帮助文档已润色，突出“选择 WebUI / 工具并完成安装、启动、更新和维护”的使用方式。
 - [x] `docs/architecture.md` 已同步项目定位描述。
+- [x] `README.md` 已补充 Windows GUI 启动方式、功能说明、配置路径和与 Bash 版的差异。
+- [x] `docs/architecture.md` 已补充 Windows GUI 入口、数据路径和运行流程。
+- [x] `AGENTS.md` 已补充 Windows GUI 维护规则。
 
 ## 验证记录
 
@@ -243,6 +273,9 @@
 - [x] 多次运行 `shellcheck installer_launcher.sh lib/*.sh`，通过。
 - [x] 运行 `bash -n install.sh installer_launcher.sh lib/*.sh`，通过。
 - [x] 运行 `shellcheck install.sh installer_launcher.sh lib/*.sh`，通过。
+- [x] 新增 Windows GUI 后再次运行 `bash -n install.sh installer_launcher.sh lib/*.sh`，通过。
+- [x] 新增 Windows GUI 后再次运行 `shellcheck install.sh installer_launcher.sh lib/*.sh`，通过。
+- [x] 当前 Linux 环境未安装 `pwsh` / `powershell`，无法在本机解析或启动 WPF GUI，Windows 验证待补跑。
 - [x] 验证 `install.sh` dry-run 在 `pwsh/dialog/git` 已存在时会跳过依赖安装并调用 `install-launcher --yes`。
 - [x] 验证只有 `powershell` mock、没有 `pwsh` 时，运行器会回退到 `powershell`。
 - [x] 验证 `install.sh` dry-run 在仅存在 `powershell` 时会视为 PowerShell 已安装。
@@ -281,6 +314,9 @@
 - [x] 验证 bootstrap 前找不到模块时会写入 early log，并对 token 类参数脱敏。
 - [x] 验证代理配置和 token/password 类参数在日志中已脱敏。
 - [x] 验证 PowerShell 非零退出提示会显示脚本路径、退出代码，并等待 Enter 后返回。
+- [ ] 在 Windows PowerShell 5.1 中运行 `installer_launcher_gui.ps1`，验证 WPF 界面可正常启动。
+- [ ] 在 Windows 中验证 GUI 首次启动会创建 AppData / LocalAppData 配置、缓存和日志目录。
+- [ ] 在 Windows 中验证 GUI 安装器下载重试、PowerShell 执行、安装检测、管理脚本运行和项目卸载流程。
 
 ## 待办
 

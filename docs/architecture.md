@@ -4,7 +4,10 @@
 
 ## 总体结构
 
-项目是一个 Bash 5+ 编写的 TUI/CLI 启动器，用于通过 `sd-webui-all-in-one` 系列 PowerShell 安装器安装和管理多个 AI WebUI / 训练工具。入口脚本只负责运行环境检查和加载模块，业务逻辑拆分在 `lib/` 目录中。
+项目包含两个启动器入口，用于通过 `sd-webui-all-in-one` 系列 PowerShell 安装器安装和管理多个 AI WebUI / 训练工具：
+
+- Bash 5+ TUI/CLI 启动器：入口为 `installer_launcher.sh`，业务逻辑拆分在 `lib/`。
+- Windows PowerShell WPF GUI 启动器：入口为 `installer_launcher_gui.ps1`，以单文件形式交付。
 
 ```text
 installer_launcher.sh
@@ -18,6 +21,9 @@ installer_launcher.sh
     ├── lib/self_manage.sh
     ├── lib/menus.sh
     └── lib/cli.sh
+
+installer_launcher_gui.ps1
+└── 单文件 WPF GUI、项目注册表、配置、下载、执行、日志和自动更新
 ```
 
 核心原则：
@@ -31,6 +37,7 @@ installer_launcher.sh
 - 启动器自动更新检查集中在 `lib/self_manage.sh`，启动分发由 `lib/cli.sh` 调用。
 - 日志和异常退出记录集中在 `lib/core.sh`，由 `lib/cli.sh` 启动时初始化。
 - 启动器联网代理处理集中在 `lib/proxy.sh`，并在自动更新、下载安装器等联网操作之前执行。
+- Windows GUI 使用独立 PowerShell 实现，但行为需要与 Bash 版的项目注册表、参数构建、代理模式和安装检测保持一致。
 
 ## 入口脚本
 
@@ -46,6 +53,29 @@ installer_launcher.sh
 - 调用 `main "$@"`。
 
 入口脚本中位于 strict mode 之前的逻辑需要兼容 macOS 自带 Bash 3.x。
+
+## Windows GUI 入口
+
+`installer_launcher_gui.ps1` 是 Windows-only GUI 入口。
+
+主要职责：
+
+- 检查运行系统是否为 Windows。
+- 加载 WPF 依赖并构建无边框 GUI。
+- 内置项目注册表、配置读写、下载重试、PowerShell 执行、安装检测、卸载、代理、日志和自动更新。
+- 使用 Runspace + DispatcherTimer 执行长任务，避免下载和运行脚本时阻塞 UI。
+- 执行安装器和管理脚本时打开独立 PowerShell 控制台，保留上游脚本输出和交互。
+
+Windows GUI 数据路径：
+
+```text
+主配置: %APPDATA%\installer-launcher\main.json
+项目配置: %APPDATA%\installer-launcher\projects\<project>.json
+缓存目录: %LOCALAPPDATA%\installer-launcher\cache\installers\<project>\
+日志目录: %LOCALAPPDATA%\installer-launcher\logs\
+```
+
+GUI 版自动更新只替换 `installer_launcher_gui.ps1` 自身，不实现 Bash 版的命令注册、shell rc 修改或 Linux/macOS 依赖引导。
 
 ## 模块职责
 

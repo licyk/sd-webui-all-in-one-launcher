@@ -2,9 +2,12 @@
 
 ## Project Overview
 
-This project is a Bash-based TUI/CLI launcher for multiple PowerShell installer scripts.
+This project provides launchers for multiple PowerShell installer scripts:
 
-The dependency bootstrap entry point is `install.sh`. The launcher entry point is `installer_launcher.sh`. Most launcher behavior lives in `lib/` modules:
+- Bash TUI/CLI launcher for Linux/macOS/Windows-like shells.
+- Windows-only PowerShell WPF GUI launcher.
+
+The dependency bootstrap entry point is `install.sh`. The Bash launcher entry point is `installer_launcher.sh`. The Windows GUI entry point is `installer_launcher_gui.ps1`. Most Bash launcher behavior lives in `lib/` modules:
 
 - `lib/bootstrap.sh`: sources all modules in the required order.
 - `lib/core.sh`: application constants, global defaults, logging/crash helpers, generic helpers.
@@ -18,6 +21,20 @@ The dependency bootstrap entry point is `install.sh`. The launcher entry point i
 - `lib/cli.sh`: command-line dispatch and usage text.
 
 `docs/todo.md` is part of the workflow. Update it whenever you modify behavior, tests, or documentation.
+
+## Windows GUI Rules
+
+- `installer_launcher_gui.ps1` is Windows-only and should use PowerShell/WPF, not Bash.
+- Keep it self-contained so users can download and run a single `.ps1` file.
+- Keep the GUI project registry synchronized with `lib/projects.sh`: project keys, installer URL lists, default directories, branch lists, supported parameters, and direct management scripts.
+- GUI config uses Windows-native paths:
+  - `%APPDATA%\installer-launcher\main.json`
+  - `%APPDATA%\installer-launcher\projects\<project>.json`
+  - `%LOCALAPPDATA%\installer-launcher\cache\installers\<project>\`
+  - `%LOCALAPPDATA%\installer-launcher\logs\`
+- GUI proxy modes mirror the Bash launcher: `auto`, `manual`, and `off`.
+- GUI execution should open PowerShell scripts in a visible console window so upstream script output and prompts remain visible.
+- GUI self-update only replaces `installer_launcher_gui.ps1`; do not add Bash shell command registration or shell rc cleanup to the GUI.
 
 ## Shell Requirements
 
