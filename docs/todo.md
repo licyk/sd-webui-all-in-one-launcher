@@ -1,0 +1,183 @@
+# TODO
+
+## 当前状态
+
+- [x] 项目已完成多文件模块化重构，入口为 `installer_launcher.sh`，主逻辑位于 `lib/`。
+- [x] 支持 7 个安装器：SD WebUI、ComfyUI、InvokeAI、Fooocus、SD Trainer、SD Trainer Script、Qwen TTS WebUI。
+- [x] TUI 和 CLI 都基于当前项目配置运行，`CURRENT_PROJECT` 默认为空，首次使用需选择安装器。
+- [x] 安装器每次运行前都会重新下载到缓存目录，确保使用最新脚本。
+- [x] 安装器支持多个下载源，按顺序重试，任意一个下载成功即可继续执行。
+- [x] 运行安装器前会展示确认页，用户确认后才下载并执行。
+- [x] 支持卸载每个类型对应的已安装软件，卸载前需要警告确认和输入指定文本的最终确认。
+- [x] 支持从 GitHub 安装/更新启动器自身，并注册 `installer-launcher` 命令。
+- [x] 支持启动时自动检查启动器更新，默认启用，检查间隔 60 分钟。
+- [x] 支持 TUI 启动欢迎页，默认显示，可在启动器主配置中关闭。
+- [x] 支持卸载启动器自身，卸载时移除命令注册、配置目录和缓存目录。
+- [x] `AGENTS.md` 已创建，用于记录项目约定、编码风格和验证规则。
+- [x] `README.md` 已创建，用于面向用户说明安装、TUI/CLI 使用、配置、下载策略和卸载。
+- [x] `docs/` 已创建，维护类文档已迁移到该目录。
+- [x] `docs/architecture.md` 已创建，用于说明项目架构、模块职责和主要流程。
+- [x] 本文件已整理为分组状态板，避免继续堆叠流水账。
+
+## 项目结构
+
+- [x] `lib/core.sh`：应用常量、通用工具、项目键校验。
+- [x] `lib/projects.sh`：项目注册表、安装器 URL 列表、支持参数、管理脚本列表。
+- [x] `lib/config.sh`：主配置和项目配置的创建、加载、保存、展示。
+- [x] `lib/ui.sh`：dialog/text UI 适配、动态尺寸、确认框、文本查看器。
+- [x] `lib/runner.sh`：下载、参数构建、PowerShell 执行、安装检测、管理脚本运行、项目安装目录卸载。
+- [x] `lib/self_manage.sh`：启动器自身安装、命令注册、卸载和 shell 配置清理。
+- [x] `lib/menus.sh`：TUI 菜单、配置交互、主界面状态、帮助页面。
+- [x] `lib/cli.sh`：CLI 命令分发和帮助文本。
+- [x] `lib/bootstrap.sh`：统一加载模块。
+
+## 配置与项目选择
+
+- [x] 主配置包含 `CURRENT_PROJECT`、`AUTO_UPDATE_ENABLED`、`SHOW_WELCOME_SCREEN`、`AUTO_UPDATE_LAST_CHECK`。
+- [x] `CURRENT_PROJECT` 默认为空，不再隐式回填 `sd_webui`。
+- [x] `AUTO_UPDATE_ENABLED` 默认为 `1`。
+- [x] `SHOW_WELCOME_SCREEN` 默认为 `1`。
+- [x] `null` / `NULL` / `none` / `nil` / `undefined` 会被视为未选择。
+- [x] 未选择项目时，TUI 显示“未选择”，需要项目上下文的操作会提示先选择安装器。
+- [x] `set-main CURRENT_PROJECT null` 可清空当前项目。
+- [x] 已移除 `WORKSPACE_DIR` 及其管理脚本查找兜底逻辑。
+- [x] 每个项目使用独立配置文件：`${XDG_CONFIG_HOME:-$HOME/.config}/installer-launcher/projects/<project>.conf`。
+
+## 参数与安装器运行
+
+- [x] 为项目注册表增加参数能力表。
+- [x] TUI 配置界面按当前项目支持的参数动态显示字段。
+- [x] 构建安装器参数时只传递当前项目支持的参数。
+- [x] `set-project` 会拒绝设置当前项目不支持的结构化配置项。
+- [x] `NoPause` 不再作为用户配置项；项目支持时自动追加 `-NoPause`。
+- [x] 运行安装器时显式传入 `-InstallPath`，未配置时使用 `$HOME/<项目默认目录>`。
+- [x] `EXTRA_INSTALL_ARGS` 会追加到结构化安装器参数之后。
+- [x] 运行安装器前展示确认信息，包括项目、安装器下载源列表、缓存路径、安装路径、PowerShell 参数和当前项目配置。
+- [x] 用户取消确认时不会下载，也不会执行 PowerShell。
+
+## 下载与缓存
+
+- [x] 安装器下载位置为 `${XDG_CACHE_HOME:-$HOME/.cache}/installer-launcher/installers/<project>/`。
+- [x] 运行安装器前每次重新下载。
+- [x] 每个安装器配置 5 个下载源：GitHub Release、Gitee Release、GitHub raw、Gitee raw、GitLab raw。
+- [x] 下载安装器时按下载源顺序重试，只要一个源下载成功就执行安装器。
+- [x] 所有下载源都失败时返回错误，并打印已尝试的下载地址。
+- [x] 已移除“仅下载安装器”功能。
+- [x] 下载阶段使用普通文本提示，不再使用 dialog 进度条。
+
+## 启动器自身安装与卸载
+
+- [x] 新增 `install-launcher` CLI 命令。
+- [x] 新增 `uninstall-launcher` CLI 命令。
+- [x] 主界面新增“安装/更新启动器”入口。
+- [x] 主界面新增“卸载启动器”入口。
+- [x] 安装/更新启动器时从 `https://github.com/licyk/sd-webui-all-in-one-launcher` 获取最新源码。
+- [x] 启动时自动读取远程 `lib/core.sh` 中的 `APP_VERSION` 判断是否存在新版本。
+- [x] 自动更新失败不会中断启动器运行，会在启动时给用户提示。
+- [x] 启动器默认安装到 `${XDG_DATA_HOME:-$HOME/.local/share}/installer-launcher`。
+- [x] 注册命令为 `$HOME/.local/bin/installer-launcher`。
+- [x] 注册命令时会向当前 shell 的 rc 文件写入受标记管理的 PATH 配置块。
+- [x] 卸载时会移除安装目录、命令链接、shell PATH 配置块、配置目录和缓存目录。
+- [x] 卸载启动器自身时使用警告确认和输入指定文本的最终确认。
+- [x] 卸载不会删除 Stable Diffusion WebUI、ComfyUI 等项目本体安装目录。
+
+## 已安装软件卸载
+
+- [x] 新增 `uninstall [project]` CLI 命令。
+- [x] 主界面新增“卸载当前已安装软件”入口。
+- [x] 卸载项目时只删除有效安装路径，不删除启动器项目配置。
+- [x] 卸载项目时拒绝空路径、根目录和 HOME 目录等危险路径。
+- [x] 卸载项目时先展示警告确认，再要求输入 `DELETE <project>`。
+
+## 安装检测与主界面
+
+- [x] 已移除独立 `check-install` CLI/TUI 入口。
+- [x] 主界面顶部会自动检测当前项目安装状态。
+- [x] 检测基于有效安装路径：`INSTALL_PATH` 或默认 `$HOME/<项目默认目录>`。
+- [x] 已安装时显示安装路径，不重复显示 `已安装: 项目名称`。
+- [x] 未安装时提示：可先修改当前安装器配置，然后选择“下载安装器并运行”。
+- [x] 安装目录存在但缺少管理脚本时提示：当前安装不完整，请重新运行安装器完成安装。
+- [x] 已安装时提示：可以运行管理脚本执行启动、更新或维护操作。
+
+## 管理脚本
+
+- [x] 管理脚本只从有效安装路径查找。
+- [x] `terminal.ps1` 会自动处理环境激活，因此已移除 `activate.ps1` 入口。
+- [x] 已从管理脚本入口中移除 `init.ps1` 和 `tensorboard.ps1`。
+- [x] 运行 `launch.ps1` 前提示用户可按 `Ctrl+C` 终止。
+- [x] 运行 `terminal.ps1` 前提示用户输入 `exit` 并回车退出终端。
+- [x] 子脚本默认参数可按项目配置保存。
+
+## TUI
+
+- [x] TUI 使用 `dialog`，并统一通过 `lib/ui.sh` helper 调用。
+- [x] dialog 尺寸根据终端大小动态计算，不再直接硬编码宽高。
+- [x] 长文本使用 `text_viewer` 和 `dialog --textbox` 展示。
+- [x] TUI 帮助页面已添加到主界面。
+- [x] TUI 启动欢迎页已添加，展示版本信息、自动更新状态和 dialog 操作提示。
+- [x] 启动欢迎页可通过“启动器主配置”关闭或开启。
+- [x] TUI 帮助文档已补充首次使用流程、状态含义、配置细节、常见问题和 CLI 辅助命令。
+- [x] `show-config` 使用 `text_viewer` 展示配置，避免长文本导致异常退出。
+- [x] 修复 `menu_height` / `list_height` 与动态尺寸 helper 内部变量同名导致的未绑定变量问题。
+
+## CLI
+
+- [x] `list-projects` 可在未选择当前项目时正常运行。
+- [x] `install [project]` 支持显式项目；未传项目时使用当前项目。
+- [x] `config [project]` 支持显式项目；未传项目时使用当前项目。
+- [x] 需要项目上下文的命令会使用 `require_project_key` 校验。
+- [x] 已移除 `update-mode`。
+- [x] 已移除 `check-install`。
+- [x] 已移除 `download-only`。
+- [x] 已添加 `install-launcher` 和 `uninstall-launcher`。
+- [x] 已添加 `uninstall [project]`。
+- [x] CLI 帮助文本已与当前命令保持一致。
+- [x] `set-main AUTO_UPDATE_ENABLED 0/1` 可关闭或开启启动时自动更新。
+- [x] `set-main SHOW_WELCOME_SCREEN 0/1` 可关闭或开启 TUI 启动欢迎页。
+
+## macOS 兼容
+
+- [x] 入口脚本在 macOS 上检测 Bash 版本。
+- [x] 如果 macOS 自带 Bash 版本低于 5，会尝试使用 `/opt/homebrew/bin/bash` 递归运行自身。
+- [x] 如果 Homebrew Bash 不存在，会提示用户执行 `brew install bash` 并退出。
+- [x] macOS Bash 检测逻辑位于 `set -Eeuo pipefail` 之前，保持 Bash 3.x 可解析。
+
+## 文档
+
+- [x] `AGENTS.md` 已记录项目结构、编码风格、实现规则和验证要求。
+- [x] `README.md` 已记录项目介绍、环境要求、快速开始、安装命令、TUI/CLI 用法、配置位置、下载策略、管理脚本和卸载方式。
+- [x] `README.md` 已补充已安装软件卸载和双确认说明。
+- [x] `README.md` 已补充自动更新和 dialog 操作说明。
+- [x] `todo.md` 已移动到 `docs/todo.md`。
+- [x] `docs/architecture.md` 已记录入口脚本、模块职责、配置数据流、TUI 数据流、安装器运行流程和安装检测逻辑。
+- [x] `docs/architecture.md` 已补充项目卸载流程和双确认要求。
+- [x] `docs/architecture.md` 已补充自动更新和启动欢迎页流程。
+- [x] TUI 帮助文档已随用户可见行为更新。
+- [x] `docs/todo.md` 已重新整理为分组状态板。
+- [x] TUI 帮助文档已补充启动器自身安装、命令注册和卸载行为。
+- [x] TUI 帮助文档已补充安装器多下载源重试行为。
+
+## 验证记录
+
+- [x] 多次运行 `bash -n installer_launcher.sh lib/*.sh`，通过。
+- [x] 多次运行 `shellcheck installer_launcher.sh lib/*.sh`，通过。
+- [x] 验证 `list-projects` 可列出全部 7 个安装器。
+- [x] 验证空配置下直接运行需要项目上下文的命令会提示先选择安装器。
+- [x] 验证 `set-main CURRENT_PROJECT comfyui` 后可正常显示项目配置。
+- [x] 验证 `set-main CURRENT_PROJECT null` / `NULL` 可清空当前项目。
+- [x] 验证安装器参数默认包含 `-InstallPath <有效路径>` 和自动追加的 `-NoPause`。
+- [x] 验证取消安装确认后不会下载，也不会执行 PowerShell。
+- [x] 验证未安装、安装不完整、已安装三种主界面状态提示。
+- [x] 验证 `text_viewer`、动态尺寸 helper、菜单尺寸计算在 `bash -u` 下不触发未绑定变量。
+- [x] 验证新增 `install-launcher` / `uninstall-launcher` 已出现在 CLI 帮助中。
+- [x] 验证 `lib/self_manage.sh` 可在 `bash -u` 下随 `lib/bootstrap.sh` 正常加载并解析安装路径。
+- [x] 验证版本比较函数可在 `bash -u` 下判断 `0.3.1 > 0.3.0`。
+- [x] 验证 `set-main AUTO_UPDATE_ENABLED 0` 可关闭自动更新，并且普通 CLI 命令不再触发启动更新检查。
+- [x] 验证 `set-main SHOW_WELCOME_SCREEN 0` 可保存欢迎页开关。
+- [x] 验证卸载路径保护会拒绝根目录、HOME 目录和相对路径。
+- [x] 验证项目卸载最终确认输入错误时不会删除安装目录。
+- [x] 验证项目卸载最终确认输入正确时会删除安装目录。
+
+## 待办
+
+- [ ] 暂无明确待办；后续需求进入此区域并按完成情况移动到对应分组。
