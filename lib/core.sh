@@ -2,8 +2,8 @@
 # shellcheck disable=SC2034
 
 APP_NAME="installer-launcher"
-APP_TITLE="Installer Launcher"
-APP_VERSION="0.3.0"
+APP_TITLE="SD WebUI All In One Installer Launcher"
+APP_VERSION="0.3.1"
 
 CONFIG_HOME="${XDG_CONFIG_HOME:-$HOME/.config}/${APP_NAME}"
 CACHE_HOME="${XDG_CACHE_HOME:-$HOME/.cache}/${APP_NAME}"

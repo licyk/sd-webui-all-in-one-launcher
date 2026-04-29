@@ -93,6 +93,7 @@
 - [x] 安装/更新启动器时从 `https://github.com/licyk/sd-webui-all-in-one-launcher` 获取最新源码。
 - [x] 启动时自动读取远程 `lib/core.sh` 中的 `APP_VERSION` 判断是否存在新版本。
 - [x] 自动更新失败不会中断启动器运行，会在启动时给用户提示。
+- [x] 自动更新检查和自我更新执行时会输出简短阶段状态，避免长时间静默。
 - [x] 启动器默认安装到 `${XDG_DATA_HOME:-$HOME/.local/share}/installer-launcher`。
 - [x] 注册命令为 `$HOME/.local/bin/installer-launcher`。
 - [x] 注册命令时会向当前 shell 的 rc 文件写入受标记管理的 PATH 配置块。
@@ -173,6 +174,7 @@
 - [x] `README.md` 已补充 `install-launcher` 如何创建命令链接、写入 PATH，以及手动注册 PATH 的方法。
 - [x] `README.md` 已补充已安装软件卸载和双确认说明。
 - [x] `README.md` 已补充自动更新和 dialog 操作说明。
+- [x] `README.md` 已补充自动更新检查/更新过程会输出状态。
 - [x] `todo.md` 已移动到 `docs/todo.md`。
 - [x] `docs/architecture.md` 已记录入口脚本、模块职责、配置数据流、TUI 数据流、安装器运行流程和安装检测逻辑。
 - [x] `docs/architecture.md` 已补充项目卸载流程和双确认要求。
@@ -181,6 +183,7 @@
 - [x] TUI 帮助文档已随用户可见行为更新。
 - [x] `docs/todo.md` 已重新整理为分组状态板。
 - [x] TUI 帮助文档已补充启动器自身安装、命令注册和卸载行为。
+- [x] TUI 帮助文档已补充自动更新检查/更新过程会输出状态。
 - [x] TUI 帮助文档已补充安装器多下载源重试行为。
 - [x] TUI 帮助文档已补充日志位置、崩溃记录和 CLI 查看日志方法。
 - [x] TUI 帮助文档已补充日志等级设置说明。
@@ -213,6 +216,7 @@
 - [x] 验证 `--help` 启动后会生成当天日志文件。
 - [x] 验证 `show-log 20` 可输出日志路径和最近日志内容。
 - [x] 验证 `list-projects` 会记录启动和命令分发日志。
+- [x] 验证自动更新检查会向 stderr 输出检查状态和最新版本状态，不影响命令 stdout。
 - [x] 验证下载失败时会记录下载 URL 和失败状态。
 - [x] 验证 `ERR` trap 会记录退出码、失败命令、行号和调用栈。
 - [x] 验证 bootstrap 前找不到模块时会写入 early log，并对 token 类参数脱敏。

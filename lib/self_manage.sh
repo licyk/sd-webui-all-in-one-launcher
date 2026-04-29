@@ -11,6 +11,12 @@ SELF_COMMAND_PATH="${SELF_BIN_DIR}/${SELF_COMMAND_NAME}"
 SELF_PATH_MARK_BEGIN="# >>> ${APP_NAME} >>>"
 SELF_PATH_MARK_END="# <<< ${APP_NAME} <<<"
 
+launcher_progress() {
+  local message="$1"
+  log_info "$message"
+  printf '%s\n' "$message" >&2
+}
+
 launcher_shell_rc_file() {
   local shell_name
   shell_name="$(basename "${SHELL:-}")"
@@ -29,9 +35,11 @@ download_launcher_source() {
   local target_dir="$1" archive_path
   mkdir -p "$target_dir"
   log_info "launcher source download start: target=$target_dir"
+  launcher_progress "正在获取启动器源码..."
 
   if need_cmd git; then
     log_debug "launcher source download using git: repo=$SELF_REPO_URL"
+    launcher_progress "使用 git 从 GitHub 克隆启动器源码..."
     git clone --depth 1 "$SELF_REPO_URL" "$target_dir"
     log_info "launcher source download success with git: target=$target_dir"
     return 0
@@ -40,7 +48,9 @@ download_launcher_source() {
   need_cmd tar || die "未找到 git 或 tar，无法安装启动器。"
   archive_path="${target_dir}.tar.gz"
   log_debug "launcher source download using archive: url=$SELF_ARCHIVE_URL"
+  launcher_progress "未找到 git，正在下载启动器源码压缩包..."
   download_file "$SELF_ARCHIVE_URL" "$archive_path"
+  launcher_progress "正在解压启动器源码..."
   tar -xzf "$archive_path" --strip-components=1 -C "$target_dir"
   rm -f "$archive_path"
   log_info "launcher source download success with archive: target=$target_dir"
@@ -54,6 +64,7 @@ install_launcher_files() {
   rm -rf "$stage_dir" "$backup_dir"
   mkdir -p "$(dirname "$SELF_INSTALL_DIR")" "$stage_dir"
   log_info "launcher install files: source=$source_dir target=$SELF_INSTALL_DIR"
+  launcher_progress "正在安装启动器文件到: $SELF_INSTALL_DIR"
   cp -R "$source_dir/." "$stage_dir"
   rm -rf "$stage_dir/.git"
   chmod +x "$stage_dir/installer_launcher.sh"
@@ -71,6 +82,7 @@ register_launcher_command() {
   mkdir -p "$SELF_BIN_DIR"
   ln -sfn "$SELF_INSTALL_DIR/installer_launcher.sh" "$SELF_COMMAND_PATH"
   log_info "launcher command registered: command=$SELF_COMMAND_PATH target=$SELF_INSTALL_DIR/installer_launcher.sh"
+  launcher_progress "正在注册命令: $SELF_COMMAND_PATH"
 
   rc_file="$(launcher_shell_rc_file)"
   mkdir -p "$(dirname "$rc_file")"
@@ -83,8 +95,10 @@ register_launcher_command() {
       printf '%s\n' "$SELF_PATH_MARK_END"
     } >>"$rc_file"
     log_info "launcher PATH block added: rc_file=$rc_file"
+    launcher_progress "已写入 PATH 注册块: $rc_file"
   else
     log_debug "launcher PATH block already exists: rc_file=$rc_file"
+    launcher_progress "PATH 注册块已存在: $rc_file"
   fi
 }
 
@@ -160,6 +174,7 @@ install_launcher_from_source() {
   temp_dir="$(mktemp -d "${TMPDIR:-/tmp}/installer-launcher-src.XXXXXX")" || return 1
   source_dir="$temp_dir/source"
   log_info "launcher install from source start: temp=$temp_dir"
+  launcher_progress "开始安装/更新启动器..."
   if ! download_launcher_source "$source_dir"; then
     rm -rf "$temp_dir"
     log_error "launcher install failed while downloading source"
@@ -177,19 +192,18 @@ install_launcher_from_source() {
   fi
   rm -rf "$temp_dir"
   log_info "launcher install from source finished"
+  launcher_progress "启动器安装/更新流程完成。"
 }
 
 install_launcher() {
-  local result
   confirm_screen "安装/更新启动器" "$(launcher_installation_summary)" || {
     info "安装启动器已取消。"
     log_warn "launcher install canceled by user"
     return 0
   }
 
-  if ! result="$(install_launcher_from_source 2>&1)"; then
-    [[ -n "$result" ]] && printf '%s\n' "$result" >&2
-    log_error "launcher install failed: $(sanitize_log_message "$result")"
+  if ! install_launcher_from_source; then
+    log_error "launcher install failed"
     return 1
   fi
 
@@ -285,32 +299,37 @@ ${message}"
 }
 
 check_and_update_launcher_if_due() {
-  local now remote_version update_output
+  local now remote_version
   launcher_update_check_due || return 0
 
   now="$(date +%s)"
   AUTO_UPDATE_LAST_CHECK="$now"
   save_main_config
   log_info "auto update check started"
+  printf '正在检查启动器更新...\n' >&2
 
   if ! remote_version="$(fetch_remote_launcher_version 2>/dev/null)"; then
+    printf '自动更新检查失败，继续运行当前版本。\n' >&2
     append_startup_notice "自动更新检查失败：无法获取远程版本。将继续运行当前版本。"
     log_warn "auto update check failed: unable to fetch remote version"
     return 0
   fi
 
   if ! version_is_newer "$remote_version" "$APP_VERSION"; then
+    printf '启动器已是最新版本: %s\n' "$APP_VERSION" >&2
     log_debug "auto update not needed: local=$APP_VERSION remote=$remote_version"
     return 0
   fi
 
   log_info "auto update available: local=$APP_VERSION remote=$remote_version"
-  if update_output="$(install_launcher_from_source 2>&1)"; then
+  printf '检测到启动器新版本: %s -> %s，正在自动更新...\n' "$APP_VERSION" "$remote_version" >&2
+  if install_launcher_from_source; then
+    printf '启动器已自动更新到 %s。重新打开终端后将使用新版本。\n' "$remote_version" >&2
     append_startup_notice "检测到新版本 $remote_version，已自动更新启动器。重新打开终端后将使用新版本。"
     log_info "auto update success: remote=$remote_version"
   else
+    printf '启动器自动更新失败，继续运行当前版本。\n' >&2
     append_startup_notice "检测到新版本 $remote_version，但自动更新失败。将继续运行当前版本。"
-    [[ -n "$update_output" ]] && append_startup_notice "$update_output"
-    log_error "auto update failed: remote=$remote_version output=$(sanitize_log_message "$update_output")"
+    log_error "auto update failed: remote=$remote_version"
   fi
 }
