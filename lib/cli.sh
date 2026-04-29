@@ -15,12 +15,13 @@ Usage:
   $0 set-script-args <project> <script.ps1> <args>
   $0 config [project]
   $0 show-log [lines]
-  $0 install-launcher
+  $0 install-launcher [--yes]
   $0 uninstall-launcher
 
 Examples:
   $0 tui
   $0 install-launcher
+  $0 install-launcher --yes
   $0 install comfyui
   $0 uninstall comfyui
   $0 set-project sd_webui INSTALL_PATH /data/stable-diffusion-webui
@@ -132,7 +133,7 @@ main() {
       show_config "$key"
       ;;
     show-log) show_log "${2:-80}" ;;
-    install-launcher) install_launcher ;;
+    install-launcher) install_launcher "${2:-}" ;;
     uninstall-launcher) uninstall_launcher ;;
     help|-h|--help) usage ;;
     *) usage; exit 1 ;;

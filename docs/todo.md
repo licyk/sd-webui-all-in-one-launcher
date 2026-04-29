@@ -10,6 +10,7 @@
 - [x] 运行安装器前会展示确认页，用户确认后才下载并执行。
 - [x] 支持卸载每个类型对应的已安装软件，卸载前需要警告确认和输入指定文本的最终确认。
 - [x] 支持从 GitHub 安装/更新启动器自身，并注册 `installer-launcher` 命令。
+- [x] 支持 `install.sh` 一键引导安装依赖并自动安装启动器。
 - [x] 入口脚本会解析符号链接真实路径，确保通过 `$HOME/.local/bin/installer-launcher` 启动时能加载安装目录中的 `lib/`。
 - [x] 如果解析真实路径后仍找不到 `lib/bootstrap.sh`，入口脚本会回退到 `${XDG_DATA_HOME:-$HOME/.local/share}/installer-launcher`。
 - [x] 支持启动时自动检查启动器更新，默认启用，检查间隔 60 分钟。
@@ -87,6 +88,7 @@
 
 ## 启动器自身安装与卸载
 
+- [x] 新增 `install.sh` bootstrap 脚本，用于检查并安装 Homebrew、PowerShell、dialog、git 等依赖。
 - [x] 新增 `install-launcher` CLI 命令。
 - [x] 新增 `uninstall-launcher` CLI 命令。
 - [x] 主界面新增“安装/更新启动器”入口。
@@ -98,6 +100,7 @@
 - [x] 启动器默认安装到 `${XDG_DATA_HOME:-$HOME/.local/share}/installer-launcher`。
 - [x] 注册命令为 `$HOME/.local/bin/installer-launcher`。
 - [x] 注册命令时会向当前 shell 的 rc 文件写入受标记管理的 PATH 配置块。
+- [x] `install-launcher --yes` 可跳过安装确认，用于 `install.sh` 非交互安装启动器。
 - [x] 卸载时会移除安装目录、命令链接、shell PATH 配置块、配置目录和缓存目录。
 - [x] 卸载启动器自身时使用警告确认和输入指定文本的最终确认。
 - [x] 卸载不会删除 Stable Diffusion WebUI、ComfyUI 等项目本体安装目录。
@@ -154,6 +157,7 @@
 - [x] 已移除 `check-install`。
 - [x] 已移除 `download-only`。
 - [x] 已添加 `install-launcher` 和 `uninstall-launcher`。
+- [x] 已添加 `install-launcher --yes` 非交互安装入口。
 - [x] 已添加 `uninstall [project]`。
 - [x] 已添加 `show-log [lines]`。
 - [x] CLI 帮助文本已与当前命令保持一致。
@@ -167,12 +171,25 @@
 - [x] 如果 macOS 自带 Bash 版本低于 5，会尝试使用 `/opt/homebrew/bin/bash` 递归运行自身。
 - [x] 如果 Homebrew Bash 不存在，会提示用户执行 `brew install bash` 并退出。
 - [x] macOS Bash 检测逻辑位于 `set -Eeuo pipefail` 之前，保持 Bash 3.x 可解析。
+- [x] `install.sh` 保持 macOS Bash 3.x 可解析，并会先安装 Homebrew/Bash 5/PowerShell。
+
+## 依赖引导安装
+
+- [x] `install.sh` 会先检查命令是否存在，避免重复安装已存在的依赖。
+- [x] macOS 缺少 Homebrew 时，使用 Homebrew 官方安装脚本安装。
+- [x] macOS 缺少 PowerShell 时，使用 `brew install powershell` 安装。
+- [x] Linux 缺少 PowerShell 时，优先尝试 Microsoft 官方仓库方式，再尝试系统包管理器 fallback。
+- [x] Linux 自动安装 PowerShell 失败时，提示用户按 Microsoft Learn 手动安装。
+- [x] `install.sh` 会尽量安装 `dialog` 和 `git`，失败时提示可手动安装。
+- [x] `install.sh` 最后调用 `installer_launcher.sh install-launcher --yes` 自动安装并注册启动器。
 
 ## 文档
 
 - [x] `AGENTS.md` 已记录项目结构、编码风格、实现规则和验证要求。
 - [x] `README.md` 已记录项目介绍、环境要求、快速开始、安装命令、TUI/CLI 用法、配置位置、下载策略、管理脚本和卸载方式。
 - [x] `README.md` 已补充从 GitHub 获取源码、源码压缩包安装、注册命令和更新启动器的方法。
+- [x] `README.md` 已补充通过 `curl -fsSL https://github.com/licyk/sd-webui-all-in-one-launcher/raw/main/install.sh | bash` 远程执行一键安装脚本。
+- [x] `README.md` 保留本地源码目录中运行 `bash install.sh` 的方式。
 - [x] `README.md` 安装章节中的源码目录已改为 `$HOME/.local/share/sd-webui-all-in-one-launcher`。
 - [x] `README.md` 已补充 `install-launcher` 如何创建命令链接、写入 PATH，以及手动注册 PATH 的方法。
 - [x] `README.md` 已补充已安装软件卸载和双确认说明。
@@ -194,6 +211,7 @@
 - [x] `README.md` 已补充日志等级设置方法。
 - [x] `README.md` 已润色项目定位，突出可通过启动器安装和管理多个 AI WebUI / 训练工具。
 - [x] `AGENTS.md` 已补充日志规则和敏感信息脱敏要求。
+- [x] `AGENTS.md` 已补充 `install.sh` 需兼容 macOS Bash 3.x 的约定。
 - [x] TUI 欢迎页和帮助文档已润色，突出“选择 WebUI / 工具并完成安装、启动、更新和维护”的使用方式。
 - [x] `docs/architecture.md` 已同步项目定位描述。
 
@@ -201,6 +219,10 @@
 
 - [x] 多次运行 `bash -n installer_launcher.sh lib/*.sh`，通过。
 - [x] 多次运行 `shellcheck installer_launcher.sh lib/*.sh`，通过。
+- [x] 运行 `bash -n install.sh installer_launcher.sh lib/*.sh`，通过。
+- [x] 运行 `shellcheck install.sh installer_launcher.sh lib/*.sh`，通过。
+- [x] 验证 `install.sh` dry-run 在 `pwsh/dialog/git` 已存在时会跳过依赖安装并调用 `install-launcher --yes`。
+- [x] 验证 CLI 帮助中包含 `install-launcher --yes` 示例。
 - [x] 验证 `list-projects` 可列出全部 7 个安装器。
 - [x] 验证空配置下直接运行需要项目上下文的命令会提示先选择安装器。
 - [x] 验证 `set-main CURRENT_PROJECT comfyui` 后可正常显示项目配置。

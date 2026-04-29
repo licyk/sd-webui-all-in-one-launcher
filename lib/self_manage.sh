@@ -196,11 +196,16 @@ install_launcher_from_source() {
 }
 
 install_launcher() {
-  confirm_screen "安装/更新启动器" "$(launcher_installation_summary)" || {
-    info "安装启动器已取消。"
-    log_warn "launcher install canceled by user"
-    return 0
-  }
+  local assume_yes="${1:-}"
+  if [[ "$assume_yes" != "--yes" && "$assume_yes" != "-y" && "$assume_yes" != "yes" ]]; then
+    confirm_screen "安装/更新启动器" "$(launcher_installation_summary)" || {
+      info "安装启动器已取消。"
+      log_warn "launcher install canceled by user"
+      return 0
+    }
+  else
+    log_info "launcher install confirmation skipped by --yes"
+  fi
 
   if ! install_launcher_from_source; then
     log_error "launcher install failed"

@@ -4,7 +4,7 @@
 
 This project is a Bash-based TUI/CLI launcher for multiple PowerShell installer scripts.
 
-The entry point is `installer_launcher.sh`. Most behavior lives in `lib/` modules:
+The dependency bootstrap entry point is `install.sh`. The launcher entry point is `installer_launcher.sh`. Most launcher behavior lives in `lib/` modules:
 
 - `lib/bootstrap.sh`: sources all modules in the required order.
 - `lib/core.sh`: application constants, global defaults, logging/crash helpers, generic helpers.
@@ -21,10 +21,12 @@ The entry point is `installer_launcher.sh`. Most behavior lives in `lib/` module
 ## Shell Requirements
 
 - The script requires Bash 5+ for the main implementation.
+- `install.sh` is a bootstrap script and must remain compatible with macOS Bash 3.x.
 - `installer_launcher.sh` contains a macOS guard before strict mode:
   - If macOS is using Bash < 5, it tries `/opt/homebrew/bin/bash`.
   - If Homebrew Bash is missing, it prints installation guidance and exits.
 - Keep any logic before `set -Eeuo pipefail` compatible with macOS Bash 3.x.
+- Do not use Bash 5-only syntax in `install.sh`; it may be the first script a macOS user runs.
 
 ## Coding Style
 
@@ -190,6 +192,7 @@ When adding or changing a project:
 - `list-projects` must work even when no current project is selected.
 - `set-main CURRENT_PROJECT null` should clear the current project.
 - `install-launcher` installs or updates this launcher from `licyk/sd-webui-all-in-one-launcher`.
+- `install-launcher --yes` skips only the install confirmation and is intended for `install.sh`.
 - `uninstall-launcher` must remove the installed launcher, registered command, shell PATH block, config directory, and cache directory after the same two-confirmation pattern used by project uninstall.
 - Startup auto-update checks must be non-fatal. If the check or update fails, continue running and show a user-facing notice.
 - Do not re-add removed commands such as:
@@ -202,8 +205,8 @@ When adding or changing a project:
 After modifying scripts, run:
 
 ```bash
-bash -n installer_launcher.sh lib/*.sh
-shellcheck installer_launcher.sh lib/*.sh
+bash -n install.sh installer_launcher.sh lib/*.sh
+shellcheck install.sh installer_launcher.sh lib/*.sh
 ```
 
 For behavior changes, add a focused smoke test. Examples:

@@ -48,6 +48,22 @@ brew install bash
 
 ## 安装
 
+推荐使用一键安装脚本。它会先检查并尝试安装 Homebrew、PowerShell、dialog、git 等依赖，然后自动安装并注册 `installer-launcher` 命令。
+
+```bash
+curl -fsSL https://github.com/licyk/sd-webui-all-in-one-launcher/raw/main/install.sh | bash
+```
+
+如果自动安装 PowerShell 失败，请根据终端提示按 Microsoft Learn 官方文档手动安装后重试。
+
+如果已经下载了源码，也可以在仓库目录中运行本地脚本：
+
+```bash
+bash install.sh
+```
+
+### 手动安装
+
 推荐使用 `git` 获取启动器源码：
 
 ```bash
@@ -79,6 +95,12 @@ chmod +x installer_launcher.sh
 
 ```bash
 ./installer_launcher.sh install-launcher
+```
+
+如果需要跳过确认提示，可使用：
+
+```bash
+./installer_launcher.sh install-launcher --yes
 ```
 
 这个命令会做三件事：
@@ -417,8 +439,8 @@ installer-launcher-YYYYMMDD.log
 修改脚本后建议运行：
 
 ```bash
-bash -n installer_launcher.sh lib/*.sh
-shellcheck installer_launcher.sh lib/*.sh
+bash -n install.sh installer_launcher.sh lib/*.sh
+shellcheck install.sh installer_launcher.sh lib/*.sh
 ```
 
 基础 smoke test：
