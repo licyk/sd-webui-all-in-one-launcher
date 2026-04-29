@@ -171,8 +171,7 @@ When adding or changing a project:
 - TUI and CLI must respect per-project capability tables.
 - Do not show or pass parameters unsupported by the selected project.
 - `NoPause` is not a user-facing config option.
-  - Append `-NoPause` automatically for installer execution when the selected project supports it.
-  - Do not append `-NoPause` automatically for management scripts; some upstream management scripts treat unknown switches as positional values.
+  - Append `-NoPause` automatically for installer execution and management script execution.
   - Do not add duplicate `-NoPause`.
 - `run-installer` must explicitly pass `-InstallPath` when supported.
 - `EXTRA_INSTALL_ARGS` is appended after structured installer arguments.

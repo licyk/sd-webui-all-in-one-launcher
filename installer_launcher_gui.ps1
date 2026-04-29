@@ -435,6 +435,14 @@ function Join-Shlex {
     return $params
 }
 
+function Test-ArgsContains {
+    param([string[]]$Args, [string]$ParamName)
+    foreach ($arg in @($Args)) {
+        if ($arg -ieq $ParamName) { return $true }
+    }
+    return $false
+}
+
 function Write-Log {
     param([string]$Level, [string]$Message)
     if ($null -eq $script:MainConfig) { $minLevel = "DEBUG" } else { $minLevel = $script:MainConfig["LOG_LEVEL"] }
@@ -621,7 +629,7 @@ function Build-InstallerArgs {
     if (-not [string]::IsNullOrWhiteSpace($Config["EXTRA_INSTALL_ARGS"])) {
         foreach ($arg in (Split-Shlex $Config["EXTRA_INSTALL_ARGS"])) { $args.Add($arg) }
     }
-    if ((Test-ProjectParam $Project "NoPause") -and -not (@($args) -contains "-NoPause")) { $args.Add("-NoPause") }
+    if (-not (Test-ArgsContains @($args) "-NoPause")) { $args.Add("-NoPause") }
     return @($args)
 }
 
@@ -673,13 +681,22 @@ if (-not [string]::IsNullOrWhiteSpace($ScriptArgsText)) {
 Write-Host ""
 $Expression = $BaseExpression
 if (-not [string]::IsNullOrWhiteSpace($ScriptArgsText)) { $Expression = "$Expression $ScriptArgsText" }
-Invoke-Expression $Expression
-$code = $LASTEXITCODE
-if ($null -eq $code) { $code = 0 }
+$invokeError = ""
+try {
+    Invoke-Expression $Expression
+    $code = $LASTEXITCODE
+    if ($null -eq $code) { $code = 0 }
+} catch {
+    $invokeError = $_.Exception.Message
+    $code = 1
+}
 if ($code -ne 0) {
     Write-Host ""
     Write-Host "PowerShell 脚本异常退出。" -ForegroundColor Red
     Write-Host "退出代码: $code" -ForegroundColor Red
+    if (-not [string]::IsNullOrWhiteSpace($invokeError)) {
+        Write-Host "错误信息: $invokeError" -ForegroundColor Red
+    }
     Write-Host "请先查看上方 PowerShell 输出日志，确认具体失败原因。" -ForegroundColor Yellow
     Read-Host "按 Enter 关闭窗口"
 }
@@ -843,8 +860,15 @@ function Collect-ProjectConfigFromUi {
         if ($control -is [System.Windows.Controls.CheckBox]) {
             $config[$key] = [bool]$control.IsChecked
         } elseif ($control -is [System.Windows.Controls.ComboBox]) {
-            $config[$key] = [string]$control.SelectedValue
-            if ([string]::IsNullOrWhiteSpace($config[$key]) -and $null -ne $control.Text) { $config[$key] = [string]$control.Text }
+            if ($null -ne $control.SelectedItem -and $null -ne $control.SelectedItem.Key) {
+                $config[$key] = [string]$control.SelectedItem.Key
+            } elseif ($null -ne $control.SelectedValue) {
+                $config[$key] = [string]$control.SelectedValue
+            } elseif ($null -ne $control.Text) {
+                $config[$key] = [string]$control.Text
+            } else {
+                $config[$key] = ""
+            }
         } elseif ($control -is [System.Windows.Controls.TextBox]) {
             $config[$key] = $control.Text
         }
@@ -875,24 +899,23 @@ function Add-ConfigComboBox {
     $text.Text = $Label
     $text.Margin = "0,0,0,4"
     $combo = New-Object System.Windows.Controls.ComboBox
-    $combo.IsEditable = $true
+    $combo.IsEditable = $false
+    $combo.DisplayMemberPath = "Label"
+    $combo.SelectedValuePath = "Key"
+    $items = @()
     if ($null -ne $Options) {
         foreach ($optionKey in $Options.Keys) {
-            $item = New-Object System.Windows.Controls.ComboBoxItem
-            $item.Content = "$optionKey - $($Options[$optionKey])"
-            $item.Tag = $optionKey
-            $combo.Items.Add($item) | Out-Null
-            if ($optionKey -eq $Value) { $combo.SelectedItem = $item }
+            $items += [PSCustomObject]@{ Key = [string]$optionKey; Label = "$optionKey - $($Options[$optionKey])" }
         }
     }
-    if ($null -eq $combo.SelectedItem -and -not [string]::IsNullOrWhiteSpace($Value)) {
-        $combo.Text = $Value
-    }
-    $combo.Add_SelectionChanged({
-        if ($null -ne $combo.SelectedItem -and $null -ne $combo.SelectedItem.Tag) {
-            $combo.SelectedValue = [string]$combo.SelectedItem.Tag
+    $combo.ItemsSource = $items
+    foreach ($item in $items) {
+        if ($item.Key -eq $Value) {
+            $combo.SelectedItem = $item
+            break
         }
-    }.GetNewClosure())
+    }
+    if ($null -eq $combo.SelectedItem -and $items.Count -gt 0) { $combo.SelectedIndex = 0 }
     $block.Children.Add($text) | Out-Null
     $block.Children.Add($combo) | Out-Null
     $Panel.Children.Add($block) | Out-Null
@@ -1070,13 +1093,22 @@ if (-not [string]::IsNullOrWhiteSpace($ScriptArgsText)) {
 Write-Host ""
 $Expression = $BaseExpression
 if (-not [string]::IsNullOrWhiteSpace($ScriptArgsText)) { $Expression = "$Expression $ScriptArgsText" }
-Invoke-Expression $Expression
-$code = $LASTEXITCODE
-if ($null -eq $code) { $code = 0 }
+$invokeError = ""
+try {
+    Invoke-Expression $Expression
+    $code = $LASTEXITCODE
+    if ($null -eq $code) { $code = 0 }
+} catch {
+    $invokeError = $_.Exception.Message
+    $code = 1
+}
 if ($code -ne 0) {
     Write-Host ""
     Write-Host "PowerShell 脚本异常退出。" -ForegroundColor Red
     Write-Host "退出代码: $code" -ForegroundColor Red
+    if (-not [string]::IsNullOrWhiteSpace($invokeError)) {
+        Write-Host "错误信息: $invokeError" -ForegroundColor Red
+    }
     Write-Host "请先查看上方 PowerShell 输出日志，确认具体失败原因。" -ForegroundColor Yellow
     Read-Host "按 Enter 关闭窗口"
 }
@@ -1170,10 +1202,11 @@ function Invoke-RunManagementScript {
     $argsText = ""
     if ($null -ne $config["ScriptArgs"] -and (Test-DictionaryKey $config["ScriptArgs"] $scriptName)) { $argsText = [string]$config["ScriptArgs"][$scriptName] }
     if ([string]::IsNullOrWhiteSpace($argsText)) { $scriptArgs = @() } else { $scriptArgs = @(Split-Shlex $argsText) }
+    if (-not (Test-ArgsContains @($scriptArgs) "-NoPause")) { $scriptArgs += "-NoPause" }
     if ($null -eq $scriptArgs -or $scriptArgs.Count -eq 0) { $scriptArgsText = "" } else { $scriptArgsText = Join-Shlex $scriptArgs }
     Write-Log DEBUG "management script args prepared: project=$key script=$scriptName path=$scriptPath args=$(Format-LogArgs $scriptArgs) args_text=$scriptArgsText"
     $operation = {
-        param([string]$ScriptPath, [string]$ScriptArgsText)
+        param([string]$ScriptPath, [string]$ScriptArgsText, [string]$DisplayScriptName)
         function Resolve-PowerShellCommand {
             $pwsh = Get-Command pwsh -ErrorAction SilentlyContinue
             if ($null -ne $pwsh) { return $pwsh.Source }
@@ -1202,13 +1235,22 @@ if (-not [string]::IsNullOrWhiteSpace($ScriptArgsText)) {
 Write-Host ""
 $Expression = $BaseExpression
 if (-not [string]::IsNullOrWhiteSpace($ScriptArgsText)) { $Expression = "$Expression $ScriptArgsText" }
-Invoke-Expression $Expression
-$code = $LASTEXITCODE
-if ($null -eq $code) { $code = 0 }
+$invokeError = ""
+try {
+    Invoke-Expression $Expression
+    $code = $LASTEXITCODE
+    if ($null -eq $code) { $code = 0 }
+} catch {
+    $invokeError = $_.Exception.Message
+    $code = 1
+}
 if ($code -ne 0) {
     Write-Host ""
     Write-Host "PowerShell 脚本异常退出。" -ForegroundColor Red
     Write-Host "退出代码: $code" -ForegroundColor Red
+    if (-not [string]::IsNullOrWhiteSpace($invokeError)) {
+        Write-Host "错误信息: $invokeError" -ForegroundColor Red
+    }
     Write-Host "请先查看上方 PowerShell 输出日志，确认具体失败原因。" -ForegroundColor Yellow
     Read-Host "按 Enter 关闭窗口"
 }
@@ -1230,7 +1272,7 @@ exit $code
         }
         $command = Resolve-PowerShellCommand
         if ([string]::IsNullOrWhiteSpace($command)) {
-            return [PSCustomObject]@{ Success = $false; ExitCode = 127; Message = "未找到 pwsh 或 powershell" }
+            return [PSCustomObject]@{ Success = $false; ExitCode = 127; Message = "未找到 pwsh 或 powershell"; ScriptName = $DisplayScriptName }
         }
         $wrapper = New-ConsoleWrapperScript
         function Join-Shlex {
@@ -1254,20 +1296,22 @@ exit $code
         $process = Start-Process -FilePath $command -ArgumentList $argumentLine -Wait -PassThru -WindowStyle Normal
         Remove-Item -LiteralPath $wrapper -Force -ErrorAction SilentlyContinue
         if (-not [string]::IsNullOrWhiteSpace($argsTextPath)) { Remove-Item -LiteralPath $argsTextPath -Force -ErrorAction SilentlyContinue }
-        return [PSCustomObject]@{ Success = ($process.ExitCode -eq 0); ExitCode = $process.ExitCode; Message = "管理脚本执行完成"; ProcessArgs = $argumentLine; ScriptArgsText = $ScriptArgsText }
+        return [PSCustomObject]@{ Success = ($process.ExitCode -eq 0); ExitCode = $process.ExitCode; Message = "管理脚本执行完成"; ProcessArgs = $argumentLine; ScriptArgsText = $ScriptArgsText; ScriptName = $DisplayScriptName }
     }
-    Start-GuiOperation -UI $UI -State $State -Name "运行管理脚本" -ScriptBlock $operation -Arguments @($scriptPath, $scriptArgsText) -OnComplete {
+    Start-GuiOperation -UI $UI -State $State -Name "运行管理脚本" -ScriptBlock $operation -Arguments @($scriptPath, $scriptArgsText, $scriptName) -OnComplete {
         param($result, $streamErrors)
         $item = $result | Select-Object -First 1
+        $displayScriptName = $item.ScriptName
+        if ([string]::IsNullOrWhiteSpace($displayScriptName)) { $displayScriptName = "管理脚本" }
         if ($item.Success) {
             Write-Log DEBUG "management script process args: $($item.ProcessArgs)"
             Write-Log DEBUG "management script args text: $($item.ScriptArgsText)"
-            Append-UiLog $UI "$scriptName 执行成功。"
+            Append-UiLog $UI "$displayScriptName 执行成功。"
         } else {
             Write-Log DEBUG "management script process args: $($item.ProcessArgs)"
             Write-Log DEBUG "management script args text: $($item.ScriptArgsText)"
-            Append-UiLog $UI "$scriptName 执行失败，退出代码: $($item.ExitCode)"
-            Show-Message "$scriptName 执行失败。`n退出代码: $($item.ExitCode)`n请查看 PowerShell 控制台输出。" "失败" "Error"
+            Append-UiLog $UI "$displayScriptName 执行失败，退出代码: $($item.ExitCode)"
+            Show-Message "$displayScriptName 执行失败。`n退出代码: $($item.ExitCode)`n请查看 PowerShell 控制台输出。" "失败" "Error"
         }
     }
 }
