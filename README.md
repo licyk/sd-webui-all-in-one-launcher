@@ -213,7 +213,7 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .\installer_launcher_gui.ps1
 5. 安装完成后，“一键启动”会自动切到“启动模式”，在脚本列表中选择 `launch.ps1`、`update.ps1`、`terminal.ps1` 等脚本运行。
 6. 启动器设置位于左下角“设置”，可调整自动更新、欢迎提示、日志等级和代理模式，也可以打开配置文件夹。
 
-`launch.ps1` 运行期间可在控制台按 `Ctrl+C` 终止服务；`terminal.ps1` 打开交互终端后，输入 `exit` 并回车退出。
+`launch.ps1` 运行期间可在控制台按 `Ctrl+C` 终止服务；`terminal.ps1` 打开交互终端后，输入 `exit` 并回车退出。GUI 在运行安装器或管理脚本时也会显示“终止当前任务”按钮，确认后只终止当前启动器创建的 PowerShell 进程树，不会管理用户手动打开的其他终端。
 
 ## 自动更新
 

@@ -286,6 +286,13 @@ function Test-DictionaryKey {
     return $false
 }
 
+function Get-ObjectPropertyValue {
+    param($InputObject, [string]$Name, $Default = $null)
+    if ($null -eq $InputObject -or [string]::IsNullOrWhiteSpace($Name)) { return $Default }
+    if ($null -eq $InputObject.PSObject.Properties[$Name]) { return $Default }
+    return $InputObject.PSObject.Properties[$Name].Value
+}
+
 function Get-DefaultMainConfig {
     [ordered]@{
         CURRENT_PROJECT = ""
@@ -926,6 +933,60 @@ function Invoke-DownloadWithRetry {
     return [PSCustomObject]@{ Success = $false; Url = ""; Errors = @($errors) }
 }
 
+function Get-LauncherChildProcessIds {
+    param([int]$RootPid)
+    $children = @()
+    try {
+        $items = @(Get-CimInstance Win32_Process -Filter "ParentProcessId=$RootPid" -ErrorAction Stop)
+    } catch {
+        try {
+            $items = @(Get-WmiObject Win32_Process -Filter "ParentProcessId=$RootPid" -ErrorAction Stop)
+        } catch {
+            return @()
+        }
+    }
+    foreach ($item in $items) {
+        $childPid = [int]$item.ProcessId
+        $children += $childPid
+        $children += @(Get-LauncherChildProcessIds -RootPid $childPid)
+    }
+    return @($children)
+}
+
+function Stop-LauncherProcessTree {
+    param([int]$RootPid)
+    $errors = New-Object System.Collections.Generic.List[string]
+    if ($RootPid -le 0) { return @("无有效进程 PID。") }
+    $ids = @(Get-LauncherChildProcessIds -RootPid $RootPid)
+    [array]::Reverse($ids)
+    $ids += $RootPid
+    foreach ($processId in ($ids | Select-Object -Unique)) {
+        try {
+            $process = Get-Process -Id $processId -ErrorAction SilentlyContinue
+            if ($null -ne $process) {
+                Stop-Process -Id $processId -Force -ErrorAction Stop
+                Write-Log INFO "terminated process pid=$processId root=$RootPid"
+            }
+        } catch {
+            $errors.Add("pid=${processId}: $($_.Exception.Message)")
+            Write-Log WARN "failed to terminate process pid=$processId root=$RootPid error=$($_.Exception.Message)"
+        }
+    }
+    return @($errors)
+}
+
+function New-OperationControl {
+    param([string]$Name)
+    return [hashtable]::Synchronized(@{
+        Name = $Name
+        StopRequested = $false
+        IsTerminating = $false
+        ProcessId = 0
+        ScriptPath = ""
+        StartedAt = ""
+    })
+}
+
 function Start-GuiOperation {
     param(
         $UI,
@@ -933,23 +994,38 @@ function Start-GuiOperation {
         [string]$Name,
         [scriptblock]$ScriptBlock,
         [object[]]$Arguments,
-        [scriptblock]$OnComplete
+        [scriptblock]$OnComplete,
+        [bool]$CanTerminate = $true
     )
     if ($null -ne $State.CurrentOperation) {
         Show-Message "已有任务正在运行，请等待当前任务完成。" "任务运行中" "Warning"
         return
     }
-    Set-UiBusy -UI $UI -Busy $true -Message "$Name 正在运行..."
+    $control = New-OperationControl -Name $Name
+    $control["CanTerminate"] = $CanTerminate
+    $busyMessage = "$Name 正在运行..."
+    if ($CanTerminate) { $busyMessage = "$Name 正在运行，可点击终止当前任务。" }
+    Set-UiBusy -UI $UI -Busy $true -Message $busyMessage -CanTerminate $CanTerminate
     $ps = [powershell]::Create()
     $ps.RunspacePool = $script:RunspacePool
     [void]$ps.AddScript($ScriptBlock.ToString())
     foreach ($arg in $Arguments) { [void]$ps.AddArgument($arg) }
+    [void]$ps.AddArgument($control)
     $async = $ps.BeginInvoke()
     $timer = New-Object System.Windows.Threading.DispatcherTimer
     $timer.Interval = [TimeSpan]::FromMilliseconds(250)
-    $State.CurrentOperation = [PSCustomObject]@{ PowerShell = $ps; Async = $async; Timer = $timer; Name = $Name }
+    $State.CurrentOperation = [PSCustomObject]@{ PowerShell = $ps; Async = $async; Timer = $timer; Name = $Name; Control = $control; LoggedProcessId = 0 }
     $timer.Add_Tick({
-        if (-not $async.IsCompleted) { return }
+        if (-not $async.IsCompleted) {
+            $currentProcessId = [int]$control["ProcessId"]
+            if ($currentProcessId -gt 0 -and $null -ne $State.CurrentOperation -and [int]$State.CurrentOperation.LoggedProcessId -ne $currentProcessId) {
+                $State.CurrentOperation.LoggedProcessId = $currentProcessId
+                $currentScriptPath = [string]$control["ScriptPath"]
+                Write-Log INFO "$Name external process started pid=$currentProcessId script=$currentScriptPath"
+                Append-UiLog -UI $UI -Text "$Name 已打开 PowerShell 控制台。pid=$currentProcessId"
+            }
+            return
+        }
         $timer.Stop()
         try {
             $result = $ps.EndInvoke($async)
@@ -968,6 +1044,45 @@ function Start-GuiOperation {
     $timer.Start()
 }
 
+function Invoke-TerminateCurrentOperation {
+    param($UI, $State)
+    if ($null -eq $State.CurrentOperation) {
+        Show-Message "当前没有正在运行的任务。" "无需终止" "Information"
+        return
+    }
+    $control = $State.CurrentOperation.Control
+    if (-not [bool]$control["CanTerminate"]) {
+        Show-Message "当前任务不支持从这里终止。" "无法终止" "Information"
+        return
+    }
+    $name = [string]$control["Name"]
+    $scriptPath = [string]$control["ScriptPath"]
+    $processId = [int]$control["ProcessId"]
+    if ([string]::IsNullOrWhiteSpace($name)) { $name = [string]$State.CurrentOperation.Name }
+    $message = "即将终止当前任务。`n`n任务: $name`n脚本: $scriptPath`nPID: $processId`n`n这只会终止当前启动器记录的任务进程树。"
+    if (-not (Confirm-Message $message "确认终止当前任务")) { return }
+    $control["StopRequested"] = $true
+    $control["IsTerminating"] = $true
+    Set-UiBusy -UI $UI -Busy $true -Message "$name 正在终止..." -CanTerminate $true
+    Append-UiLog $UI "正在终止当前任务: $name pid=$processId"
+    if ($processId -le 0) {
+        Append-UiLog $UI "任务进程尚未创建，已记录终止请求。"
+        return
+    }
+    $process = Get-Process -Id $processId -ErrorAction SilentlyContinue
+    if ($null -eq $process) {
+        Append-UiLog $UI "任务进程已结束。"
+        return
+    }
+    $errors = @(Stop-LauncherProcessTree -RootPid $processId)
+    if ($errors.Count -gt 0) {
+        Append-UiLog $UI "部分进程终止失败，请手动关闭残留控制台。$($errors -join '; ')"
+        Show-Message "部分进程终止失败，请手动关闭残留控制台。`n`n$($errors -join [Environment]::NewLine)" "终止未完全成功" "Warning"
+    } else {
+        Append-UiLog $UI "已发送终止请求。"
+    }
+}
+
 function Append-UiLog {
     param($UI, [string]$Text)
     $line = "[{0}] {1}" -f (Get-Date -Format "HH:mm:ss"), $Text
@@ -983,11 +1098,16 @@ function Append-UiLog {
 }
 
 function Set-UiBusy {
-    param($UI, [bool]$Busy, [string]$Message)
+    param($UI, [bool]$Busy, [string]$Message, [bool]$CanTerminate = $true)
     $enabled = -not $Busy
     foreach ($name in @("UninstallBtn", "CheckUpdateBtn", "UnifiedStartBtn", "SaveMainBtn", "OpenConfigFolderBtn")) {
         $button = Get-UiControl $UI $name
         if ($null -ne $button) { $button.IsEnabled = $enabled }
+    }
+    $terminateButton = Get-UiControl $UI "TerminateOperationBtn"
+    if ($null -ne $terminateButton) {
+        $terminateButton.Visibility = $(if ($Busy -and $CanTerminate) { "Visible" } else { "Collapsed" })
+        $terminateButton.IsEnabled = $Busy -and $CanTerminate -and ($Message -notmatch "正在终止")
     }
     $busyText = Get-UiControl $UI "BusyText"
     if ($null -ne $busyText) { $busyText.Text = $Message }
@@ -1571,7 +1691,7 @@ $($args -join [Environment]::NewLine)
 "@
     if (-not (Confirm-Message $confirmation "确认运行安装器")) { Append-UiLog $UI "安装任务已取消。"; return }
     $operation = {
-        param($Project, $Config, [string]$InstallerArgsText, [string]$OutputPath)
+        param($Project, $Config, [string]$InstallerArgsText, [string]$OutputPath, [hashtable]$Control)
         function Invoke-DownloadWithRetry {
             param([string[]]$Urls, [string]$OutputPath)
             New-Item -ItemType Directory -Force -Path (Split-Path -Parent $OutputPath) | Out-Null
@@ -1588,6 +1708,42 @@ $($args -join [Environment]::NewLine)
                 }
             }
             return [PSCustomObject]@{ Success = $false; Url = ""; Errors = @($errors) }
+        }
+        function Get-LauncherChildProcessIds {
+            param([int]$RootPid)
+            $children = @()
+            try {
+                $items = @(Get-CimInstance Win32_Process -Filter "ParentProcessId=$RootPid" -ErrorAction Stop)
+            } catch {
+                try {
+                    $items = @(Get-WmiObject Win32_Process -Filter "ParentProcessId=$RootPid" -ErrorAction Stop)
+                } catch {
+                    return @()
+                }
+            }
+            foreach ($item in $items) {
+                $childPid = [int]$item.ProcessId
+                $children += $childPid
+                $children += @(Get-LauncherChildProcessIds -RootPid $childPid)
+            }
+            return @($children)
+        }
+        function Stop-LauncherProcessTree {
+            param([int]$RootPid)
+            $errors = New-Object System.Collections.Generic.List[string]
+            if ($RootPid -le 0) { return @("无有效进程 PID。") }
+            $ids = @(Get-LauncherChildProcessIds -RootPid $RootPid)
+            [array]::Reverse($ids)
+            $ids += $RootPid
+            foreach ($processId in ($ids | Select-Object -Unique)) {
+                try {
+                    $process = Get-Process -Id $processId -ErrorAction SilentlyContinue
+                    if ($null -ne $process) { Stop-Process -Id $processId -Force -ErrorAction Stop }
+                } catch {
+                    $errors.Add("pid=${processId}: $($_.Exception.Message)")
+                }
+            }
+            return @($errors)
         }
         function Resolve-PowerShellCommand {
             $pwsh = Get-Command pwsh -ErrorAction SilentlyContinue
@@ -1679,16 +1835,51 @@ exit $code
         if (-not [string]::IsNullOrWhiteSpace($argsTextPath)) { $argumentList += "-ArgsTextPath"; $argumentList += $argsTextPath }
         $argumentList += "-BaseExpression"; $argumentList += $baseExpression
         $argumentLine = Join-ProcessArguments ([string[]]$argumentList)
-        $process = Start-Process -FilePath $command -ArgumentList $argumentLine -Wait -PassThru -WindowStyle Normal
+        $process = Start-Process -FilePath $command -ArgumentList $argumentLine -PassThru -WindowStyle Normal
+        $Control["ProcessId"] = [int]$process.Id
+        $Control["ScriptPath"] = $OutputPath
+        $Control["StartedAt"] = (Get-Date).ToString("s")
+        $terminated = $false
+        $terminationErrors = @()
+        while (-not $process.HasExited) {
+            if ([bool]$Control["StopRequested"]) {
+                $Control["IsTerminating"] = $true
+                $terminated = $true
+                $terminationErrors = @(Stop-LauncherProcessTree -RootPid ([int]$process.Id))
+                break
+            }
+            Start-Sleep -Milliseconds 250
+            try { $process.Refresh() } catch {}
+        }
+        if ([bool]$Control["StopRequested"]) { $terminated = $true }
+        if (-not $process.HasExited) {
+            try { Wait-Process -Id $process.Id -Timeout 5 -ErrorAction SilentlyContinue } catch {}
+            try { $process.Refresh() } catch {}
+        }
+        if ($terminated) {
+            $exitCode = 130
+        } elseif ($process.HasExited) {
+            $exitCode = $process.ExitCode
+        } else {
+            $exitCode = 1
+        }
         Remove-Item -LiteralPath $wrapper -Force -ErrorAction SilentlyContinue
         if (-not [string]::IsNullOrWhiteSpace($argsTextPath)) { Remove-Item -LiteralPath $argsTextPath -Force -ErrorAction SilentlyContinue }
-        return [PSCustomObject]@{ Success = ($process.ExitCode -eq 0); Stage = "execute"; ExitCode = $process.ExitCode; Message = "安装器执行完成"; Detail = "下载源: $($download.Url)"; ProcessArgs = $argumentLine; ScriptArgsText = $InstallerArgsText }
+        return [PSCustomObject]@{ Success = ($exitCode -eq 0); Stage = "execute"; ExitCode = $exitCode; Message = "安装器执行完成"; Detail = "下载源: $($download.Url)"; ProcessArgs = $argumentLine; ScriptArgsText = $InstallerArgsText; ProcessId = $Control["ProcessId"]; Terminated = $terminated; TerminationErrors = ($terminationErrors -join "`n") }
     }
     Start-GuiOperation -UI $UI -State $State -Name "运行安装器" -ScriptBlock $operation -Arguments @($project, $config, $argsText, $scriptPath) -OnComplete {
         param($result, $streamErrors)
         $item = $result | Select-Object -First 1
         if ($null -eq $item) { Show-Message "安装任务没有返回结果。" "错误" "Error"; return }
-        if ($item.Success) {
+        if ([bool](Get-ObjectPropertyValue $item "Terminated" $false)) {
+            $processId = Get-ObjectPropertyValue $item "ProcessId" 0
+            $terminationErrors = [string](Get-ObjectPropertyValue $item "TerminationErrors" "")
+            Write-Log INFO "installer process terminated by user pid=$processId script=$scriptPath"
+            Append-UiLog $UI "安装器已被用户终止。pid=$processId"
+            if (-not [string]::IsNullOrWhiteSpace($terminationErrors)) {
+                Show-Message "安装器已终止，但部分进程可能需要手动关闭。`n`n$terminationErrors" "已终止" "Warning"
+            }
+        } elseif ($item.Success) {
             Write-Log DEBUG "installer process args: $($item.ProcessArgs)"
             Write-Log DEBUG "installer script args text: $($item.ScriptArgsText)"
             Append-UiLog $UI "安装器执行成功。$($item.Detail)"
@@ -1731,13 +1922,49 @@ function Invoke-RunManagementScript {
     if ($null -eq $scriptArgs -or $scriptArgs.Count -eq 0) { $scriptArgsText = "" } else { $scriptArgsText = Join-Shlex $scriptArgs }
     Write-Log DEBUG "management script args prepared: project=$key script=$scriptName path=$scriptPath args=$(Format-LogArgs $scriptArgs) args_text=$scriptArgsText"
     $operation = {
-        param([string]$ScriptPath, [string]$ScriptArgsText, [string]$DisplayScriptName)
+        param([string]$ScriptPath, [string]$ScriptArgsText, [string]$DisplayScriptName, [hashtable]$Control)
         function Resolve-PowerShellCommand {
             $pwsh = Get-Command pwsh -ErrorAction SilentlyContinue
             if ($null -ne $pwsh) { return $pwsh.Source }
             $powershell = Get-Command powershell -ErrorAction SilentlyContinue
             if ($null -ne $powershell) { return $powershell.Source }
             return ""
+        }
+        function Get-LauncherChildProcessIds {
+            param([int]$RootPid)
+            $children = @()
+            try {
+                $items = @(Get-CimInstance Win32_Process -Filter "ParentProcessId=$RootPid" -ErrorAction Stop)
+            } catch {
+                try {
+                    $items = @(Get-WmiObject Win32_Process -Filter "ParentProcessId=$RootPid" -ErrorAction Stop)
+                } catch {
+                    return @()
+                }
+            }
+            foreach ($item in $items) {
+                $childPid = [int]$item.ProcessId
+                $children += $childPid
+                $children += @(Get-LauncherChildProcessIds -RootPid $childPid)
+            }
+            return @($children)
+        }
+        function Stop-LauncherProcessTree {
+            param([int]$RootPid)
+            $errors = New-Object System.Collections.Generic.List[string]
+            if ($RootPid -le 0) { return @("无有效进程 PID。") }
+            $ids = @(Get-LauncherChildProcessIds -RootPid $RootPid)
+            [array]::Reverse($ids)
+            $ids += $RootPid
+            foreach ($processId in ($ids | Select-Object -Unique)) {
+                try {
+                    $process = Get-Process -Id $processId -ErrorAction SilentlyContinue
+                    if ($null -ne $process) { Stop-Process -Id $processId -Force -ErrorAction Stop }
+                } catch {
+                    $errors.Add("pid=${processId}: $($_.Exception.Message)")
+                }
+            }
+            return @($errors)
         }
         function New-ConsoleWrapperScript {
             $path = Join-Path $env:TEMP ("installer-launcher-wrapper-{0}.ps1" -f ([guid]::NewGuid().ToString("N")))
@@ -1818,17 +2045,52 @@ exit $code
         if (-not [string]::IsNullOrWhiteSpace($argsTextPath)) { $argumentList += "-ArgsTextPath"; $argumentList += $argsTextPath }
         $argumentList += "-BaseExpression"; $argumentList += $baseExpression
         $argumentLine = Join-ProcessArguments ([string[]]$argumentList)
-        $process = Start-Process -FilePath $command -ArgumentList $argumentLine -Wait -PassThru -WindowStyle Normal
+        $process = Start-Process -FilePath $command -ArgumentList $argumentLine -PassThru -WindowStyle Normal
+        $Control["ProcessId"] = [int]$process.Id
+        $Control["ScriptPath"] = $ScriptPath
+        $Control["StartedAt"] = (Get-Date).ToString("s")
+        $terminated = $false
+        $terminationErrors = @()
+        while (-not $process.HasExited) {
+            if ([bool]$Control["StopRequested"]) {
+                $Control["IsTerminating"] = $true
+                $terminated = $true
+                $terminationErrors = @(Stop-LauncherProcessTree -RootPid ([int]$process.Id))
+                break
+            }
+            Start-Sleep -Milliseconds 250
+            try { $process.Refresh() } catch {}
+        }
+        if ([bool]$Control["StopRequested"]) { $terminated = $true }
+        if (-not $process.HasExited) {
+            try { Wait-Process -Id $process.Id -Timeout 5 -ErrorAction SilentlyContinue } catch {}
+            try { $process.Refresh() } catch {}
+        }
+        if ($terminated) {
+            $exitCode = 130
+        } elseif ($process.HasExited) {
+            $exitCode = $process.ExitCode
+        } else {
+            $exitCode = 1
+        }
         Remove-Item -LiteralPath $wrapper -Force -ErrorAction SilentlyContinue
         if (-not [string]::IsNullOrWhiteSpace($argsTextPath)) { Remove-Item -LiteralPath $argsTextPath -Force -ErrorAction SilentlyContinue }
-        return [PSCustomObject]@{ Success = ($process.ExitCode -eq 0); ExitCode = $process.ExitCode; Message = "管理脚本执行完成"; ProcessArgs = $argumentLine; ScriptArgsText = $ScriptArgsText; ScriptName = $DisplayScriptName }
+        return [PSCustomObject]@{ Success = ($exitCode -eq 0); ExitCode = $exitCode; Message = "管理脚本执行完成"; ProcessArgs = $argumentLine; ScriptArgsText = $ScriptArgsText; ScriptName = $DisplayScriptName; ProcessId = $Control["ProcessId"]; Terminated = $terminated; TerminationErrors = ($terminationErrors -join "`n") }
     }
     Start-GuiOperation -UI $UI -State $State -Name "运行管理脚本" -ScriptBlock $operation -Arguments @($scriptPath, $scriptArgsText, $scriptName) -OnComplete {
         param($result, $streamErrors)
         $item = $result | Select-Object -First 1
         $displayScriptName = $item.ScriptName
         if ([string]::IsNullOrWhiteSpace($displayScriptName)) { $displayScriptName = "管理脚本" }
-        if ($item.Success) {
+        if ([bool](Get-ObjectPropertyValue $item "Terminated" $false)) {
+            $processId = Get-ObjectPropertyValue $item "ProcessId" 0
+            $terminationErrors = [string](Get-ObjectPropertyValue $item "TerminationErrors" "")
+            Write-Log INFO "management script terminated by user pid=$processId script=$displayScriptName path=$scriptPath"
+            Append-UiLog $UI "$displayScriptName 已被用户终止。pid=$processId"
+            if (-not [string]::IsNullOrWhiteSpace($terminationErrors)) {
+                Show-Message "$displayScriptName 已终止，但部分进程可能需要手动关闭。`n`n$terminationErrors" "已终止" "Warning"
+            }
+        } elseif ($item.Success) {
             Write-Log DEBUG "management script process args: $($item.ProcessArgs)"
             Write-Log DEBUG "management script args text: $($item.ScriptArgsText)"
             Append-UiLog $UI "$displayScriptName 执行成功。"
@@ -1913,7 +2175,7 @@ function Invoke-UpdateCheck {
         return [PSCustomObject]@{ Success = $false; Updated = $false; Message = "更新检查失败: $lastError" }
     }
     $manualCheck = $Manual
-    Start-GuiOperation -UI $UI -State $State -Name "检查更新" -ScriptBlock $operation -Arguments @((,[string[]]($script:SELF_REMOTE_URLS)), $script:INSTALLER_LAUNCHER_GUI_VERSION, $PSCommandPath) -OnComplete {
+    Start-GuiOperation -UI $UI -State $State -Name "检查更新" -ScriptBlock $operation -Arguments @((,[string[]]($script:SELF_REMOTE_URLS)), $script:INSTALLER_LAUNCHER_GUI_VERSION, $PSCommandPath) -CanTerminate $false -OnComplete {
         param($result, $streamErrors)
         $item = $result | Select-Object -First 1
         if ($null -eq $item) {
@@ -2417,6 +2679,7 @@ function Start-App {
                 </Border>
                 <TextBlock Text="右下角统一启动按钮会根据当前模式运行安装器或所选管理脚本。" TextWrapping="Wrap" Foreground="{DynamicResource TextSecBrush}" Margin="0,0,0,18"/>
                 <Button Name="UnifiedStartBtn" Content="▶ 启动所选脚本" Style="{StaticResource PrimaryButton}" Padding="18,12" FontSize="16" HorizontalAlignment="Stretch"/>
+                <Button Name="TerminateOperationBtn" Content="■ 终止当前任务" Background="#FFE53935" Foreground="White" BorderThickness="0" Padding="18,12" FontSize="16" HorizontalAlignment="Stretch" Margin="0,10,0,0" Visibility="Collapsed" IsEnabled="False"/>
               </StackPanel>
             </Border>
           </Grid>
@@ -2545,7 +2808,7 @@ function Start-App {
         MainBorder = $window.FindName("MainBorder"); StartPage = $window.FindName("StartPage"); AdvancedPage = $window.FindName("AdvancedPage"); SoftwarePage = $window.FindName("SoftwarePage"); SettingsPage = $window.FindName("SettingsPage"); MainTabs = $window.FindName("MainTabs"); ProjectList = $window.FindName("ProjectList"); ProjectStatusText = $window.FindName("ProjectStatusText"); BusyText = $window.FindName("BusyText")
         PathPanel = $window.FindName("PathPanel"); ConfigPanel = $window.FindName("ConfigPanel")
         ScriptCombo = $window.FindName("ScriptCombo"); ScriptParamPanel = $window.FindName("ScriptParamPanel"); ScriptArgsBox = $window.FindName("ScriptArgsBox")
-        StartModeTabs = $window.FindName("StartModeTabs"); LaunchScriptList = $window.FindName("LaunchScriptList"); UnifiedStartBtn = $window.FindName("UnifiedStartBtn"); StartHintText = $window.FindName("StartHintText"); InstallHintText = $window.FindName("InstallHintText")
+        StartModeTabs = $window.FindName("StartModeTabs"); LaunchScriptList = $window.FindName("LaunchScriptList"); UnifiedStartBtn = $window.FindName("UnifiedStartBtn"); TerminateOperationBtn = $window.FindName("TerminateOperationBtn"); StartHintText = $window.FindName("StartHintText"); InstallHintText = $window.FindName("InstallHintText")
         AutoUpdateCheck = $window.FindName("AutoUpdateCheck"); WelcomeCheck = $window.FindName("WelcomeCheck"); LogLevelCombo = $window.FindName("LogLevelCombo"); ProxyModeCombo = $window.FindName("ProxyModeCombo"); ManualProxyBox = $window.FindName("ManualProxyBox")
         SaveMainBtn = $window.FindName("SaveMainBtn"); CheckUpdateBtn = $window.FindName("CheckUpdateBtn"); OpenConfigFolderBtn = $window.FindName("OpenConfigFolderBtn"); UninstallBtn = $window.FindName("UninstallBtn"); OneClickNavBtn = $window.FindName("OneClickNavBtn"); AdvancedNavBtn = $window.FindName("AdvancedNavBtn"); SoftwareNavBtn = $window.FindName("SoftwareNavBtn"); SettingsNavBtn = $window.FindName("SettingsNavBtn"); OneClickNavLabel = $window.FindName("OneClickNavLabel"); AdvancedNavLabel = $window.FindName("AdvancedNavLabel"); SoftwareNavLabel = $window.FindName("SoftwareNavLabel"); SettingsNavLabel = $window.FindName("SettingsNavLabel"); HelpBtn = $window.FindName("HelpBtn"); ShowLogBtn = $window.FindName("ShowLogBtn")
         LogBox = $window.FindName("LogBox")
@@ -2595,6 +2858,7 @@ function Start-App {
     }.GetNewClosure())
     $UI.StartModeTabs.Add_SelectionChanged({ Update-OneClickModeUi $UI }.GetNewClosure())
     $UI.UnifiedStartBtn.Add_Click({ Invoke-OneClickAction $UI $State }.GetNewClosure())
+    $UI.TerminateOperationBtn.Add_Click({ Invoke-TerminateCurrentOperation $UI $State }.GetNewClosure())
     $UI.ScriptCombo.Add_SelectionChanged({
         $key = Get-CurrentProjectKey
         if ([string]::IsNullOrWhiteSpace($key) -or $null -eq $UI.ScriptCombo.SelectedItem) { return }
