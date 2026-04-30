@@ -63,9 +63,11 @@ public class LauncherWindowHelper {
     [DllImport("dwmapi.dll")]
     public static extern int DwmSetWindowAttribute(IntPtr hwnd, int attr, ref int attrValue, int attrSize);
 
-    public static void SetBlurState(IntPtr hwnd, int state) {
+    public static void SetBlurState(IntPtr hwnd, int state, int flags, int gradientColor) {
         var accent = new AccentPolicy();
         accent.AccentState = state;
+        accent.AccentFlags = flags;
+        accent.GradientColor = gradientColor;
 
         var accentStructSize = Marshal.SizeOf(accent);
         var accentPtr = Marshal.AllocHGlobal(accentStructSize);
@@ -81,7 +83,12 @@ public class LauncherWindowHelper {
     }
 
     public static void EnableBlur(IntPtr hwnd) {
-        SetBlurState(hwnd, 3);
+        SetBlurState(hwnd, 3, 0, 0);
+    }
+
+    public static void EnableAcrylic(IntPtr hwnd, bool dark) {
+        int gradientColor = dark ? unchecked((int)0xC0202020) : unchecked((int)0xD8F6FAFF);
+        SetBlurState(hwnd, 4, 2, gradientColor);
     }
 
     public static void SetDarkMode(IntPtr hwnd, bool enabled) {
@@ -2507,11 +2514,11 @@ function Get-ThemeColors {
     } catch {}
     if ($dark) {
         return @{
-            IsDark = $true; WinBG1 = "#E61E1E1E"; WinBG2 = "#E6121212"; PanelBG = "#661F1F1F"; TextMain = "#FFFFFF"; TextSec = "#AAAAAA"; Border = "#44FFFFFF"; InputBG = "#2B2B2B"; BtnNormal = "#3A3A3A"; BtnHover = "#4A4A4A"; ItemHover = "#33FFFFFF"; HeaderBG = "#22FFFFFF"
+            IsDark = $true; WinBG1 = "#8C1E232B"; WinBG2 = "#7812151A"; PanelBG = "#731F242C"; TextMain = "#FFFFFF"; TextSec = "#D4DCE5"; Border = "#66FFFFFF"; InputBG = "#A8232830"; BtnNormal = "#592A3038"; BtnHover = "#73343D48"; ItemHover = "#2EFFFFFF"; HeaderBG = "#14FFFFFF"
         }
     }
     return @{
-        IsDark = $false; WinBG1 = "#EEF9FAFC"; WinBG2 = "#EEF3F7FB"; PanelBG = "#EEFFFFFF"; TextMain = "#242424"; TextSec = "#646464"; Border = "#FFD7DCE2"; InputBG = "#FCFCFD"; BtnNormal = "#FFFFFFFF"; BtnHover = "#FFF3F8FF"; ItemHover = "#FFEAF4FF"; HeaderBG = "#FFF5F9FF"
+        IsDark = $false; WinBG1 = "#9AFAFCFF"; WinBG2 = "#88ECF4FC"; PanelBG = "#8FFFFFFF"; TextMain = "#242424"; TextSec = "#55606B"; Border = "#A8C0CEDA"; InputBG = "#B8FFFFFF"; BtnNormal = "#99FFFFFF"; BtnHover = "#C8F3F8FF"; ItemHover = "#C4EAF4FF"; HeaderBG = "#3DFFFFFF"
     }
 }
 
@@ -2888,7 +2895,7 @@ function Start-App {
   </Window.Resources>
   <Border Name="MainBorder" CornerRadius="12" BorderThickness="1" BorderBrush="{DynamicResource BorderBrush}">
     <Border.Effect>
-      <DropShadowEffect BlurRadius="26" ShadowDepth="0" Opacity="0.22"/>
+      <DropShadowEffect BlurRadius="46" ShadowDepth="0" Opacity="0.38"/>
     </Border.Effect>
     <Border.Background>
       <LinearGradientBrush StartPoint="0,0" EndPoint="1,1">
@@ -2898,7 +2905,7 @@ function Start-App {
     </Border.Background>
     <Grid>
       <Grid.RowDefinitions><RowDefinition Height="48"/><RowDefinition Height="*"/></Grid.RowDefinitions>
-      <Grid Name="TitleBar" Grid.Row="0" Background="#18FFFFFF">
+      <Grid Name="TitleBar" Grid.Row="0" Background="{DynamicResource HeaderBGBrush}">
         <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
         <StackPanel Orientation="Horizontal" Margin="18,0,0,0" VerticalAlignment="Center">
           <Border Width="24" Height="24" CornerRadius="7" Background="{DynamicResource PrimaryBrush}" Margin="0,0,10,0">
@@ -3246,7 +3253,12 @@ function Start-App {
         try {
             try {
                 $handle = (New-Object System.Windows.Interop.WindowInteropHelper($window)).Handle
-                [LauncherWindowHelper]::EnableBlur($handle)
+                try {
+                    [LauncherWindowHelper]::EnableAcrylic($handle, [bool]$colors.IsDark)
+                } catch {
+                    Write-Log WARN "acrylic setup failed, fallback to blur: $($_.Exception.Message)"
+                    [LauncherWindowHelper]::EnableBlur($handle)
+                }
                 [LauncherWindowHelper]::SetDarkMode($handle, [bool]$colors.IsDark)
                 [LauncherWindowHelper]::SetRounding($handle, $true)
             } catch {
