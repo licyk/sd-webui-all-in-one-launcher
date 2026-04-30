@@ -971,7 +971,7 @@ function Append-UiLog {
 function Set-UiBusy {
     param($UI, [bool]$Busy, [string]$Message)
     $enabled = -not $Busy
-    foreach ($button in @($UI.RunInstallerBtn, $UI.RunScriptBtn, $UI.UninstallBtn, $UI.SaveConfigBtn, $UI.CheckUpdateBtn)) {
+    foreach ($button in @($UI.RunInstallerBtn, $UI.RunScriptBtn, $UI.UninstallBtn, $UI.SaveConfigBtn, $UI.CheckUpdateBtn, $UI.UnifiedStartBtn, $UI.SaveMainBtn, $UI.OpenConfigFolderBtn)) {
         if ($null -ne $button) { $button.IsEnabled = $enabled }
     }
     if ($null -ne $UI.BusyText) { $UI.BusyText.Text = $Message }
@@ -1248,6 +1248,8 @@ function Refresh-Status {
     if ([string]::IsNullOrWhiteSpace($key)) {
         $UI.ProjectStatusText.Text = "当前项目: 未选择`n安装状态: 未检测`n请先在左侧选择要安装或管理的 WebUI / 工具。"
         $UI.ScriptCombo.ItemsSource = $null
+        if ($null -ne $UI.LaunchScriptList) { $UI.LaunchScriptList.ItemsSource = $null }
+        if ($null -ne $UI.StartHintText) { $UI.StartHintText.Text = "请先进入「软件选择」选择要安装或管理的 WebUI / 工具。" }
         return
     }
     $project = $script:Projects[$key]
@@ -1271,6 +1273,24 @@ function Refresh-Status {
     }
     $UI.ScriptCombo.ItemsSource = $scripts
     if ($scripts.Count -gt 0) { $UI.ScriptCombo.SelectedIndex = 0 }
+    if ($null -ne $UI.LaunchScriptList) {
+        $launchItems = @()
+        foreach ($scriptName in $project.Scripts.Keys) {
+            $launchItem = New-Object System.Windows.Controls.ListBoxItem
+            $launchItem.Content = "$scriptName - $($project.Scripts[$scriptName])"
+            $launchItem.Tag = $scriptName
+            $launchItems += $launchItem
+        }
+        $UI.LaunchScriptList.ItemsSource = $launchItems
+        if ($launchItems.Count -gt 0) { $UI.LaunchScriptList.SelectedIndex = 0 }
+    }
+    if ($null -ne $UI.StartHintText) {
+        if ($status.Code -eq "installed") {
+            $UI.StartHintText.Text = "启动模式会运行已安装目录中的管理脚本。通常选择 launch.ps1 启动软件，选择 terminal.ps1 打开交互终端。"
+        } else {
+            $UI.StartHintText.Text = "当前项目还未完整安装。请选择安装模式，确认路径和高级选项后运行安装器。"
+        }
+    }
 }
 
 function Select-RelevantMainTab {
@@ -1289,6 +1309,87 @@ function Select-RelevantMainTab {
     } else {
         $UI.MainTabs.SelectedIndex = 0
     }
+}
+
+function Set-NavButtonSelected {
+    param($UI, [string]$PageName)
+    foreach ($entry in @(
+        @{ Name = "start"; Button = $UI.OneClickNavBtn },
+        @{ Name = "advanced"; Button = $UI.AdvancedNavBtn },
+        @{ Name = "software"; Button = $UI.SoftwareNavBtn },
+        @{ Name = "settings"; Button = $UI.SettingsNavBtn }
+    )) {
+        $button = $entry["Button"]
+        if ($null -eq $button) { continue }
+        if ($entry["Name"] -eq $PageName) {
+            $button.Background = $UI.Window.Resources["HeaderBGBrush"]
+            $button.BorderBrush = $UI.Window.Resources["PrimaryBrush"]
+            $button.FontWeight = "SemiBold"
+        } else {
+            $button.Background = [System.Windows.Media.Brushes]::Transparent
+            $button.BorderBrush = [System.Windows.Media.Brushes]::Transparent
+            $button.FontWeight = "Normal"
+        }
+    }
+}
+
+function Show-AppPage {
+    param($UI, [string]$PageName)
+    foreach ($page in @($UI.StartPage, $UI.AdvancedPage, $UI.SoftwarePage, $UI.SettingsPage)) {
+        if ($null -ne $page) { $page.Visibility = "Collapsed" }
+    }
+    switch ($PageName) {
+        "advanced" { if ($null -ne $UI.AdvancedPage) { $UI.AdvancedPage.Visibility = "Visible" } }
+        "software" { if ($null -ne $UI.SoftwarePage) { $UI.SoftwarePage.Visibility = "Visible" } }
+        "settings" { if ($null -ne $UI.SettingsPage) { $UI.SettingsPage.Visibility = "Visible" } }
+        default { if ($null -ne $UI.StartPage) { $UI.StartPage.Visibility = "Visible" }; $PageName = "start" }
+    }
+    Set-NavButtonSelected $UI $PageName
+}
+
+function Update-OneClickModeUi {
+    param($UI)
+    if ($null -eq $UI.StartModeCombo -or $null -eq $UI.LaunchScriptList) { return }
+    $mode = [string]$UI.StartModeCombo.SelectedItem
+    if ([string]::IsNullOrWhiteSpace($mode)) { $mode = "启动模式" }
+    if ($mode -eq "安装模式") {
+        $UI.LaunchScriptList.IsEnabled = $false
+        if ($null -ne $UI.UnifiedStartBtn) { $UI.UnifiedStartBtn.Content = "▶ 运行安装器" }
+    } else {
+        $UI.LaunchScriptList.IsEnabled = $true
+        if ($null -ne $UI.UnifiedStartBtn) { $UI.UnifiedStartBtn.Content = "▶ 启动所选脚本" }
+    }
+}
+
+function Select-ScriptByName {
+    param($UI, [string]$ScriptName)
+    if ($null -eq $UI.ScriptCombo -or [string]::IsNullOrWhiteSpace($ScriptName)) { return }
+    foreach ($item in $UI.ScriptCombo.Items) {
+        if ([string]$item.Tag -eq $ScriptName) {
+            $UI.ScriptCombo.SelectedItem = $item
+            return
+        }
+    }
+}
+
+function Invoke-OneClickAction {
+    param($UI, $State)
+    if ($null -eq $UI.StartModeCombo -or [string]$UI.StartModeCombo.SelectedItem -eq "安装模式") {
+        Invoke-RunInstaller $UI $State
+        return
+    }
+    if ($null -eq $UI.LaunchScriptList -or $null -eq $UI.LaunchScriptList.SelectedItem) {
+        Show-Message "请选择要启动的管理脚本。" "未选择脚本" "Warning"
+        return
+    }
+    Select-ScriptByName $UI ([string]$UI.LaunchScriptList.SelectedItem.Tag)
+    Invoke-RunManagementScript $UI $State
+}
+
+function Open-ConfigFolder {
+    $path = $script:ConfigHome
+    if (-not (Test-Path -LiteralPath $path)) { New-Item -ItemType Directory -Force -Path $path | Out-Null }
+    Start-Process -FilePath "explorer.exe" -ArgumentList @($path) | Out-Null
 }
 
 function Refresh-MainConfigUi {
@@ -1700,10 +1801,10 @@ function Show-HelpWindow {
 Windows GUI 启动器使用说明
 
 1. 在左侧选择要安装或管理的 WebUI / 工具。
-2. 在“安装路径”中确认目标目录，在“高级选项”中调整分支、镜像、代理和开关参数。
-3. 点击“保存配置”，再点击“运行安装器”。GUI 会重新下载安装器并打开 PowerShell 控制台执行。
-4. 安装完成后，在“管理脚本”中选择 launch.ps1、update.ps1、terminal.ps1 等脚本运行。
-5. 管理脚本参数会按当前脚本文档动态显示；结构化参数会排在“额外原始参数”之前，-NoPause 会自动追加。
+2. 在「安装路径」中确认目标目录，在「高级选项」中调整分支、镜像、代理和开关参数。
+3. 点击「保存配置」，再点击「运行安装器」。GUI 会重新下载安装器并打开 PowerShell 控制台执行。
+4. 安装完成后，在「管理脚本」中选择 launch.ps1、update.ps1、terminal.ps1 等脚本运行。
+5. 管理脚本参数会按当前脚本文档动态显示；结构化参数会排在「额外原始参数」之前，-NoPause 会自动追加。
 
 代理:
 - auto: 自动读取 Windows 系统代理，不覆盖已有环境变量。
@@ -2080,17 +2181,19 @@ function Start-App {
       <Grid Grid.Row="1">
         <Grid.ColumnDefinitions><ColumnDefinition Width="112"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
         <Border Grid.Column="0" Background="#22FFFFFF" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="0,1,1,0">
-          <DockPanel Margin="8,16,8,16">
+          <DockPanel Margin="8,14,8,14">
             <StackPanel DockPanel.Dock="Top">
-              <TextBlock Text="项目" FontSize="12" Foreground="{DynamicResource TextSecBrush}" HorizontalAlignment="Center" Margin="0,0,0,8"/>
+              <Button Name="OneClickNavBtn" Width="72" Height="72" Padding="6" Margin="0,0,0,10" BorderThickness="1" Content="▶`n一键启动"/>
+              <Button Name="AdvancedNavBtn" Width="72" Height="72" Padding="6" Margin="0,0,0,10" BorderThickness="1" Content="☷`n高级选项"/>
+              <Button Name="SoftwareNavBtn" Width="72" Height="72" Padding="6" Margin="0,0,0,10" BorderThickness="1" Content="▣`n软件选择"/>
             </StackPanel>
-            <StackPanel DockPanel.Dock="Bottom" Margin="0,14,0,0">
-              <Button Name="SettingsNavBtn" Content="启动器设置" Padding="6,8" Margin="0,0,0,8"/>
+            <StackPanel DockPanel.Dock="Bottom">
+              <Button Name="SettingsNavBtn" Width="72" Height="72" Padding="6" BorderThickness="1" Content="⚙`n设置"/>
             </StackPanel>
-            <ListBox Name="ProjectList" DisplayMemberPath="ShortName" BorderThickness="0" Background="Transparent"/>
           </DockPanel>
         </Border>
-        <Grid Name="HomePage" Grid.Column="1" Margin="24,20,24,20">
+        <Grid Grid.Column="1" Margin="24,20,24,20">
+          <Grid Name="StartPage">
           <Grid.RowDefinitions><RowDefinition Height="158"/><RowDefinition Height="*"/><RowDefinition Height="112"/></Grid.RowDefinitions>
           <Border Grid.Row="0" CornerRadius="10" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1" Padding="24" Margin="0,0,0,18">
             <Border.Background>
@@ -2109,9 +2212,6 @@ function Start-App {
               </StackPanel>
               <StackPanel Grid.Column="1" VerticalAlignment="Bottom" HorizontalAlignment="Right">
                 <TextBlock Name="BusyText" HorizontalAlignment="Right" Foreground="White" Opacity="0.9" Margin="0,0,8,12"/>
-                <StackPanel Orientation="Horizontal">
-                  <Button Name="RunInstallerBtn" Content="▶ 运行安装器" Style="{StaticResource PrimaryButton}" Padding="18,10" FontSize="15"/>
-                </StackPanel>
               </StackPanel>
             </Grid>
           </Border>
@@ -2119,14 +2219,54 @@ function Start-App {
             <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="330"/></Grid.ColumnDefinitions>
             <Border Grid.Column="0" Background="{DynamicResource PanelBGBrush}" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1" CornerRadius="10" Padding="18" Margin="0,0,18,0">
               <DockPanel>
-                <StackPanel DockPanel.Dock="Top" Orientation="Horizontal" Margin="0,0,0,14">
-                  <Button Name="SaveConfigBtn" Content="保存配置" Style="{StaticResource PrimaryButton}"/>
+                <StackPanel DockPanel.Dock="Top" Margin="0,0,0,16">
+                  <TextBlock Text="启动方式" FontSize="18" FontWeight="SemiBold" Margin="0,0,0,10"/>
+                  <ComboBox Name="StartModeCombo" Width="220" HorizontalAlignment="Left"/>
                 </StackPanel>
-                <TabControl Name="MainTabs">
+                <Grid>
+                  <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="*"/></Grid.RowDefinitions>
+                  <TextBlock Name="StartHintText" TextWrapping="Wrap" Foreground="{DynamicResource TextSecBrush}" Margin="0,0,0,12"/>
+                  <ListBox Name="LaunchScriptList" Grid.Row="1"/>
+                </Grid>
+              </DockPanel>
+            </Border>
+            <Border Grid.Column="1" Background="{DynamicResource PanelBGBrush}" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1" CornerRadius="10" Padding="18">
+              <StackPanel>
+                <TextBlock Text="快速操作" FontSize="18" FontWeight="SemiBold" Margin="0,0,0,14"/>
+                <TextBlock Text="已安装后：使用启动模式，选择 launch.ps1 启动软件，或选择 update.ps1 / terminal.ps1 做维护。" Foreground="{DynamicResource TextSecBrush}" TextWrapping="Wrap" Margin="0,0,0,10"/>
+                <TextBlock Text="未安装时：先在「高级选项」确认安装路径、分支和镜像，再切回安装模式运行安装器。" Foreground="{DynamicResource TextSecBrush}" TextWrapping="Wrap" Margin="0,0,0,10"/>
+                <TextBlock Text="如果检测到安装不完整，请重新运行安装器修复后再启动。" Foreground="{DynamicResource TextSecBrush}" TextWrapping="Wrap" Margin="0,0,0,18"/>
+                <Border Background="{DynamicResource HeaderBGBrush}" CornerRadius="8" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1" Padding="14" Margin="0,0,0,14">
+                  <TextBlock Text="PowerShell 脚本会在独立控制台中运行；如果返回非零退出码，窗口会停留以便查看上游日志。" TextWrapping="Wrap" Foreground="{DynamicResource TextSecBrush}"/>
+                </Border>
+                <TextBlock Text="右下角统一启动按钮会根据当前模式运行安装器或所选管理脚本。" TextWrapping="Wrap" Foreground="{DynamicResource TextSecBrush}" Margin="0,0,0,18"/>
+                <Button Name="UnifiedStartBtn" Content="▶ 启动所选脚本" Style="{StaticResource PrimaryButton}" Padding="18,12" FontSize="16" HorizontalAlignment="Stretch"/>
+              </StackPanel>
+            </Border>
+          </Grid>
+          <Border Grid.Row="2" Background="{DynamicResource PanelBGBrush}" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1" CornerRadius="10" Padding="10" Margin="0,18,0,0">
+            <DockPanel>
+              <TextBlock DockPanel.Dock="Top" Text="运行日志" FontWeight="SemiBold" Margin="2,0,0,6"/>
+              <TextBox Name="LogBox" IsReadOnly="True" AcceptsReturn="True" TextWrapping="Wrap" VerticalScrollBarVisibility="Auto" Background="Transparent" BorderThickness="0" FontFamily="Consolas"/>
+            </DockPanel>
+          </Border>
+          </Grid>
+          <Grid Name="AdvancedPage" Visibility="Collapsed">
+            <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="*"/></Grid.RowDefinitions>
+            <DockPanel Grid.Row="0" Margin="0,0,0,18">
+              <StackPanel>
+                <TextBlock Text="高级选项" FontSize="28" FontWeight="Bold"/>
+                <TextBlock Text="设置安装路径、安装器参数和管理脚本参数。" Foreground="{DynamicResource TextSecBrush}" Margin="0,4,0,0"/>
+              </StackPanel>
+              <Button Name="SaveConfigBtn" DockPanel.Dock="Right" Content="保存配置" Style="{StaticResource PrimaryButton}" Padding="16,9" HorizontalAlignment="Right"/>
+            </DockPanel>
+            <Border Grid.Row="1" Background="{DynamicResource PanelBGBrush}" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1" CornerRadius="10" Padding="18">
+              <TabControl Name="MainTabs">
                 <TabItem Header="安装路径">
                   <DockPanel Margin="2,14,2,0">
                     <StackPanel DockPanel.Dock="Bottom" Orientation="Horizontal" Margin="0,14,0,0">
                       <Button Name="UninstallBtn" Content="卸载已安装软件"/>
+                      <Button Name="RunInstallerBtn" Content="运行安装器" Style="{StaticResource PrimaryButton}"/>
                     </StackPanel>
                     <ScrollViewer VerticalScrollBarVisibility="Auto">
                       <StackPanel>
@@ -2138,14 +2278,14 @@ function Start-App {
                     </ScrollViewer>
                   </DockPanel>
                 </TabItem>
-                <TabItem Header="高级选项">
+                <TabItem Header="安装器设置">
                   <DockPanel Margin="2,14,2,0">
                     <ScrollViewer VerticalScrollBarVisibility="Auto">
                       <StackPanel Name="ConfigPanel"/>
                     </ScrollViewer>
                   </DockPanel>
                 </TabItem>
-                <TabItem Header="管理脚本">
+                <TabItem Header="管理脚本设置">
                   <Grid Margin="2,14,2,0">
                     <Grid.RowDefinitions>
                       <RowDefinition Height="Auto"/>
@@ -2166,36 +2306,25 @@ function Start-App {
                     </StackPanel>
                   </Grid>
                 </TabItem>
-                </TabControl>
-              </DockPanel>
-            </Border>
-            <Border Grid.Column="1" Background="{DynamicResource PanelBGBrush}" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1" CornerRadius="10" Padding="18">
-              <StackPanel>
-                <TextBlock Text="快速操作" FontSize="18" FontWeight="SemiBold" Margin="0,0,0,14"/>
-                <TextBlock Text="已安装后：优先进入“管理脚本”，运行 launch.ps1 启动软件，或运行 update.ps1 / terminal.ps1 做维护。" Foreground="{DynamicResource TextSecBrush}" TextWrapping="Wrap" Margin="0,0,0,10"/>
-                <TextBlock Text="未安装时：先在“安装路径”确认目标目录，再到“高级选项”调整分支和镜像，最后运行安装器完成首次安装。" Foreground="{DynamicResource TextSecBrush}" TextWrapping="Wrap" Margin="0,0,0,10"/>
-                <TextBlock Text="如果检测到安装不完整，请重新运行安装器修复后再启动。" Foreground="{DynamicResource TextSecBrush}" TextWrapping="Wrap" Margin="0,0,0,18"/>
-                <Border Background="{DynamicResource HeaderBGBrush}" CornerRadius="8" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1" Padding="14" Margin="0,0,0,14">
-                  <TextBlock Text="PowerShell 脚本会在独立控制台中运行；如果返回非零退出码，窗口会停留以便查看上游日志。" TextWrapping="Wrap" Foreground="{DynamicResource TextSecBrush}"/>
-                </Border>
-                <TextBlock Text="右上角 ? 可打开完整帮助；日志按钮可查看最近运行记录。" TextWrapping="Wrap" Foreground="{DynamicResource TextSecBrush}"/>
-              </StackPanel>
+              </TabControl>
             </Border>
           </Grid>
-          <Border Grid.Row="2" Background="{DynamicResource PanelBGBrush}" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1" CornerRadius="10" Padding="10" Margin="0,18,0,0">
-            <DockPanel>
-              <TextBlock DockPanel.Dock="Top" Text="运行日志" FontWeight="SemiBold" Margin="2,0,0,6"/>
-              <TextBox Name="LogBox" IsReadOnly="True" AcceptsReturn="True" TextWrapping="Wrap" VerticalScrollBarVisibility="Auto" Background="Transparent" BorderThickness="0" FontFamily="Consolas"/>
-            </DockPanel>
-          </Border>
-        </Grid>
-        <Grid Name="SettingsPage" Grid.Column="1" Margin="24,20,24,20" Visibility="Collapsed">
+          <Grid Name="SoftwarePage" Visibility="Collapsed">
+            <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="*"/></Grid.RowDefinitions>
+            <StackPanel Grid.Row="0" Margin="0,0,0,18">
+              <TextBlock Text="软件选择" FontSize="28" FontWeight="Bold"/>
+              <TextBlock Text="选择要安装或管理的 WebUI / 工具。切换后会自动刷新安装状态和可用脚本。" Foreground="{DynamicResource TextSecBrush}" Margin="0,4,0,0"/>
+            </StackPanel>
+            <Border Grid.Row="1" Background="{DynamicResource PanelBGBrush}" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1" CornerRadius="10" Padding="18">
+              <ListBox Name="ProjectList" DisplayMemberPath="Name"/>
+            </Border>
+          </Grid>
+          <Grid Name="SettingsPage" Visibility="Collapsed">
           <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="*"/></Grid.RowDefinitions>
           <DockPanel Grid.Row="0" Margin="0,0,0,18">
-            <Button Name="BackHomeBtn" DockPanel.Dock="Left" Content="← 返回主页" Padding="12,8"/>
-            <StackPanel Margin="16,0,0,0">
+            <StackPanel>
               <TextBlock Text="启动器设置" FontSize="28" FontWeight="Bold"/>
-              <TextBlock Text="管理自动更新、欢迎页、日志等级和代理。" Foreground="{DynamicResource TextSecBrush}" Margin="0,4,0,0"/>
+              <TextBlock Text="管理自动更新、欢迎页、日志等级、代理和配置文件位置。" Foreground="{DynamicResource TextSecBrush}" Margin="0,4,0,0"/>
             </StackPanel>
           </DockPanel>
           <Grid Grid.Row="1">
@@ -2215,6 +2344,7 @@ function Start-App {
                   <StackPanel Orientation="Horizontal" Margin="0,0,0,18">
                     <Button Name="SaveMainBtn" Content="保存设置" Style="{StaticResource PrimaryButton}"/>
                     <Button Name="CheckUpdateBtn" Content="检查更新"/>
+                    <Button Name="OpenConfigFolderBtn" Content="打开配置文件夹"/>
                   </StackPanel>
                 </StackPanel>
               </ScrollViewer>
@@ -2226,6 +2356,7 @@ function Start-App {
                 <TextBlock Text="代理模式 auto 会读取 Windows 系统代理；manual 使用下方手动地址；off 会清理当前启动器进程中的代理变量。" Foreground="{DynamicResource TextSecBrush}" TextWrapping="Wrap"/>
               </StackPanel>
             </Border>
+          </Grid>
           </Grid>
         </Grid>
       </Grid>
@@ -2242,11 +2373,12 @@ function Start-App {
     })
     $UI = [PSCustomObject]@{
         Window = $window; TitleBar = $window.FindName("TitleBar"); MinBtn = $window.FindName("MinBtn"); MaxBtn = $window.FindName("MaxBtn"); CloseBtn = $window.FindName("CloseBtn")
-        MainBorder = $window.FindName("MainBorder"); HomePage = $window.FindName("HomePage"); SettingsPage = $window.FindName("SettingsPage"); MainTabs = $window.FindName("MainTabs"); ProjectList = $window.FindName("ProjectList"); ProjectStatusText = $window.FindName("ProjectStatusText"); BusyText = $window.FindName("BusyText")
+        MainBorder = $window.FindName("MainBorder"); StartPage = $window.FindName("StartPage"); AdvancedPage = $window.FindName("AdvancedPage"); SoftwarePage = $window.FindName("SoftwarePage"); SettingsPage = $window.FindName("SettingsPage"); MainTabs = $window.FindName("MainTabs"); ProjectList = $window.FindName("ProjectList"); ProjectStatusText = $window.FindName("ProjectStatusText"); BusyText = $window.FindName("BusyText")
         PathPanel = $window.FindName("PathPanel"); ConfigPanel = $window.FindName("ConfigPanel"); SaveConfigBtn = $window.FindName("SaveConfigBtn"); RunInstallerBtn = $window.FindName("RunInstallerBtn")
         ScriptCombo = $window.FindName("ScriptCombo"); ScriptParamPanel = $window.FindName("ScriptParamPanel"); ScriptArgsBox = $window.FindName("ScriptArgsBox"); SaveScriptArgsBtn = $window.FindName("SaveScriptArgsBtn"); RunScriptBtn = $window.FindName("RunScriptBtn")
+        StartModeCombo = $window.FindName("StartModeCombo"); LaunchScriptList = $window.FindName("LaunchScriptList"); UnifiedStartBtn = $window.FindName("UnifiedStartBtn"); StartHintText = $window.FindName("StartHintText")
         AutoUpdateCheck = $window.FindName("AutoUpdateCheck"); WelcomeCheck = $window.FindName("WelcomeCheck"); LogLevelCombo = $window.FindName("LogLevelCombo"); ProxyModeCombo = $window.FindName("ProxyModeCombo"); ManualProxyBox = $window.FindName("ManualProxyBox")
-        SaveMainBtn = $window.FindName("SaveMainBtn"); CheckUpdateBtn = $window.FindName("CheckUpdateBtn"); UninstallBtn = $window.FindName("UninstallBtn"); SettingsNavBtn = $window.FindName("SettingsNavBtn"); BackHomeBtn = $window.FindName("BackHomeBtn"); HelpBtn = $window.FindName("HelpBtn"); ShowLogBtn = $window.FindName("ShowLogBtn")
+        SaveMainBtn = $window.FindName("SaveMainBtn"); CheckUpdateBtn = $window.FindName("CheckUpdateBtn"); OpenConfigFolderBtn = $window.FindName("OpenConfigFolderBtn"); UninstallBtn = $window.FindName("UninstallBtn"); OneClickNavBtn = $window.FindName("OneClickNavBtn"); AdvancedNavBtn = $window.FindName("AdvancedNavBtn"); SoftwareNavBtn = $window.FindName("SoftwareNavBtn"); SettingsNavBtn = $window.FindName("SettingsNavBtn"); HelpBtn = $window.FindName("HelpBtn"); ShowLogBtn = $window.FindName("ShowLogBtn")
         LogBox = $window.FindName("LogBox")
     }
     $State = [PSCustomObject]@{ CurrentOperation = $null; ConfigControls = @{}; ScriptParamControls = @{}; ProjectConfig = @{}; StatusRefreshTimer = $null }
@@ -2254,6 +2386,9 @@ function Start-App {
 
     $UI.LogLevelCombo.ItemsSource = @("DEBUG", "INFO", "WARN", "ERROR")
     $UI.ProxyModeCombo.ItemsSource = @("auto", "manual", "off")
+    $UI.StartModeCombo.ItemsSource = @("启动模式", "安装模式")
+    $UI.StartModeCombo.SelectedIndex = 0
+    Update-OneClickModeUi $UI
     Refresh-MainConfigUi $UI
     $projectItems = @()
     $projectShortNames = @{
@@ -2297,6 +2432,8 @@ function Start-App {
         Append-UiLog $UI "项目配置已保存: $key"
     }.GetNewClosure())
     $UI.RunInstallerBtn.Add_Click({ Invoke-RunInstaller $UI $State }.GetNewClosure())
+    $UI.StartModeCombo.Add_SelectionChanged({ Update-OneClickModeUi $UI }.GetNewClosure())
+    $UI.UnifiedStartBtn.Add_Click({ Invoke-OneClickAction $UI $State }.GetNewClosure())
     $UI.ScriptCombo.Add_SelectionChanged({
         $key = Get-CurrentProjectKey
         if ([string]::IsNullOrWhiteSpace($key) -or $null -eq $UI.ScriptCombo.SelectedItem) { return }
@@ -2327,15 +2464,11 @@ function Start-App {
         Append-UiLog $UI "启动器设置已保存。"
     }.GetNewClosure())
     $UI.CheckUpdateBtn.Add_Click({ Invoke-UpdateCheck $UI $State $true }.GetNewClosure())
-    $UI.SettingsNavBtn.Add_Click({
-        $UI.HomePage.Visibility = "Collapsed"
-        $UI.SettingsPage.Visibility = "Visible"
-    }.GetNewClosure())
-    $UI.BackHomeBtn.Add_Click({
-        $UI.SettingsPage.Visibility = "Collapsed"
-        $UI.HomePage.Visibility = "Visible"
-        Select-RelevantMainTab $UI
-    }.GetNewClosure())
+    $UI.OpenConfigFolderBtn.Add_Click({ Open-ConfigFolder }.GetNewClosure())
+    $UI.OneClickNavBtn.Add_Click({ Show-AppPage $UI "start" }.GetNewClosure())
+    $UI.AdvancedNavBtn.Add_Click({ Show-AppPage $UI "advanced"; Select-RelevantMainTab $UI }.GetNewClosure())
+    $UI.SoftwareNavBtn.Add_Click({ Show-AppPage $UI "software" }.GetNewClosure())
+    $UI.SettingsNavBtn.Add_Click({ Show-AppPage $UI "settings" }.GetNewClosure())
     $UI.UninstallBtn.Add_Click({ Invoke-UninstallProject $UI $State }.GetNewClosure())
     $UI.HelpBtn.Add_Click({ Show-HelpWindow }.GetNewClosure())
     $UI.ShowLogBtn.Add_Click({ Show-LogWindow }.GetNewClosure())
@@ -2363,6 +2496,7 @@ function Start-App {
             Refresh-ProjectConfigUi $UI $State
             Refresh-Status $UI $State
             Select-RelevantMainTab $UI
+            Show-AppPage $UI "start"
             Append-UiLog $UI "GUI 启动完成。配置: $displayConfigHome 日志: $displayLogFile"
             if ([bool]$mainConfig["SHOW_WELCOME_SCREEN"]) {
                 Append-UiLog $UI "选择项目，调整配置，然后运行安装器。"
