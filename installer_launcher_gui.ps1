@@ -86,6 +86,20 @@ public class LauncherWindowHelper {
         DwmSetWindowAttribute(hwnd, 33, ref preference, sizeof(int));
     }
 }
+
+public class LauncherChoice {
+    public string Name { get; set; }
+    public string Label { get; set; }
+
+    public LauncherChoice(string name, string label) {
+        Name = name;
+        Label = label;
+    }
+
+    public override string ToString() {
+        return Label;
+    }
+}
 "@ -ErrorAction SilentlyContinue | Out-Null
 
 Set-StrictMode -Version Latest
@@ -1268,20 +1282,14 @@ function Refresh-Status {
     $UI.ProjectStatusText.Text = "当前项目: $($project.Name)`n安装状态: $($status.Label)`n$($status.Detail)`n下一步: $nextStep`n代理模式: $proxyMode    自动更新: $autoUpdate"
     $scripts = @()
     foreach ($scriptName in $project.Scripts.Keys) {
-        $item = New-Object System.Windows.Controls.ComboBoxItem
-        $item.Content = "$scriptName - $($project.Scripts[$scriptName])"
-        $item.Tag = $scriptName
-        $scripts += $item
+        $scripts += [LauncherChoice]::new($scriptName, "$scriptName - $($project.Scripts[$scriptName])")
     }
     $UI.ScriptCombo.ItemsSource = $scripts
     if ($scripts.Count -gt 0) { $UI.ScriptCombo.SelectedIndex = 0 }
     if ($null -ne $UI.LaunchScriptList) {
         $launchItems = @()
         foreach ($scriptName in $project.Scripts.Keys) {
-            $launchItems += [PSCustomObject]@{
-                Name = $scriptName
-                Label = "$scriptName - $($project.Scripts[$scriptName])"
-            }
+            $launchItems += [LauncherChoice]::new($scriptName, "$scriptName - $($project.Scripts[$scriptName])")
         }
         $UI.LaunchScriptList.ItemsSource = $launchItems
         if ($launchItems.Count -gt 0) { $UI.LaunchScriptList.SelectedIndex = 0 }
@@ -1396,7 +1404,13 @@ function Select-ScriptByName {
     param($UI, [string]$ScriptName)
     if ($null -eq $UI.ScriptCombo -or [string]::IsNullOrWhiteSpace($ScriptName)) { return }
     foreach ($item in $UI.ScriptCombo.Items) {
-        if ([string]$item.Tag -eq $ScriptName) {
+        $itemName = ""
+        if ($item -is [System.Windows.Controls.ComboBoxItem]) {
+            $itemName = [string]$item.Tag
+        } elseif ($null -ne $item.PSObject.Properties["Name"]) {
+            $itemName = [string]$item.PSObject.Properties["Name"].Value
+        }
+        if ($itemName -eq $ScriptName) {
             $UI.ScriptCombo.SelectedItem = $item
             return
         }
@@ -2359,7 +2373,7 @@ function Start-App {
                       <RowDefinition Height="*"/>
                       <RowDefinition Height="Auto"/>
                     </Grid.RowDefinitions>
-                    <ComboBox Name="ScriptCombo" Grid.Row="0" Margin="0,0,0,12"/>
+                    <ComboBox Name="ScriptCombo" Grid.Row="0" Margin="0,0,0,12" DisplayMemberPath="Label"/>
                     <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto" Margin="0,0,0,14">
                       <StackPanel>
                         <StackPanel Name="ScriptParamPanel"/>
