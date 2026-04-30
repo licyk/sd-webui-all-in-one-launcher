@@ -2602,26 +2602,58 @@ function Start-App {
     <Style TargetType="TabControl">
       <Setter Property="Background" Value="Transparent"/>
       <Setter Property="BorderThickness" Value="0"/>
+      <Setter Property="ItemsPanel">
+        <Setter.Value>
+          <ItemsPanelTemplate>
+            <StackPanel Orientation="Horizontal" ClipToBounds="False"/>
+          </ItemsPanelTemplate>
+        </Setter.Value>
+      </Setter>
+      <Setter Property="Template">
+        <Setter.Value>
+          <ControlTemplate TargetType="TabControl">
+            <Grid ClipToBounds="False">
+              <Grid.RowDefinitions>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="*"/>
+              </Grid.RowDefinitions>
+              <ItemsPresenter Grid.Row="0" KeyboardNavigation.TabIndex="1" Panel.ZIndex="1" ClipToBounds="False"/>
+              <ContentPresenter Grid.Row="1"
+                                ContentSource="SelectedContent"
+                                Margin="0,12,0,0"
+                                KeyboardNavigation.TabIndex="2"
+                                KeyboardNavigation.TabNavigation="Local"
+                                KeyboardNavigation.DirectionalNavigation="Contained"/>
+            </Grid>
+          </ControlTemplate>
+        </Setter.Value>
+      </Setter>
     </Style>
     <Style TargetType="TabItem">
       <Setter Property="Foreground" Value="{DynamicResource TextMainBrush}"/>
-      <Setter Property="Padding" Value="12,8"/>
-      <Setter Property="Margin" Value="0,0,6,0"/>
+      <Setter Property="Padding" Value="14,8"/>
+      <Setter Property="Margin" Value="0,0,12,0"/>
+      <Setter Property="MinWidth" Value="96"/>
+      <Setter Property="Panel.ZIndex" Value="0"/>
       <Setter Property="Template">
         <Setter.Value>
           <ControlTemplate TargetType="TabItem">
-            <Border x:Name="Bd" Background="Transparent" BorderBrush="Transparent" BorderThickness="1" CornerRadius="7" Padding="{TemplateBinding Padding}">
-              <ContentPresenter ContentSource="Header" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+            <Border x:Name="Bd" Background="Transparent" CornerRadius="7" Padding="{TemplateBinding Padding}" SnapsToDevicePixels="True">
+              <Grid>
+                <ContentPresenter ContentSource="Header" HorizontalAlignment="Center" VerticalAlignment="Center" Margin="0,0,0,3"/>
+                <Border x:Name="Accent" Height="3" CornerRadius="2" Background="Transparent" VerticalAlignment="Bottom" HorizontalAlignment="Stretch"/>
+              </Grid>
             </Border>
             <ControlTemplate.Triggers>
               <Trigger Property="IsMouseOver" Value="True">
                 <Setter TargetName="Bd" Property="Background" Value="{DynamicResource ItemHoverBrush}"/>
               </Trigger>
               <Trigger Property="IsSelected" Value="True">
-                <Setter TargetName="Bd" Property="Background" Value="{DynamicResource SelectedItemBGBrush}"/>
-                <Setter TargetName="Bd" Property="BorderBrush" Value="{DynamicResource PrimaryBrush}"/>
+                <Setter TargetName="Bd" Property="Background" Value="{DynamicResource HeaderBGBrush}"/>
+                <Setter TargetName="Accent" Property="Background" Value="{DynamicResource PrimaryBrush}"/>
                 <Setter Property="Foreground" Value="{DynamicResource PrimaryBrush}"/>
                 <Setter Property="FontWeight" Value="SemiBold"/>
+                <Setter Property="Panel.ZIndex" Value="10"/>
               </Trigger>
             </ControlTemplate.Triggers>
           </ControlTemplate>
