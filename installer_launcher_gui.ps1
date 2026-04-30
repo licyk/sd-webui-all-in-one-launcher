@@ -123,8 +123,8 @@ function Export-GuiEventFunctions {
         "Refresh-ProjectConfigUi", "Refresh-ScriptParamUi", "Refresh-Status", "Report-UiError",
         "Save-CurrentProjectConfigFromUi", "Save-MainConfig", "Save-MainConfigFromUi",
         "Select-FolderPath", "Select-RelevantMainTab", "Set-UiBusy", "Show-AppPage",
-        "Show-HelpWindow", "Show-LogWindow", "Show-Message", "Test-DictionaryKey",
-        "Update-OneClickModeUi", "Write-Log"
+        "Show-HelpWindow", "Show-LogWindow", "Show-Message", "Start-TabTransition",
+        "Test-DictionaryKey", "Update-OneClickModeUi", "Write-Log"
     )
     foreach ($name in $names) {
         $command = Get-Command -Name $name -CommandType Function -ErrorAction Stop
@@ -1614,6 +1614,33 @@ function Start-PageTransition {
     $translate.BeginAnimation([System.Windows.Media.TranslateTransform]::YProperty, $yAnimation)
 }
 
+function Start-TabTransition {
+    param($TabControl)
+    if ($null -eq $TabControl -or $null -eq $TabControl.SelectedContent) { return }
+    $content = $TabControl.SelectedContent
+    if (-not ($content -is [System.Windows.UIElement])) { return }
+
+    $duration = New-Object System.Windows.Duration ([TimeSpan]::FromMilliseconds(150))
+    $opacityAnimation = New-Object System.Windows.Media.Animation.DoubleAnimation
+    $opacityAnimation.From = 0.0
+    $opacityAnimation.To = 1.0
+    $opacityAnimation.Duration = $duration
+    $opacityAnimation.EasingFunction = New-Object System.Windows.Media.Animation.CubicEase -Property @{ EasingMode = [System.Windows.Media.Animation.EasingMode]::EaseOut }
+
+    $translate = New-Object System.Windows.Media.TranslateTransform
+    $content.RenderTransform = $translate
+    $content.Opacity = 0.0
+
+    $yAnimation = New-Object System.Windows.Media.Animation.DoubleAnimation
+    $yAnimation.From = 8.0
+    $yAnimation.To = 0.0
+    $yAnimation.Duration = $duration
+    $yAnimation.EasingFunction = New-Object System.Windows.Media.Animation.CubicEase -Property @{ EasingMode = [System.Windows.Media.Animation.EasingMode]::EaseOut }
+
+    $content.BeginAnimation([System.Windows.UIElement]::OpacityProperty, $opacityAnimation)
+    $translate.BeginAnimation([System.Windows.Media.TranslateTransform]::YProperty, $yAnimation)
+}
+
 function Show-AppPage {
     param($UI, [string]$PageName)
     $startPageTransition = ${function:Start-PageTransition}
@@ -3013,7 +3040,8 @@ function Start-App {
             Report-UiError -Context "切换项目" -ErrorObject $_ -ShowDialog $true
         }
     }.GetNewClosure())
-    $UI.StartModeTabs.Add_SelectionChanged({ Update-OneClickModeUi $UI }.GetNewClosure())
+    $UI.StartModeTabs.Add_SelectionChanged({ Update-OneClickModeUi $UI; Start-TabTransition $UI.StartModeTabs }.GetNewClosure())
+    $UI.MainTabs.Add_SelectionChanged({ Start-TabTransition $UI.MainTabs }.GetNewClosure())
     $UI.UnifiedStartBtn.Add_Click({ Invoke-OneClickAction $UI $State }.GetNewClosure())
     $UI.TerminateOperationBtn.Add_Click({ Invoke-TerminateCurrentOperation $UI $State }.GetNewClosure())
     $UI.ScriptCombo.Add_SelectionChanged({
