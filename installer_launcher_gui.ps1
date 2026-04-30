@@ -2016,18 +2016,25 @@ function Start-App {
       <Setter Property="Foreground" Value="{DynamicResource TextMainBrush}"/>
       <Setter Property="BorderBrush" Value="{DynamicResource BorderBrush}"/>
       <Setter Property="BorderThickness" Value="1"/>
-      <Setter Property="Padding" Value="9,6"/>
+      <Setter Property="Padding" Value="12,8"/>
+      <Setter Property="MinHeight" Value="38"/>
       <Setter Property="CaretBrush" Value="{DynamicResource TextMainBrush}"/>
       <Setter Property="SelectionBrush" Value="{DynamicResource PrimaryBrush}"/>
       <Setter Property="VerticalContentAlignment" Value="Center"/>
       <Setter Property="Template">
         <Setter.Value>
           <ControlTemplate TargetType="TextBox">
-            <Border x:Name="Bd" Background="{TemplateBinding Background}" BorderBrush="{TemplateBinding BorderBrush}" BorderThickness="{TemplateBinding BorderThickness}" CornerRadius="7">
+            <Grid>
+              <Border x:Name="Bd" Background="{TemplateBinding Background}" BorderBrush="{TemplateBinding BorderBrush}" BorderThickness="{TemplateBinding BorderThickness}" CornerRadius="6"/>
               <ScrollViewer x:Name="PART_ContentHost" Margin="{TemplateBinding Padding}" Focusable="False" HorizontalScrollBarVisibility="{TemplateBinding HorizontalScrollBarVisibility}" VerticalScrollBarVisibility="{TemplateBinding VerticalScrollBarVisibility}"/>
-            </Border>
+              <Border x:Name="FocusLine" Height="2" CornerRadius="1" Background="{DynamicResource PrimaryBrush}" HorizontalAlignment="Stretch" VerticalAlignment="Bottom" Margin="2,0,2,1" Opacity="0"/>
+            </Grid>
             <ControlTemplate.Triggers>
               <Trigger Property="IsKeyboardFocused" Value="True">
+                <Setter TargetName="Bd" Property="BorderBrush" Value="{DynamicResource PrimaryBrush}"/>
+                <Setter TargetName="FocusLine" Property="Opacity" Value="1"/>
+              </Trigger>
+              <Trigger Property="IsMouseOver" Value="True">
                 <Setter TargetName="Bd" Property="BorderBrush" Value="{DynamicResource PrimaryBrush}"/>
               </Trigger>
               <Trigger Property="IsEnabled" Value="False">
@@ -2118,23 +2125,30 @@ function Start-App {
       <Setter Property="Foreground" Value="{DynamicResource TextMainBrush}"/>
       <Setter Property="Margin" Value="0,0,0,8"/>
       <Setter Property="Cursor" Value="Hand"/>
+      <Setter Property="HorizontalContentAlignment" Value="Left"/>
       <Setter Property="Template">
         <Setter.Value>
           <ControlTemplate TargetType="CheckBox">
-            <StackPanel Orientation="Horizontal">
-              <Border x:Name="Box" Width="18" Height="18" CornerRadius="5" Background="{DynamicResource InputBGBrush}" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1" Margin="0,0,8,0">
-                <Path x:Name="CheckMark" Data="M 3 9 L 7 13 L 15 4" Stroke="White" StrokeThickness="2" StrokeEndLineCap="Round" StrokeStartLineCap="Round" Visibility="Collapsed"/>
+            <Grid>
+              <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="Auto"/>
+                <ColumnDefinition Width="Auto"/>
+              </Grid.ColumnDefinitions>
+              <ContentPresenter Grid.Column="0" VerticalAlignment="Center" Margin="0,0,10,0"/>
+              <Border Grid.Column="1" x:Name="Track" Width="48" Height="24" CornerRadius="12" Background="{DynamicResource InputBGBrush}" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1" HorizontalAlignment="Right">
+                <Ellipse x:Name="Thumb" Width="16" Height="16" Fill="{DynamicResource TextSecBrush}" HorizontalAlignment="Left" Margin="3,0,0,0"/>
               </Border>
-              <ContentPresenter VerticalAlignment="Center"/>
-            </StackPanel>
+            </Grid>
             <ControlTemplate.Triggers>
               <Trigger Property="IsMouseOver" Value="True">
-                <Setter TargetName="Box" Property="BorderBrush" Value="{DynamicResource PrimaryBrush}"/>
+                <Setter TargetName="Track" Property="BorderBrush" Value="{DynamicResource PrimaryBrush}"/>
               </Trigger>
               <Trigger Property="IsChecked" Value="True">
-                <Setter TargetName="Box" Property="Background" Value="{DynamicResource PrimaryBrush}"/>
-                <Setter TargetName="Box" Property="BorderBrush" Value="{DynamicResource PrimaryBrush}"/>
-                <Setter TargetName="CheckMark" Property="Visibility" Value="Visible"/>
+                <Setter TargetName="Track" Property="Background" Value="{DynamicResource PrimaryBrush}"/>
+                <Setter TargetName="Track" Property="BorderBrush" Value="{DynamicResource PrimaryBrush}"/>
+                <Setter TargetName="Thumb" Property="Fill" Value="White"/>
+                <Setter TargetName="Thumb" Property="HorizontalAlignment" Value="Right"/>
+                <Setter TargetName="Thumb" Property="Margin" Value="0,0,3,0"/>
               </Trigger>
               <Trigger Property="IsEnabled" Value="False">
                 <Setter Property="Opacity" Value="0.55"/>
