@@ -985,7 +985,7 @@ function Append-UiLog {
 function Set-UiBusy {
     param($UI, [bool]$Busy, [string]$Message)
     $enabled = -not $Busy
-    foreach ($button in @($UI.UninstallBtn, $UI.SaveConfigBtn, $UI.CheckUpdateBtn, $UI.UnifiedStartBtn, $UI.SaveMainBtn, $UI.OpenConfigFolderBtn)) {
+    foreach ($button in @($UI.UninstallBtn, $UI.CheckUpdateBtn, $UI.UnifiedStartBtn, $UI.SaveMainBtn, $UI.OpenConfigFolderBtn)) {
         if ($null -ne $button) { $button.IsEnabled = $enabled }
     }
     if ($null -ne $UI.BusyText) { $UI.BusyText.Text = $Message }
@@ -1088,6 +1088,10 @@ function Add-ConfigTextBox {
     $rowInfo = New-ConfigCardRow $Label
     $box = New-Object System.Windows.Controls.TextBox
     $box.Text = $Value
+    $autoSave = $null
+    if ($null -ne $State.PSObject.Properties["AutoSaveProjectConfig"]) {
+        $autoSave = $State.AutoSaveProjectConfig
+    }
     if ($Key -eq "INSTALL_PATH") {
         $row = New-Object System.Windows.Controls.Grid
         $col1 = New-Object System.Windows.Controls.ColumnDefinition
@@ -1117,6 +1121,9 @@ function Add-ConfigTextBox {
     }
     $Panel.Children.Add($rowInfo.Card) | Out-Null
     $State.ConfigControls[$Key] = $box
+    if ($null -ne $autoSave) {
+        $box.Add_TextChanged({ & $autoSave }.GetNewClosure())
+    }
 }
 
 function Add-ConfigComboBox {
@@ -1124,6 +1131,10 @@ function Add-ConfigComboBox {
     $rowInfo = New-ConfigCardRow $Label
     $combo = New-Object System.Windows.Controls.ComboBox
     $combo.IsEditable = $false
+    $autoSave = $null
+    if ($null -ne $State.PSObject.Properties["AutoSaveProjectConfig"]) {
+        $autoSave = $State.AutoSaveProjectConfig
+    }
     if ($null -ne $Options) {
         foreach ($optionKey in $Options.Keys) {
             $item = New-Object System.Windows.Controls.ComboBoxItem
@@ -1140,6 +1151,9 @@ function Add-ConfigComboBox {
     $rowInfo.Grid.Children.Add($combo) | Out-Null
     $Panel.Children.Add($rowInfo.Card) | Out-Null
     $State.ConfigControls[$Key] = $combo
+    if ($null -ne $autoSave) {
+        $combo.Add_SelectionChanged({ & $autoSave }.GetNewClosure())
+    }
 }
 
 function Add-ConfigCheckBox {
@@ -1147,17 +1161,27 @@ function Add-ConfigCheckBox {
     $rowInfo = New-ConfigCardRow $Label
     $box = New-Object System.Windows.Controls.CheckBox
     $box.IsChecked = $Value
+    $autoSave = $null
+    if ($null -ne $State.PSObject.Properties["AutoSaveProjectConfig"]) {
+        $autoSave = $State.AutoSaveProjectConfig
+    }
     $box.HorizontalAlignment = "Right"
     $box.VerticalAlignment = "Center"
     [System.Windows.Controls.Grid]::SetColumn($box, 1)
     $rowInfo.Grid.Children.Add($box) | Out-Null
     $Panel.Children.Add($rowInfo.Card) | Out-Null
     $State.ConfigControls[$Key] = $box
+    if ($null -ne $autoSave) {
+        $box.Add_Checked({ & $autoSave }.GetNewClosure())
+        $box.Add_Unchecked({ & $autoSave }.GetNewClosure())
+    }
 }
 
 function Refresh-ScriptParamUi {
     param($UI, $State)
     if ($null -eq $UI.ScriptParamPanel) { return }
+    $State.IsRefreshing = $true
+    try {
     $UI.ScriptParamPanel.Children.Clear()
     $State.ScriptParamControls = @{}
     $key = Get-CurrentProjectKey
@@ -1180,6 +1204,9 @@ function Refresh-ScriptParamUi {
         }
     }
     $State.ScriptParamControls = $scriptState.ConfigControls
+    } finally {
+        $State.IsRefreshing = $false
+    }
 }
 
 function Save-ScriptParamUi {
@@ -1214,8 +1241,20 @@ function Collect-ProjectAndScriptConfigFromUi {
     return $config
 }
 
+function Save-CurrentProjectConfigFromUi {
+    param($UI, $State, [bool]$RefreshStatus = $true)
+    if ($null -ne $State -and $null -ne $State.PSObject.Properties["IsRefreshing"] -and [bool]$State.IsRefreshing) { return }
+    $key = Get-CurrentProjectKey
+    if ([string]::IsNullOrWhiteSpace($key)) { return }
+    Save-ProjectConfig $key (Collect-ProjectAndScriptConfigFromUi $UI $State)
+    if ($RefreshStatus) { Refresh-Status $UI $State }
+    Write-Log DEBUG "project config auto saved: $key"
+}
+
 function Refresh-ProjectConfigUi {
     param($UI, $State)
+    $State.IsRefreshing = $true
+    try {
     $UI.PathPanel.Children.Clear()
     $UI.ConfigPanel.Children.Clear()
     $State.ConfigControls = @{}
@@ -1269,6 +1308,9 @@ function Refresh-ProjectConfigUi {
     )
     foreach ($flag in $flags) {
         if (Test-ProjectParam $project $flag.Param) { Add-ConfigCheckBox $UI.ConfigPanel $State $flag.Key $flag.Label ([bool]$config[$flag.Key]) }
+    }
+    } finally {
+        $State.IsRefreshing = $false
     }
 }
 
@@ -1870,8 +1912,8 @@ function Show-HelpWindow {
 Windows GUI 启动器使用说明
 
 1. 在左侧选择要安装或管理的 WebUI / 工具。
-2. 在「安装路径」中确认目标目录，在「高级选项」中调整分支、镜像、代理和开关参数。
-3. 点击「保存配置」，再点击「运行安装器」。GUI 会重新下载安装器并打开 PowerShell 控制台执行。
+2. 在「安装路径」中确认目标目录，在「高级选项」中调整分支、镜像、代理和开关参数，修改会自动保存。
+3. 回到「一键启动」选择安装模式运行安装器。GUI 会重新下载安装器并打开 PowerShell 控制台执行。
 4. 安装完成后，在「管理脚本」中选择 launch.ps1、update.ps1、terminal.ps1 等脚本运行。
 5. 管理脚本参数会按当前脚本文档动态显示；结构化参数会排在「额外原始参数」之前，-NoPause 会自动追加。
 
@@ -2367,9 +2409,8 @@ function Start-App {
             <DockPanel Grid.Row="0" Margin="0,0,0,18">
               <StackPanel>
                 <TextBlock Text="高级选项" FontSize="28" FontWeight="Bold"/>
-                <TextBlock Text="设置安装路径、安装器参数和管理脚本参数。" Foreground="{DynamicResource TextSecBrush}" Margin="0,4,0,0"/>
+                <TextBlock Text="设置安装路径、安装器参数和管理脚本参数。修改后会自动保存。" Foreground="{DynamicResource TextSecBrush}" Margin="0,4,0,0"/>
               </StackPanel>
-              <Button Name="SaveConfigBtn" DockPanel.Dock="Right" Content="保存配置" Style="{StaticResource PrimaryButton}" Padding="16,9" HorizontalAlignment="Right"/>
             </DockPanel>
             <Border Grid.Row="1" Background="{DynamicResource PanelBGBrush}" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1" CornerRadius="10" Padding="18">
               <TabControl Name="MainTabs">
@@ -2479,15 +2520,16 @@ function Start-App {
     $UI = [PSCustomObject]@{
         Window = $window; TitleBar = $window.FindName("TitleBar"); MinBtn = $window.FindName("MinBtn"); MaxBtn = $window.FindName("MaxBtn"); CloseBtn = $window.FindName("CloseBtn")
         MainBorder = $window.FindName("MainBorder"); StartPage = $window.FindName("StartPage"); AdvancedPage = $window.FindName("AdvancedPage"); SoftwarePage = $window.FindName("SoftwarePage"); SettingsPage = $window.FindName("SettingsPage"); MainTabs = $window.FindName("MainTabs"); ProjectList = $window.FindName("ProjectList"); ProjectStatusText = $window.FindName("ProjectStatusText"); BusyText = $window.FindName("BusyText")
-        PathPanel = $window.FindName("PathPanel"); ConfigPanel = $window.FindName("ConfigPanel"); SaveConfigBtn = $window.FindName("SaveConfigBtn")
+        PathPanel = $window.FindName("PathPanel"); ConfigPanel = $window.FindName("ConfigPanel")
         ScriptCombo = $window.FindName("ScriptCombo"); ScriptParamPanel = $window.FindName("ScriptParamPanel"); ScriptArgsBox = $window.FindName("ScriptArgsBox")
         StartModeTabs = $window.FindName("StartModeTabs"); LaunchScriptList = $window.FindName("LaunchScriptList"); UnifiedStartBtn = $window.FindName("UnifiedStartBtn"); StartHintText = $window.FindName("StartHintText"); InstallHintText = $window.FindName("InstallHintText")
         AutoUpdateCheck = $window.FindName("AutoUpdateCheck"); WelcomeCheck = $window.FindName("WelcomeCheck"); LogLevelCombo = $window.FindName("LogLevelCombo"); ProxyModeCombo = $window.FindName("ProxyModeCombo"); ManualProxyBox = $window.FindName("ManualProxyBox")
         SaveMainBtn = $window.FindName("SaveMainBtn"); CheckUpdateBtn = $window.FindName("CheckUpdateBtn"); OpenConfigFolderBtn = $window.FindName("OpenConfigFolderBtn"); UninstallBtn = $window.FindName("UninstallBtn"); OneClickNavBtn = $window.FindName("OneClickNavBtn"); AdvancedNavBtn = $window.FindName("AdvancedNavBtn"); SoftwareNavBtn = $window.FindName("SoftwareNavBtn"); SettingsNavBtn = $window.FindName("SettingsNavBtn"); OneClickNavLabel = $window.FindName("OneClickNavLabel"); AdvancedNavLabel = $window.FindName("AdvancedNavLabel"); SoftwareNavLabel = $window.FindName("SoftwareNavLabel"); SettingsNavLabel = $window.FindName("SettingsNavLabel"); HelpBtn = $window.FindName("HelpBtn"); ShowLogBtn = $window.FindName("ShowLogBtn")
         LogBox = $window.FindName("LogBox")
     }
-    $State = [PSCustomObject]@{ CurrentOperation = $null; ConfigControls = @{}; ScriptParamControls = @{}; ProjectConfig = @{}; StatusRefreshTimer = $null; LastOneClickStatus = "" }
+    $State = [PSCustomObject]@{ CurrentOperation = $null; ConfigControls = @{}; ScriptParamControls = @{}; ProjectConfig = @{}; StatusRefreshTimer = $null; LastOneClickStatus = ""; IsRefreshing = $false; AutoSaveProjectConfig = $null }
     $mainConfig = $script:MainConfig
+    $State.AutoSaveProjectConfig = { Save-CurrentProjectConfigFromUi $UI $State $false }.GetNewClosure()
 
     $UI.LogLevelCombo.ItemsSource = @("DEBUG", "INFO", "WARN", "ERROR")
     $UI.ProxyModeCombo.ItemsSource = @("auto", "manual", "off")
@@ -2528,13 +2570,6 @@ function Start-App {
             Report-UiError -Context "切换项目" -ErrorObject $_ -ShowDialog $true
         }
     }.GetNewClosure())
-    $UI.SaveConfigBtn.Add_Click({
-        $key = Get-CurrentProjectKey
-        if ([string]::IsNullOrWhiteSpace($key)) { Show-Message "请先选择项目。" "未选择项目" "Warning"; return }
-        Save-ProjectConfig $key (Collect-ProjectAndScriptConfigFromUi $UI $State)
-        Refresh-Status $UI $State
-        Append-UiLog $UI "项目配置和当前管理脚本参数已保存: $key"
-    }.GetNewClosure())
     $UI.StartModeTabs.Add_SelectionChanged({ Update-OneClickModeUi $UI }.GetNewClosure())
     $UI.UnifiedStartBtn.Add_Click({ Invoke-OneClickAction $UI $State }.GetNewClosure())
     $UI.ScriptCombo.Add_SelectionChanged({
@@ -2542,13 +2577,19 @@ function Start-App {
         if ([string]::IsNullOrWhiteSpace($key) -or $null -eq $UI.ScriptCombo.SelectedItem) { return }
         $config = Get-ProjectConfig $key
         $scriptName = Get-SelectedScriptName $UI.ScriptCombo
+        $State.IsRefreshing = $true
+        try {
         if ($null -ne $config["ScriptArgs"] -and (Test-DictionaryKey $config["ScriptArgs"] $scriptName)) {
             $UI.ScriptArgsBox.Text = [string]$config["ScriptArgs"][$scriptName]
         } else {
             $UI.ScriptArgsBox.Text = ""
         }
         Refresh-ScriptParamUi $UI $State
+        } finally {
+            $State.IsRefreshing = $false
+        }
     }.GetNewClosure())
+    $UI.ScriptArgsBox.Add_TextChanged({ Save-CurrentProjectConfigFromUi $UI $State $false }.GetNewClosure())
     $UI.SaveMainBtn.Add_Click({
         Save-MainConfigFromUi $UI
         Refresh-Status $UI $State
