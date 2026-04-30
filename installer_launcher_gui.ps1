@@ -1278,10 +1278,10 @@ function Refresh-Status {
     if ($null -ne $UI.LaunchScriptList) {
         $launchItems = @()
         foreach ($scriptName in $project.Scripts.Keys) {
-            $launchItem = New-Object System.Windows.Controls.ListBoxItem
-            $launchItem.Content = "$scriptName - $($project.Scripts[$scriptName])"
-            $launchItem.Tag = $scriptName
-            $launchItems += $launchItem
+            $launchItems += [PSCustomObject]@{
+                Name = $scriptName
+                Label = "$scriptName - $($project.Scripts[$scriptName])"
+            }
         }
         $UI.LaunchScriptList.ItemsSource = $launchItems
         if ($launchItems.Count -gt 0) { $UI.LaunchScriptList.SelectedIndex = 0 }
@@ -1326,21 +1326,24 @@ function Select-RelevantMainTab {
 function Set-NavButtonSelected {
     param($UI, [string]$PageName)
     foreach ($entry in @(
-        @{ Name = "start"; Button = $UI.OneClickNavBtn },
-        @{ Name = "advanced"; Button = $UI.AdvancedNavBtn },
-        @{ Name = "software"; Button = $UI.SoftwareNavBtn },
-        @{ Name = "settings"; Button = $UI.SettingsNavBtn }
+        @{ Name = "start"; Button = $UI.OneClickNavBtn; Label = $UI.OneClickNavLabel },
+        @{ Name = "advanced"; Button = $UI.AdvancedNavBtn; Label = $UI.AdvancedNavLabel },
+        @{ Name = "software"; Button = $UI.SoftwareNavBtn; Label = $UI.SoftwareNavLabel },
+        @{ Name = "settings"; Button = $UI.SettingsNavBtn; Label = $UI.SettingsNavLabel }
     )) {
         $button = $entry["Button"]
+        $label = $entry["Label"]
         if ($null -eq $button) { continue }
         if ($entry["Name"] -eq $PageName) {
             $button.Background = $UI.Window.Resources["HeaderBGBrush"]
             $button.BorderBrush = $UI.Window.Resources["PrimaryBrush"]
             $button.FontWeight = "SemiBold"
+            if ($null -ne $label) { $label.Visibility = "Collapsed" }
         } else {
             $button.Background = [System.Windows.Media.Brushes]::Transparent
             $button.BorderBrush = [System.Windows.Media.Brushes]::Transparent
             $button.FontWeight = "Normal"
+            if ($null -ne $label) { $label.Visibility = "Visible" }
         }
     }
 }
@@ -1410,7 +1413,15 @@ function Invoke-OneClickAction {
         Show-Message "请选择要启动的管理脚本。" "未选择脚本" "Warning"
         return
     }
-    Select-ScriptByName $UI ([string]$UI.LaunchScriptList.SelectedItem.Tag)
+    $scriptName = ""
+    if ($null -ne $UI.LaunchScriptList.SelectedItem.PSObject.Properties["Name"]) {
+        $scriptName = [string]$UI.LaunchScriptList.SelectedItem.PSObject.Properties["Name"].Value
+    }
+    if ([string]::IsNullOrWhiteSpace($scriptName)) {
+        Show-Message "无法识别所选管理脚本，请重新选择。" "脚本选择异常" "Warning"
+        return
+    }
+    Select-ScriptByName $UI $scriptName
     Invoke-RunManagementScript $UI $State
 }
 
@@ -2211,19 +2222,39 @@ function Start-App {
         <Border Grid.Column="0" Background="#22FFFFFF" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="0,1,1,0">
           <DockPanel Margin="8,14,8,14">
             <StackPanel DockPanel.Dock="Top">
-              <Button Name="OneClickNavBtn" Width="72" Height="72" Padding="6" Margin="0,0,0,10" BorderThickness="1" Content="▶`n一键启动"/>
-              <Button Name="AdvancedNavBtn" Width="72" Height="72" Padding="6" Margin="0,0,0,10" BorderThickness="1" Content="☷`n高级选项"/>
-              <Button Name="SoftwareNavBtn" Width="72" Height="72" Padding="6" Margin="0,0,0,10" BorderThickness="1" Content="▣`n软件选择"/>
+              <Button Name="OneClickNavBtn" Width="72" Height="72" Padding="4" Margin="0,0,0,10" BorderThickness="1">
+                <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center">
+                  <TextBlock Text="▶" FontSize="20" HorizontalAlignment="Center" Margin="0,0,0,4"/>
+                  <TextBlock Name="OneClickNavLabel" Text="一键启动" FontSize="12" HorizontalAlignment="Center"/>
+                </StackPanel>
+              </Button>
+              <Button Name="AdvancedNavBtn" Width="72" Height="72" Padding="4" Margin="0,0,0,10" BorderThickness="1">
+                <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center">
+                  <TextBlock Text="☷" FontSize="20" HorizontalAlignment="Center" Margin="0,0,0,4"/>
+                  <TextBlock Name="AdvancedNavLabel" Text="高级选项" FontSize="12" HorizontalAlignment="Center"/>
+                </StackPanel>
+              </Button>
+              <Button Name="SoftwareNavBtn" Width="72" Height="72" Padding="4" Margin="0,0,0,10" BorderThickness="1">
+                <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center">
+                  <TextBlock Text="▣" FontSize="20" HorizontalAlignment="Center" Margin="0,0,0,4"/>
+                  <TextBlock Name="SoftwareNavLabel" Text="软件选择" FontSize="12" HorizontalAlignment="Center"/>
+                </StackPanel>
+              </Button>
             </StackPanel>
             <StackPanel DockPanel.Dock="Bottom">
-              <Button Name="SettingsNavBtn" Width="72" Height="72" Padding="6" BorderThickness="1" Content="⚙`n设置"/>
+              <Button Name="SettingsNavBtn" Width="72" Height="72" Padding="4" BorderThickness="1">
+                <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center">
+                  <TextBlock Text="⚙" FontSize="20" HorizontalAlignment="Center" Margin="0,0,0,4"/>
+                  <TextBlock Name="SettingsNavLabel" Text="设置" FontSize="12" HorizontalAlignment="Center"/>
+                </StackPanel>
+              </Button>
             </StackPanel>
           </DockPanel>
         </Border>
         <Grid Grid.Column="1" Margin="24,20,24,20">
           <Grid Name="StartPage">
-          <Grid.RowDefinitions><RowDefinition Height="158"/><RowDefinition Height="*"/><RowDefinition Height="112"/></Grid.RowDefinitions>
-          <Border Grid.Row="0" CornerRadius="10" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1" Padding="24" Margin="0,0,0,18">
+          <Grid.RowDefinitions><RowDefinition Height="142"/><RowDefinition Height="*"/><RowDefinition Height="132"/></Grid.RowDefinitions>
+          <Border Grid.Row="0" CornerRadius="10" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1" Padding="22" Margin="0,0,0,18">
             <Border.Background>
               <LinearGradientBrush StartPoint="0,0" EndPoint="1,1">
                 <GradientStop Color="#FF0B75C9" Offset="0"/>
@@ -2232,13 +2263,13 @@ function Start-App {
               </LinearGradientBrush>
             </Border.Background>
             <Grid>
-              <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
+              <Grid.ColumnDefinitions><ColumnDefinition Width="300"/><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
               <StackPanel VerticalAlignment="Center">
                 <TextBlock Text="AI WebUI 安装与管理" Foreground="White" FontSize="16" Opacity="0.9"/>
-                <TextBlock Text="启动器控制台" Foreground="White" FontSize="30" FontWeight="Bold" Margin="0,6,0,12"/>
-                <TextBlock Name="ProjectStatusText" TextWrapping="Wrap" Foreground="White" FontSize="13" MaxWidth="680"/>
+                <TextBlock Text="启动器控制台" Foreground="White" FontSize="26" FontWeight="Bold" Margin="0,6,0,0"/>
               </StackPanel>
-              <StackPanel Grid.Column="1" VerticalAlignment="Bottom" HorizontalAlignment="Right">
+              <TextBlock Grid.Column="1" Name="ProjectStatusText" TextWrapping="Wrap" Foreground="White" FontSize="13" MaxWidth="760" VerticalAlignment="Center" Margin="28,0,20,0"/>
+              <StackPanel Grid.Column="2" VerticalAlignment="Bottom" HorizontalAlignment="Right">
                 <TextBlock Name="BusyText" HorizontalAlignment="Right" Foreground="White" Opacity="0.9" Margin="0,0,8,12"/>
               </StackPanel>
             </Grid>
@@ -2255,7 +2286,7 @@ function Start-App {
                     <Grid Margin="2,14,2,0">
                       <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="*"/></Grid.RowDefinitions>
                       <TextBlock Name="StartHintText" TextWrapping="Wrap" Foreground="{DynamicResource TextSecBrush}" Margin="0,0,0,12"/>
-                      <ListBox Name="LaunchScriptList" Grid.Row="1"/>
+                      <ListBox Name="LaunchScriptList" Grid.Row="1" DisplayMemberPath="Label"/>
                     </Grid>
                   </TabItem>
                   <TabItem Header="安装模式">
@@ -2280,10 +2311,10 @@ function Start-App {
               </StackPanel>
             </Border>
           </Grid>
-          <Border Grid.Row="2" Background="{DynamicResource PanelBGBrush}" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1" CornerRadius="10" Padding="10" Margin="0,18,0,0">
+          <Border Grid.Row="2" Background="{DynamicResource PanelBGBrush}" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1" CornerRadius="10" Padding="8" Margin="0,16,0,0">
             <DockPanel>
-              <TextBlock DockPanel.Dock="Top" Text="运行日志" FontWeight="SemiBold" Margin="2,0,0,6"/>
-              <TextBox Name="LogBox" IsReadOnly="True" AcceptsReturn="True" TextWrapping="Wrap" VerticalScrollBarVisibility="Auto" Background="Transparent" BorderThickness="0" FontFamily="Consolas"/>
+              <TextBlock DockPanel.Dock="Top" Text="运行日志" FontWeight="SemiBold" Margin="2,0,0,4"/>
+              <TextBox Name="LogBox" IsReadOnly="True" AcceptsReturn="True" TextWrapping="Wrap" VerticalScrollBarVisibility="Auto" Background="Transparent" BorderThickness="0" Padding="4,2" VerticalContentAlignment="Top" FontFamily="Consolas"/>
             </DockPanel>
           </Border>
           </Grid>
@@ -2414,7 +2445,7 @@ function Start-App {
         ScriptCombo = $window.FindName("ScriptCombo"); ScriptParamPanel = $window.FindName("ScriptParamPanel"); ScriptArgsBox = $window.FindName("ScriptArgsBox"); SaveScriptArgsBtn = $window.FindName("SaveScriptArgsBtn"); RunScriptBtn = $window.FindName("RunScriptBtn")
         StartModeTabs = $window.FindName("StartModeTabs"); LaunchScriptList = $window.FindName("LaunchScriptList"); UnifiedStartBtn = $window.FindName("UnifiedStartBtn"); StartHintText = $window.FindName("StartHintText"); InstallHintText = $window.FindName("InstallHintText")
         AutoUpdateCheck = $window.FindName("AutoUpdateCheck"); WelcomeCheck = $window.FindName("WelcomeCheck"); LogLevelCombo = $window.FindName("LogLevelCombo"); ProxyModeCombo = $window.FindName("ProxyModeCombo"); ManualProxyBox = $window.FindName("ManualProxyBox")
-        SaveMainBtn = $window.FindName("SaveMainBtn"); CheckUpdateBtn = $window.FindName("CheckUpdateBtn"); OpenConfigFolderBtn = $window.FindName("OpenConfigFolderBtn"); UninstallBtn = $window.FindName("UninstallBtn"); OneClickNavBtn = $window.FindName("OneClickNavBtn"); AdvancedNavBtn = $window.FindName("AdvancedNavBtn"); SoftwareNavBtn = $window.FindName("SoftwareNavBtn"); SettingsNavBtn = $window.FindName("SettingsNavBtn"); HelpBtn = $window.FindName("HelpBtn"); ShowLogBtn = $window.FindName("ShowLogBtn")
+        SaveMainBtn = $window.FindName("SaveMainBtn"); CheckUpdateBtn = $window.FindName("CheckUpdateBtn"); OpenConfigFolderBtn = $window.FindName("OpenConfigFolderBtn"); UninstallBtn = $window.FindName("UninstallBtn"); OneClickNavBtn = $window.FindName("OneClickNavBtn"); AdvancedNavBtn = $window.FindName("AdvancedNavBtn"); SoftwareNavBtn = $window.FindName("SoftwareNavBtn"); SettingsNavBtn = $window.FindName("SettingsNavBtn"); OneClickNavLabel = $window.FindName("OneClickNavLabel"); AdvancedNavLabel = $window.FindName("AdvancedNavLabel"); SoftwareNavLabel = $window.FindName("SoftwareNavLabel"); SettingsNavLabel = $window.FindName("SettingsNavLabel"); HelpBtn = $window.FindName("HelpBtn"); ShowLogBtn = $window.FindName("ShowLogBtn")
         LogBox = $window.FindName("LogBox")
     }
     $State = [PSCustomObject]@{ CurrentOperation = $null; ConfigControls = @{}; ScriptParamControls = @{}; ProjectConfig = @{}; StatusRefreshTimer = $null; LastOneClickStatus = "" }
