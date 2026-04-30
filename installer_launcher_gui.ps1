@@ -14,7 +14,7 @@
 
 param()
 
-$script:INSTALLER_LAUNCHER_GUI_VERSION = "0.1.1"
+$script:INSTALLER_LAUNCHER_GUI_VERSION = "0.1.2"
 $script:APP_NAME = "installer-launcher"
 $script:APP_TITLE = "SD WebUI All In One Installer Launcher GUI"
 $script:SELF_REMOTE_URLS = @(
@@ -3107,24 +3107,35 @@ function Start-App {
               </DockPanel>
             </Border>
             <Border Grid.Column="1" Background="{DynamicResource PanelBGBrush}" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1" CornerRadius="10" Padding="18">
-              <StackPanel>
-                <TextBlock Text="快速操作" FontSize="18" FontWeight="SemiBold" Margin="0,0,0,14"/>
-                <TextBlock Text="已安装后：使用启动模式，选择 launch.ps1 启动软件，或选择 update.ps1 / terminal.ps1 做维护。" Foreground="{DynamicResource TextSecBrush}" TextWrapping="Wrap" Margin="0,0,0,10"/>
-                <TextBlock Text="未安装时：先在「高级选项」确认安装路径、分支和镜像，再切回安装模式运行安装器。" Foreground="{DynamicResource TextSecBrush}" TextWrapping="Wrap" Margin="0,0,0,10"/>
-                <TextBlock Text="如果检测到安装不完整，请重新运行安装器修复后再启动。" Foreground="{DynamicResource TextSecBrush}" TextWrapping="Wrap" Margin="0,0,0,18"/>
-                <Border Background="{DynamicResource HeaderBGBrush}" CornerRadius="8" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1" Padding="14" Margin="0,0,0,14">
-                  <TextBlock Text="PowerShell 脚本会在独立控制台中运行；如果返回非零退出码，窗口会停留以便查看上游日志。" TextWrapping="Wrap" Foreground="{DynamicResource TextSecBrush}"/>
-                </Border>
-                <TextBlock Text="右下角统一启动按钮会根据当前模式运行安装器或所选管理脚本。" TextWrapping="Wrap" Foreground="{DynamicResource TextSecBrush}" Margin="0,0,0,18"/>
-                <Button Name="UnifiedStartBtn" Style="{StaticResource PrimaryButton}" Padding="18,12" FontSize="16" HorizontalAlignment="Stretch">
-                  <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" VerticalAlignment="Center">
-                    <TextBlock Text="▶" Foreground="White" Margin="0,0,8,0"/>
-                    <TextBlock Name="UnifiedStartLabel" Text="启动所选脚本" Foreground="White"/>
+              <Grid>
+                <Grid.RowDefinitions>
+                  <RowDefinition Height="Auto"/>
+                  <RowDefinition Height="*"/>
+                  <RowDefinition Height="Auto"/>
+                </Grid.RowDefinitions>
+                <TextBlock Grid.Row="0" Text="快速操作" FontSize="18" FontWeight="SemiBold" Margin="0,0,0,14"/>
+                <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled" Margin="0,0,0,14">
+                  <StackPanel>
+                    <TextBlock Text="已安装后：使用启动模式，选择 launch.ps1 启动软件，或选择 update.ps1 / terminal.ps1 做维护。" Foreground="{DynamicResource TextSecBrush}" TextWrapping="Wrap" Margin="0,0,0,10"/>
+                    <TextBlock Text="未安装时：先在「高级选项」确认安装路径、分支和镜像，再切回安装模式运行安装器。" Foreground="{DynamicResource TextSecBrush}" TextWrapping="Wrap" Margin="0,0,0,10"/>
+                    <TextBlock Text="如果检测到安装不完整，请重新运行安装器修复后再启动。" Foreground="{DynamicResource TextSecBrush}" TextWrapping="Wrap" Margin="0,0,0,18"/>
+                    <Border Background="{DynamicResource HeaderBGBrush}" CornerRadius="8" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1" Padding="14" Margin="0,0,0,14">
+                      <TextBlock Text="PowerShell 脚本会在独立控制台中运行；如果返回非零退出码，窗口会停留以便查看上游日志。" TextWrapping="Wrap" Foreground="{DynamicResource TextSecBrush}"/>
+                    </Border>
+                    <TextBlock Text="下方统一启动按钮会根据当前模式运行安装器或所选管理脚本。" TextWrapping="Wrap" Foreground="{DynamicResource TextSecBrush}"/>
                   </StackPanel>
-                </Button>
-                <ProgressBar Name="StartProgressBar" IsIndeterminate="True" HorizontalAlignment="Stretch" Margin="0,0,8,0" Visibility="Collapsed"/>
-                <Button Name="TerminateOperationBtn" Content="■ 终止当前任务" Background="#FFE53935" Foreground="White" BorderThickness="0" Padding="18,12" FontSize="16" HorizontalAlignment="Stretch" Margin="0,10,0,0" Visibility="Collapsed" IsEnabled="False"/>
-              </StackPanel>
+                </ScrollViewer>
+                <StackPanel Grid.Row="2">
+                  <Button Name="UnifiedStartBtn" Style="{StaticResource PrimaryButton}" Padding="18,12" FontSize="16" HorizontalAlignment="Stretch">
+                    <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" VerticalAlignment="Center">
+                      <TextBlock Text="▶" Foreground="White" Margin="0,0,8,0"/>
+                      <TextBlock Name="UnifiedStartLabel" Text="启动所选脚本" Foreground="White"/>
+                    </StackPanel>
+                  </Button>
+                  <ProgressBar Name="StartProgressBar" IsIndeterminate="True" HorizontalAlignment="Stretch" Margin="0,0,8,0" Visibility="Collapsed"/>
+                  <Button Name="TerminateOperationBtn" Content="■ 终止当前任务" Background="#FFE53935" Foreground="White" BorderThickness="0" Padding="18,12" FontSize="16" HorizontalAlignment="Stretch" Margin="0,10,0,0" Visibility="Collapsed" IsEnabled="False"/>
+                </StackPanel>
+              </Grid>
             </Border>
           </Grid>
           <Border Grid.Row="2" Background="{DynamicResource PanelBGBrush}" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1" CornerRadius="10" Padding="8" Margin="0,16,0,0">
