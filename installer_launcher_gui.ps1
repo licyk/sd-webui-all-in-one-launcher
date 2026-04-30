@@ -985,10 +985,19 @@ function Append-UiLog {
 function Set-UiBusy {
     param($UI, [bool]$Busy, [string]$Message)
     $enabled = -not $Busy
-    foreach ($button in @($UI.UninstallBtn, $UI.CheckUpdateBtn, $UI.UnifiedStartBtn, $UI.SaveMainBtn, $UI.OpenConfigFolderBtn)) {
+    foreach ($name in @("UninstallBtn", "CheckUpdateBtn", "UnifiedStartBtn", "SaveMainBtn", "OpenConfigFolderBtn")) {
+        $button = Get-UiControl $UI $name
         if ($null -ne $button) { $button.IsEnabled = $enabled }
     }
-    if ($null -ne $UI.BusyText) { $UI.BusyText.Text = $Message }
+    $busyText = Get-UiControl $UI "BusyText"
+    if ($null -ne $busyText) { $busyText.Text = $Message }
+}
+
+function Get-UiControl {
+    param($UI, [string]$Name)
+    if ($null -eq $UI -or [string]::IsNullOrWhiteSpace($Name)) { return $null }
+    if ($null -eq $UI.PSObject.Properties[$Name]) { return $null }
+    return $UI.PSObject.Properties[$Name].Value
 }
 
 function Save-MainConfig {
@@ -1317,13 +1326,18 @@ function Refresh-ProjectConfigUi {
 
 function Refresh-Status {
     param($UI, $State)
+    $projectStatusText = Get-UiControl $UI "ProjectStatusText"
+    $scriptCombo = Get-UiControl $UI "ScriptCombo"
+    $launchScriptList = Get-UiControl $UI "LaunchScriptList"
+    $startHintText = Get-UiControl $UI "StartHintText"
+    $installHintText = Get-UiControl $UI "InstallHintText"
     $key = Get-CurrentProjectKey
     if ([string]::IsNullOrWhiteSpace($key)) {
-        $UI.ProjectStatusText.Text = "当前项目: 未选择`n安装状态: 未检测`n请先在左侧选择要安装或管理的 WebUI / 工具。"
-        $UI.ScriptCombo.ItemsSource = $null
-        if ($null -ne $UI.LaunchScriptList) { $UI.LaunchScriptList.ItemsSource = $null }
-        if ($null -ne $UI.StartHintText) { $UI.StartHintText.Text = "请先进入「软件选择」选择要安装或管理的 WebUI / 工具。" }
-        if ($null -ne $UI.InstallHintText) { $UI.InstallHintText.Text = "请先选择项目，再确认安装路径和安装器参数。" }
+        if ($null -ne $projectStatusText) { $projectStatusText.Text = "当前项目: 未选择`n安装状态: 未检测`n请先在左侧选择要安装或管理的 WebUI / 工具。" }
+        if ($null -ne $scriptCombo) { $scriptCombo.ItemsSource = $null }
+        if ($null -ne $launchScriptList) { $launchScriptList.ItemsSource = $null }
+        if ($null -ne $startHintText) { $startHintText.Text = "请先进入「软件选择」选择要安装或管理的 WebUI / 工具。" }
+        if ($null -ne $installHintText) { $installHintText.Text = "请先选择项目，再确认安装路径和安装器参数。" }
         Set-OneClickModeFromStatus $UI $State "none"
         return
     }
@@ -1338,35 +1352,37 @@ function Refresh-Status {
     } elseif ($status.Code -eq "incomplete") {
         $nextStep = "检测到安装目录但缺少管理脚本。请重新运行安装器修复完整安装。"
     }
-    $UI.ProjectStatusText.Text = "当前项目: $($project.Name)`n安装状态: $($status.Label)`n$($status.Detail)`n下一步: $nextStep`n代理模式: $proxyMode    自动更新: $autoUpdate"
+    if ($null -ne $projectStatusText) { $projectStatusText.Text = "当前项目: $($project.Name)`n安装状态: $($status.Label)`n$($status.Detail)`n下一步: $nextStep`n代理模式: $proxyMode    自动更新: $autoUpdate" }
     $scripts = @()
     foreach ($scriptName in $project.Scripts.Keys) {
         $scripts += [LauncherChoice]::new($scriptName, "$scriptName - $($project.Scripts[$scriptName])")
     }
-    $UI.ScriptCombo.ItemsSource = $scripts
-    if ($scripts.Count -gt 0) { $UI.ScriptCombo.SelectedIndex = 0 }
-    if ($null -ne $UI.LaunchScriptList) {
+    if ($null -ne $scriptCombo) {
+        $scriptCombo.ItemsSource = $scripts
+        if ($scripts.Count -gt 0) { $scriptCombo.SelectedIndex = 0 }
+    }
+    if ($null -ne $launchScriptList) {
         $launchItems = @()
         foreach ($scriptName in $project.Scripts.Keys) {
             $launchItems += [LauncherChoice]::new($scriptName, "$scriptName - $($project.Scripts[$scriptName])")
         }
-        $UI.LaunchScriptList.ItemsSource = $launchItems
-        if ($launchItems.Count -gt 0) { $UI.LaunchScriptList.SelectedIndex = 0 }
+        $launchScriptList.ItemsSource = $launchItems
+        if ($launchItems.Count -gt 0) { $launchScriptList.SelectedIndex = 0 }
     }
-    if ($null -ne $UI.StartHintText) {
+    if ($null -ne $startHintText) {
         if ($status.Code -eq "installed") {
-            $UI.StartHintText.Text = "启动模式会运行已安装目录中的管理脚本。通常选择 launch.ps1 启动软件，选择 terminal.ps1 打开交互终端。"
+            $startHintText.Text = "启动模式会运行已安装目录中的管理脚本。通常选择 launch.ps1 启动软件，选择 terminal.ps1 打开交互终端。"
         } else {
-            $UI.StartHintText.Text = "当前项目还未完整安装。请选择安装模式，确认路径和高级选项后运行安装器。"
+            $startHintText.Text = "当前项目还未完整安装。请选择安装模式，确认路径和高级选项后运行安装器。"
         }
     }
-    if ($null -ne $UI.InstallHintText) {
+    if ($null -ne $installHintText) {
         if ($status.Code -eq "installed") {
-            $UI.InstallHintText.Text = "当前项目已安装。只有需要修复、更新安装器配置或重新安装时，才建议运行安装器。"
+            $installHintText.Text = "当前项目已安装。只有需要修复、更新安装器配置或重新安装时，才建议运行安装器。"
         } elseif ($status.Code -eq "incomplete") {
-            $UI.InstallHintText.Text = "检测到安装目录但缺少管理脚本。建议运行安装器修复完整安装。"
+            $installHintText.Text = "检测到安装目录但缺少管理脚本。建议运行安装器修复完整安装。"
         } else {
-            $UI.InstallHintText.Text = "当前项目未安装。确认高级选项中的安装路径、分支和镜像后，点击右侧按钮运行安装器。"
+            $installHintText.Text = "当前项目未安装。确认高级选项中的安装路径、分支和镜像后，点击右侧按钮运行安装器。"
         }
     }
     Set-OneClickModeFromStatus $UI $State $status.Code
@@ -1431,19 +1447,23 @@ function Show-AppPage {
 
 function Update-OneClickModeUi {
     param($UI)
-    if ($null -eq $UI.StartModeTabs -or $null -eq $UI.LaunchScriptList) { return }
-    if ($UI.StartModeTabs.SelectedIndex -eq 1) {
-        $UI.LaunchScriptList.IsEnabled = $false
-        if ($null -ne $UI.UnifiedStartBtn) { $UI.UnifiedStartBtn.Content = "▶ 运行安装器" }
+    $startModeTabs = Get-UiControl $UI "StartModeTabs"
+    $launchScriptList = Get-UiControl $UI "LaunchScriptList"
+    $unifiedStartBtn = Get-UiControl $UI "UnifiedStartBtn"
+    if ($null -eq $startModeTabs -or $null -eq $launchScriptList) { return }
+    if ($startModeTabs.SelectedIndex -eq 1) {
+        $launchScriptList.IsEnabled = $false
+        if ($null -ne $unifiedStartBtn) { $unifiedStartBtn.Content = "▶ 运行安装器" }
     } else {
-        $UI.LaunchScriptList.IsEnabled = $true
-        if ($null -ne $UI.UnifiedStartBtn) { $UI.UnifiedStartBtn.Content = "▶ 启动所选脚本" }
+        $launchScriptList.IsEnabled = $true
+        if ($null -ne $unifiedStartBtn) { $unifiedStartBtn.Content = "▶ 启动所选脚本" }
     }
 }
 
 function Set-OneClickModeFromStatus {
     param($UI, $State, [string]$StatusCode)
-    if ($null -eq $UI.StartModeTabs) { return }
+    $startModeTabs = Get-UiControl $UI "StartModeTabs"
+    if ($null -eq $startModeTabs) { return }
     if ($null -ne $State -and $null -ne $State.PSObject.Properties["LastOneClickStatus"]) {
         if ([string]$State.LastOneClickStatus -eq $StatusCode) {
             Update-OneClickModeUi $UI
@@ -1452,9 +1472,9 @@ function Set-OneClickModeFromStatus {
         $State.LastOneClickStatus = $StatusCode
     }
     if ($StatusCode -eq "installed") {
-        $UI.StartModeTabs.SelectedIndex = 0
+        $startModeTabs.SelectedIndex = 0
     } else {
-        $UI.StartModeTabs.SelectedIndex = 1
+        $startModeTabs.SelectedIndex = 1
     }
     Update-OneClickModeUi $UI
 }
@@ -1478,17 +1498,19 @@ function Select-ScriptByName {
 
 function Invoke-OneClickAction {
     param($UI, $State)
-    if ($null -eq $UI.StartModeTabs -or $UI.StartModeTabs.SelectedIndex -eq 1) {
+    $startModeTabs = Get-UiControl $UI "StartModeTabs"
+    $launchScriptList = Get-UiControl $UI "LaunchScriptList"
+    if ($null -eq $startModeTabs -or $startModeTabs.SelectedIndex -eq 1) {
         Invoke-RunInstaller $UI $State
         return
     }
-    if ($null -eq $UI.LaunchScriptList -or $null -eq $UI.LaunchScriptList.SelectedItem) {
+    if ($null -eq $launchScriptList -or $null -eq $launchScriptList.SelectedItem) {
         Show-Message "请选择要启动的管理脚本。" "未选择脚本" "Warning"
         return
     }
     $scriptName = ""
-    if ($null -ne $UI.LaunchScriptList.SelectedItem.PSObject.Properties["Name"]) {
-        $scriptName = [string]$UI.LaunchScriptList.SelectedItem.PSObject.Properties["Name"].Value
+    if ($null -ne $launchScriptList.SelectedItem.PSObject.Properties["Name"]) {
+        $scriptName = [string]$launchScriptList.SelectedItem.PSObject.Properties["Name"].Value
     }
     if ([string]::IsNullOrWhiteSpace($scriptName)) {
         Show-Message "无法识别所选管理脚本，请重新选择。" "脚本选择异常" "Warning"
