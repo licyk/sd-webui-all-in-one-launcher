@@ -1006,6 +1006,12 @@ function Start-GuiOperation {
     $busyMessage = "$Name 正在运行..."
     if ($CanTerminate) { $busyMessage = "$Name 正在运行，可点击终止当前任务。" }
     Set-UiBusy -UI $UI -Busy $true -Message $busyMessage -CanTerminate $CanTerminate
+    $appendUiLog = ${function:Append-UiLog}
+    $getObjectPropertyValue = ${function:Get-ObjectPropertyValue}
+    $refreshStatus = ${function:Refresh-Status}
+    $setUiBusy = ${function:Set-UiBusy}
+    $showMessage = ${function:Show-Message}
+    $writeLog = ${function:Write-Log}
     $ps = [powershell]::Create()
     $ps.RunspacePool = $script:RunspacePool
     [void]$ps.AddScript($ScriptBlock.ToString())
@@ -1022,7 +1028,7 @@ function Start-GuiOperation {
                 $State.CurrentOperation.LoggedProcessId = $currentProcessId
                 $currentScriptPath = [string]$control["ScriptPath"]
                 Write-Log INFO "$Name external process started pid=$currentProcessId script=$currentScriptPath"
-                Append-UiLog -UI $UI -Text "$Name 已打开 PowerShell 控制台。pid=$currentProcessId"
+                & $appendUiLog -UI $UI -Text "$Name 已打开 PowerShell 控制台。pid=$currentProcessId"
             }
             return
         }
@@ -1030,15 +1036,20 @@ function Start-GuiOperation {
         try {
             $result = $ps.EndInvoke($async)
             $streamErrors = @($ps.Streams.Error | ForEach-Object { $_.ToString() })
+            function Append-UiLog { & $appendUiLog @args }
+            function Get-ObjectPropertyValue { & $getObjectPropertyValue @args }
+            function Refresh-Status { & $refreshStatus @args }
+            function Show-Message { & $showMessage @args }
+            function Write-Log { & $writeLog @args }
             & $OnComplete $result $streamErrors
         } catch {
             Write-Log ERROR "$Name failed: $($_.Exception.Message)"
-            Append-UiLog -UI $UI -Text "$Name 失败: $($_.Exception.Message)"
-            Show-Message "$Name 失败:`n$($_.Exception.Message)" "错误" "Error"
+            & $appendUiLog -UI $UI -Text "$Name 失败: $($_.Exception.Message)"
+            & $showMessage "$Name 失败:`n$($_.Exception.Message)" "错误" "Error"
         } finally {
             $ps.Dispose()
             $State.CurrentOperation = $null
-            Set-UiBusy -UI $UI -Busy $false -Message ""
+            & $setUiBusy -UI $UI -Busy $false -Message ""
         }
     }.GetNewClosure())
     $timer.Start()
@@ -1257,8 +1268,9 @@ function Add-ConfigTextBox {
         [System.Windows.Controls.Grid]::SetColumn($browseButton, 1)
         $row.Children.Add($box) | Out-Null
         $row.Children.Add($browseButton) | Out-Null
+        $selectFolderPath = ${function:Select-FolderPath}
         $browseButton.Add_Click({
-            $selectedPath = Select-FolderPath $box.Text
+            $selectedPath = & $selectFolderPath $box.Text
             if (-not [string]::IsNullOrWhiteSpace($selectedPath)) {
                 $box.Text = $selectedPath
             }
@@ -1597,6 +1609,8 @@ function Start-PageTransition {
 
 function Show-AppPage {
     param($UI, [string]$PageName)
+    $startPageTransition = ${function:Start-PageTransition}
+    $setNavButtonSelected = ${function:Set-NavButtonSelected}
     foreach ($page in @($UI.StartPage, $UI.AdvancedPage, $UI.SoftwarePage, $UI.SettingsPage)) {
         if ($null -ne $page) { $page.Visibility = "Collapsed" }
     }
@@ -1609,9 +1623,9 @@ function Show-AppPage {
     }
     if ($null -ne $visiblePage) {
         $visiblePage.Visibility = "Visible"
-        Start-PageTransition $visiblePage
+        & $startPageTransition $visiblePage
     }
-    Set-NavButtonSelected $UI $PageName
+    & $setNavButtonSelected $UI $PageName
 }
 
 function Update-OneClickModeUi {
@@ -1634,11 +1648,12 @@ function Update-OneClickModeUi {
 
 function Set-OneClickModeFromStatus {
     param($UI, $State, [string]$StatusCode)
+    $updateOneClickModeUi = ${function:Update-OneClickModeUi}
     $startModeTabs = Get-UiControl $UI "StartModeTabs"
     if ($null -eq $startModeTabs) { return }
     if ($null -ne $State -and $null -ne $State.PSObject.Properties["LastOneClickStatus"]) {
         if ([string]$State.LastOneClickStatus -eq $StatusCode) {
-            Update-OneClickModeUi $UI
+            & $updateOneClickModeUi $UI
             return
         }
         $State.LastOneClickStatus = $StatusCode
@@ -1648,7 +1663,7 @@ function Set-OneClickModeFromStatus {
     } else {
         $startModeTabs.SelectedIndex = 1
     }
-    Update-OneClickModeUi $UI
+    & $updateOneClickModeUi $UI
 }
 
 function Select-ScriptByName {
@@ -2882,11 +2897,12 @@ function Start-App {
 "@
     $reader = New-Object System.Xml.XmlNodeReader $xaml
     $window = [Windows.Markup.XamlReader]::Load($reader)
+    $reportUiError = ${function:Report-UiError}
     $window.Dispatcher.add_UnhandledException({
         param($sender, $eventArgs)
-        Report-UiError -Context "WPF 事件处理" -ErrorObject $eventArgs.Exception -ShowDialog $true
+        & $reportUiError -Context "WPF 事件处理" -ErrorObject $eventArgs.Exception -ShowDialog $true
         $eventArgs.Handled = $true
-    })
+    }.GetNewClosure())
     $UI = [PSCustomObject]@{
         Window = $window; TitleBar = $window.FindName("TitleBar"); MinBtn = $window.FindName("MinBtn"); MaxBtn = $window.FindName("MaxBtn"); CloseBtn = $window.FindName("CloseBtn")
         MainBorder = $window.FindName("MainBorder"); StartPage = $window.FindName("StartPage"); AdvancedPage = $window.FindName("AdvancedPage"); SoftwarePage = $window.FindName("SoftwarePage"); SettingsPage = $window.FindName("SettingsPage"); MainTabs = $window.FindName("MainTabs"); ProjectList = $window.FindName("ProjectList"); ProjectStatusText = $window.FindName("ProjectStatusText"); BusyText = $window.FindName("BusyText")
@@ -2899,13 +2915,37 @@ function Start-App {
     }
     $State = [PSCustomObject]@{ CurrentOperation = $null; ConfigControls = @{}; ScriptParamControls = @{}; ProjectConfig = @{}; StatusRefreshTimer = $null; LastOneClickStatus = ""; IsRefreshing = $false; AutoSaveProjectConfig = $null }
     $mainConfig = $script:MainConfig
-    $State.AutoSaveProjectConfig = { Save-CurrentProjectConfigFromUi $UI $State $false }.GetNewClosure()
+
+    $appendUiLog = ${function:Append-UiLog}
+    $getCurrentProjectKey = ${function:Get-CurrentProjectKey}
+    $getProjectConfig = ${function:Get-ProjectConfig}
+    $getSelectedScriptName = ${function:Get-SelectedScriptName}
+    $invokeOneClickAction = ${function:Invoke-OneClickAction}
+    $invokeTerminateCurrentOperation = ${function:Invoke-TerminateCurrentOperation}
+    $invokeUninstallProject = ${function:Invoke-UninstallProject}
+    $invokeUpdateCheck = ${function:Invoke-UpdateCheck}
+    $openConfigFolder = ${function:Open-ConfigFolder}
+    $refreshMainConfigUi = ${function:Refresh-MainConfigUi}
+    $refreshProjectConfigUi = ${function:Refresh-ProjectConfigUi}
+    $refreshScriptParamUi = ${function:Refresh-ScriptParamUi}
+    $refreshStatus = ${function:Refresh-Status}
+    $saveCurrentProjectConfigFromUi = ${function:Save-CurrentProjectConfigFromUi}
+    $saveMainConfig = ${function:Save-MainConfig}
+    $saveMainConfigFromUi = ${function:Save-MainConfigFromUi}
+    $selectRelevantMainTab = ${function:Select-RelevantMainTab}
+    $showAppPage = ${function:Show-AppPage}
+    $showHelpWindow = ${function:Show-HelpWindow}
+    $showLogWindow = ${function:Show-LogWindow}
+    $testDictionaryKey = ${function:Test-DictionaryKey}
+    $updateOneClickModeUi = ${function:Update-OneClickModeUi}
+
+    $State.AutoSaveProjectConfig = { & $saveCurrentProjectConfigFromUi $UI $State $false }.GetNewClosure()
 
     $UI.LogLevelCombo.ItemsSource = @("DEBUG", "INFO", "WARN", "ERROR")
     $UI.ProxyModeCombo.ItemsSource = @("auto", "manual", "off")
     $UI.StartModeTabs.SelectedIndex = 0
-    Update-OneClickModeUi $UI
-    Refresh-MainConfigUi $UI
+    & $updateOneClickModeUi $UI
+    & $refreshMainConfigUi $UI
     $projectItems = @()
     $projectShortNames = @{
         sd_webui = "SD WebUI"
@@ -2930,51 +2970,51 @@ function Start-App {
         try {
             if ($null -eq $UI.ProjectList.SelectedItem) { return }
             $mainConfig["CURRENT_PROJECT"] = $UI.ProjectList.SelectedItem.Key
-            Save-MainConfig
-            Refresh-ProjectConfigUi $UI $State
-            Refresh-Status $UI $State
-            Select-RelevantMainTab $UI
+            & $saveMainConfig
+            & $refreshProjectConfigUi $UI $State
+            & $refreshStatus $UI $State
+            & $selectRelevantMainTab $UI
             $currentProject = $mainConfig["CURRENT_PROJECT"]
-            Append-UiLog $UI "当前项目已切换: $currentProject"
+            & $appendUiLog $UI "当前项目已切换: $currentProject"
         } catch {
-            Report-UiError -Context "切换项目" -ErrorObject $_ -ShowDialog $true
+            & $reportUiError -Context "切换项目" -ErrorObject $_ -ShowDialog $true
         }
     }.GetNewClosure())
-    $UI.StartModeTabs.Add_SelectionChanged({ Update-OneClickModeUi $UI }.GetNewClosure())
-    $UI.UnifiedStartBtn.Add_Click({ Invoke-OneClickAction $UI $State }.GetNewClosure())
-    $UI.TerminateOperationBtn.Add_Click({ Invoke-TerminateCurrentOperation $UI $State }.GetNewClosure())
+    $UI.StartModeTabs.Add_SelectionChanged({ & $updateOneClickModeUi $UI }.GetNewClosure())
+    $UI.UnifiedStartBtn.Add_Click({ & $invokeOneClickAction $UI $State }.GetNewClosure())
+    $UI.TerminateOperationBtn.Add_Click({ & $invokeTerminateCurrentOperation $UI $State }.GetNewClosure())
     $UI.ScriptCombo.Add_SelectionChanged({
-        $key = Get-CurrentProjectKey
+        $key = & $getCurrentProjectKey
         if ([string]::IsNullOrWhiteSpace($key) -or $null -eq $UI.ScriptCombo.SelectedItem) { return }
-        $config = Get-ProjectConfig $key
-        $scriptName = Get-SelectedScriptName $UI.ScriptCombo
+        $config = & $getProjectConfig $key
+        $scriptName = & $getSelectedScriptName $UI.ScriptCombo
         $State.IsRefreshing = $true
         try {
-        if ($null -ne $config["ScriptArgs"] -and (Test-DictionaryKey $config["ScriptArgs"] $scriptName)) {
+        if ($null -ne $config["ScriptArgs"] -and (& $testDictionaryKey $config["ScriptArgs"] $scriptName)) {
             $UI.ScriptArgsBox.Text = [string]$config["ScriptArgs"][$scriptName]
         } else {
             $UI.ScriptArgsBox.Text = ""
         }
-        Refresh-ScriptParamUi $UI $State
+        & $refreshScriptParamUi $UI $State
         } finally {
             $State.IsRefreshing = $false
         }
     }.GetNewClosure())
-    $UI.ScriptArgsBox.Add_TextChanged({ Save-CurrentProjectConfigFromUi $UI $State $false }.GetNewClosure())
+    $UI.ScriptArgsBox.Add_TextChanged({ & $saveCurrentProjectConfigFromUi $UI $State $false }.GetNewClosure())
     $UI.SaveMainBtn.Add_Click({
-        Save-MainConfigFromUi $UI
-        Refresh-Status $UI $State
-        Append-UiLog $UI "启动器设置已保存。"
+        & $saveMainConfigFromUi $UI
+        & $refreshStatus $UI $State
+        & $appendUiLog $UI "启动器设置已保存。"
     }.GetNewClosure())
-    $UI.CheckUpdateBtn.Add_Click({ Invoke-UpdateCheck $UI $State $true }.GetNewClosure())
-    $UI.OpenConfigFolderBtn.Add_Click({ Open-ConfigFolder }.GetNewClosure())
-    $UI.OneClickNavBtn.Add_Click({ Show-AppPage $UI "start" }.GetNewClosure())
-    $UI.AdvancedNavBtn.Add_Click({ Show-AppPage $UI "advanced"; Select-RelevantMainTab $UI }.GetNewClosure())
-    $UI.SoftwareNavBtn.Add_Click({ Show-AppPage $UI "software" }.GetNewClosure())
-    $UI.SettingsNavBtn.Add_Click({ Show-AppPage $UI "settings" }.GetNewClosure())
-    $UI.UninstallBtn.Add_Click({ Invoke-UninstallProject $UI $State }.GetNewClosure())
-    $UI.HelpBtn.Add_Click({ Show-HelpWindow }.GetNewClosure())
-    $UI.ShowLogBtn.Add_Click({ Show-LogWindow }.GetNewClosure())
+    $UI.CheckUpdateBtn.Add_Click({ & $invokeUpdateCheck $UI $State $true }.GetNewClosure())
+    $UI.OpenConfigFolderBtn.Add_Click({ & $openConfigFolder }.GetNewClosure())
+    $UI.OneClickNavBtn.Add_Click({ & $showAppPage $UI "start" }.GetNewClosure())
+    $UI.AdvancedNavBtn.Add_Click({ & $showAppPage $UI "advanced"; & $selectRelevantMainTab $UI }.GetNewClosure())
+    $UI.SoftwareNavBtn.Add_Click({ & $showAppPage $UI "software" }.GetNewClosure())
+    $UI.SettingsNavBtn.Add_Click({ & $showAppPage $UI "settings" }.GetNewClosure())
+    $UI.UninstallBtn.Add_Click({ & $invokeUninstallProject $UI $State }.GetNewClosure())
+    $UI.HelpBtn.Add_Click({ & $showHelpWindow }.GetNewClosure())
+    $UI.ShowLogBtn.Add_Click({ & $showLogWindow }.GetNewClosure())
 
     $script:RestoreBounds = $null
     $UI.TitleBar.Add_MouseLeftButtonDown({
@@ -2996,13 +3036,13 @@ function Start-App {
             } catch {
                 Write-Log WARN "window decoration setup failed: $($_.Exception.Message)"
             }
-            Refresh-ProjectConfigUi $UI $State
-            Refresh-Status $UI $State
-            Select-RelevantMainTab $UI
-            Show-AppPage $UI "start"
-            Append-UiLog $UI "GUI 启动完成。配置: $displayConfigHome 日志: $displayLogFile"
+            & $refreshProjectConfigUi $UI $State
+            & $refreshStatus $UI $State
+            & $selectRelevantMainTab $UI
+            & $showAppPage $UI "start"
+            & $appendUiLog $UI "GUI 启动完成。配置: $displayConfigHome 日志: $displayLogFile"
             if ([bool]$mainConfig["SHOW_WELCOME_SCREEN"]) {
-                Append-UiLog $UI "选择项目，调整配置，然后运行安装器。"
+                & $appendUiLog $UI "选择项目，调整配置，然后运行安装器。"
             }
 
             $statusRefreshTimer = New-Object System.Windows.Threading.DispatcherTimer
@@ -3010,9 +3050,9 @@ function Start-App {
             $statusRefreshTimer.Add_Tick({
                 try {
                     if ($null -ne $State.CurrentOperation) { return }
-                    Refresh-Status $UI $State
+                    & $refreshStatus $UI $State
                 } catch {
-                    Report-UiError -Context "自动刷新安装状态" -ErrorObject $_ -ShowDialog $false
+                    & $reportUiError -Context "自动刷新安装状态" -ErrorObject $_ -ShowDialog $false
                 }
             }.GetNewClosure())
             $State.StatusRefreshTimer = $statusRefreshTimer
@@ -3023,15 +3063,15 @@ function Start-App {
             $startupUpdateTimer.Add_Tick({
                 $startupUpdateTimer.Stop()
                 try {
-                    Invoke-UpdateCheck $UI $State $false
+                    & $invokeUpdateCheck $UI $State $false
                 } catch {
-                    Report-UiError -Context "启动时自动更新检查" -ErrorObject $_ -ShowDialog $false
-                    Append-UiLog $UI "启动时自动更新检查失败，已继续运行当前版本。"
+                    & $reportUiError -Context "启动时自动更新检查" -ErrorObject $_ -ShowDialog $false
+                    & $appendUiLog $UI "启动时自动更新检查失败，已继续运行当前版本。"
                 }
             }.GetNewClosure())
             $startupUpdateTimer.Start()
         } catch {
-            Report-UiError -Context "GUI 初始化" -ErrorObject $_ -ShowDialog $true
+            & $reportUiError -Context "GUI 初始化" -ErrorObject $_ -ShowDialog $true
         }
     }.GetNewClosure())
     $window.ShowDialog() | Out-Null
