@@ -1924,7 +1924,7 @@ function Start-App {
             <ListBox Name="ProjectList" DisplayMemberPath="ShortName" BorderThickness="0" Background="Transparent"/>
           </DockPanel>
         </Border>
-        <Grid Grid.Column="1" Margin="24,20,24,20">
+        <Grid Name="HomePage" Grid.Column="1" Margin="24,20,24,20">
           <Grid.RowDefinitions><RowDefinition Height="158"/><RowDefinition Height="*"/><RowDefinition Height="112"/></Grid.RowDefinitions>
           <Border Grid.Row="0" CornerRadius="10" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1" Padding="24" Margin="0,0,0,18">
             <Border.Background>
@@ -1979,25 +1979,6 @@ function Start-App {
                     </StackPanel>
                   </Grid>
                 </TabItem>
-                <TabItem Header="启动器设置">
-                  <ScrollViewer VerticalScrollBarVisibility="Auto" Margin="2,14,2,0">
-                    <StackPanel MaxWidth="560" HorizontalAlignment="Left">
-                      <CheckBox Name="AutoUpdateCheck" Content="启动时自动检查更新"/>
-                      <CheckBox Name="WelcomeCheck" Content="启动时显示欢迎提示" Margin="0,0,0,16"/>
-                      <TextBlock Text="日志等级" Margin="0,0,0,5"/>
-                      <ComboBox Name="LogLevelCombo" Margin="0,0,0,12"/>
-                      <TextBlock Text="代理模式" Margin="0,0,0,5"/>
-                      <ComboBox Name="ProxyModeCombo" Margin="0,0,0,12"/>
-                      <TextBlock Text="手动代理地址" Margin="0,0,0,5"/>
-                      <TextBox Name="ManualProxyBox" Margin="0,0,0,16"/>
-                      <StackPanel Orientation="Horizontal" Margin="0,0,0,14">
-                        <Button Name="SaveMainBtn" Content="保存设置" Style="{StaticResource PrimaryButton}"/>
-                        <Button Name="CheckUpdateBtn" Content="检查更新"/>
-                        <Button Name="UninstallBtn" Content="卸载已安装软件"/>
-                      </StackPanel>
-                    </StackPanel>
-                  </ScrollViewer>
-                </TabItem>
               </TabControl>
             </Border>
             <Border Grid.Column="1" Background="{DynamicResource PanelBGBrush}" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1" CornerRadius="10" Padding="18">
@@ -2020,6 +2001,48 @@ function Start-App {
             </DockPanel>
           </Border>
         </Grid>
+        <Grid Name="SettingsPage" Grid.Column="1" Margin="24,20,24,20" Visibility="Collapsed">
+          <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="*"/></Grid.RowDefinitions>
+          <DockPanel Grid.Row="0" Margin="0,0,0,18">
+            <Button Name="BackHomeBtn" DockPanel.Dock="Left" Content="← 返回主页" Padding="12,8"/>
+            <StackPanel Margin="16,0,0,0">
+              <TextBlock Text="启动器设置" FontSize="28" FontWeight="Bold"/>
+              <TextBlock Text="管理自动更新、欢迎页、日志等级、代理和已安装软件卸载。" Foreground="{DynamicResource TextSecBrush}" Margin="0,4,0,0"/>
+            </StackPanel>
+          </DockPanel>
+          <Grid Grid.Row="1">
+            <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="360"/></Grid.ColumnDefinitions>
+            <Border Grid.Column="0" Background="{DynamicResource PanelBGBrush}" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1" CornerRadius="10" Padding="22" Margin="0,0,18,0">
+              <ScrollViewer VerticalScrollBarVisibility="Auto">
+                <StackPanel MaxWidth="680" HorizontalAlignment="Left">
+                  <TextBlock Text="基础行为" FontSize="18" FontWeight="SemiBold" Margin="0,0,0,14"/>
+                  <CheckBox Name="AutoUpdateCheck" Content="启动时自动检查更新"/>
+                  <CheckBox Name="WelcomeCheck" Content="启动时显示欢迎提示" Margin="0,0,0,18"/>
+                  <TextBlock Text="日志等级" FontWeight="SemiBold" Margin="0,0,0,5"/>
+                  <ComboBox Name="LogLevelCombo" Margin="0,0,0,14"/>
+                  <TextBlock Text="代理模式" FontWeight="SemiBold" Margin="0,0,0,5"/>
+                  <ComboBox Name="ProxyModeCombo" Margin="0,0,0,14"/>
+                  <TextBlock Text="手动代理地址" FontWeight="SemiBold" Margin="0,0,0,5"/>
+                  <TextBox Name="ManualProxyBox" Margin="0,0,0,20"/>
+                  <StackPanel Orientation="Horizontal" Margin="0,0,0,18">
+                    <Button Name="SaveMainBtn" Content="保存设置" Style="{StaticResource PrimaryButton}"/>
+                    <Button Name="CheckUpdateBtn" Content="检查更新"/>
+                  </StackPanel>
+                  <TextBlock Text="危险操作" FontSize="18" FontWeight="SemiBold" Margin="0,12,0,12"/>
+                  <Button Name="UninstallBtn" Content="卸载已安装软件"/>
+                </StackPanel>
+              </ScrollViewer>
+            </Border>
+            <Border Grid.Column="1" Background="{DynamicResource PanelBGBrush}" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1" CornerRadius="10" Padding="18">
+              <StackPanel>
+                <TextBlock Text="设置说明" FontSize="18" FontWeight="SemiBold" Margin="0,0,0,14"/>
+                <TextBlock Text="自动更新只会更新启动器自身，失败不会阻止你继续使用当前版本。" Foreground="{DynamicResource TextSecBrush}" TextWrapping="Wrap" Margin="0,0,0,12"/>
+                <TextBlock Text="代理模式 auto 会读取 Windows 系统代理；manual 使用下方手动地址；off 会清理当前启动器进程中的代理变量。" Foreground="{DynamicResource TextSecBrush}" TextWrapping="Wrap" Margin="0,0,0,12"/>
+                <TextBlock Text="卸载已安装软件会删除当前项目的安装目录，需要二次确认。" Foreground="{DynamicResource TextSecBrush}" TextWrapping="Wrap"/>
+              </StackPanel>
+            </Border>
+          </Grid>
+        </Grid>
       </Grid>
     </Grid>
   </Border>
@@ -2034,11 +2057,11 @@ function Start-App {
     })
     $UI = [PSCustomObject]@{
         Window = $window; TitleBar = $window.FindName("TitleBar"); MinBtn = $window.FindName("MinBtn"); MaxBtn = $window.FindName("MaxBtn"); CloseBtn = $window.FindName("CloseBtn")
-        MainBorder = $window.FindName("MainBorder"); MainTabs = $window.FindName("MainTabs"); ProjectList = $window.FindName("ProjectList"); ProjectStatusText = $window.FindName("ProjectStatusText"); BusyText = $window.FindName("BusyText")
+        MainBorder = $window.FindName("MainBorder"); HomePage = $window.FindName("HomePage"); SettingsPage = $window.FindName("SettingsPage"); MainTabs = $window.FindName("MainTabs"); ProjectList = $window.FindName("ProjectList"); ProjectStatusText = $window.FindName("ProjectStatusText"); BusyText = $window.FindName("BusyText")
         ConfigPanel = $window.FindName("ConfigPanel"); SaveConfigBtn = $window.FindName("SaveConfigBtn"); RunInstallerBtn = $window.FindName("RunInstallerBtn"); RefreshStatusBtn = $window.FindName("RefreshStatusBtn")
         ScriptCombo = $window.FindName("ScriptCombo"); ScriptArgsBox = $window.FindName("ScriptArgsBox"); SaveScriptArgsBtn = $window.FindName("SaveScriptArgsBtn"); RunScriptBtn = $window.FindName("RunScriptBtn")
         AutoUpdateCheck = $window.FindName("AutoUpdateCheck"); WelcomeCheck = $window.FindName("WelcomeCheck"); LogLevelCombo = $window.FindName("LogLevelCombo"); ProxyModeCombo = $window.FindName("ProxyModeCombo"); ManualProxyBox = $window.FindName("ManualProxyBox")
-        SaveMainBtn = $window.FindName("SaveMainBtn"); CheckUpdateBtn = $window.FindName("CheckUpdateBtn"); UninstallBtn = $window.FindName("UninstallBtn"); SettingsNavBtn = $window.FindName("SettingsNavBtn"); HelpBtn = $window.FindName("HelpBtn"); ShowLogBtn = $window.FindName("ShowLogBtn")
+        SaveMainBtn = $window.FindName("SaveMainBtn"); CheckUpdateBtn = $window.FindName("CheckUpdateBtn"); UninstallBtn = $window.FindName("UninstallBtn"); SettingsNavBtn = $window.FindName("SettingsNavBtn"); BackHomeBtn = $window.FindName("BackHomeBtn"); HelpBtn = $window.FindName("HelpBtn"); ShowLogBtn = $window.FindName("ShowLogBtn")
         LogBox = $window.FindName("LogBox")
     }
     $State = [PSCustomObject]@{ CurrentOperation = $null; ConfigControls = @{}; ProjectConfig = @{} }
@@ -2118,7 +2141,13 @@ function Start-App {
     }.GetNewClosure())
     $UI.CheckUpdateBtn.Add_Click({ Invoke-UpdateCheck $UI $State $true }.GetNewClosure())
     $UI.SettingsNavBtn.Add_Click({
-        if ($null -ne $UI.MainTabs) { $UI.MainTabs.SelectedIndex = 2 }
+        $UI.HomePage.Visibility = "Collapsed"
+        $UI.SettingsPage.Visibility = "Visible"
+    }.GetNewClosure())
+    $UI.BackHomeBtn.Add_Click({
+        $UI.SettingsPage.Visibility = "Collapsed"
+        $UI.HomePage.Visibility = "Visible"
+        Select-RelevantMainTab $UI
     }.GetNewClosure())
     $UI.UninstallBtn.Add_Click({ Invoke-UninstallProject $UI $State }.GetNewClosure())
     $UI.HelpBtn.Add_Click({ Show-HelpWindow }.GetNewClosure())
