@@ -14,7 +14,7 @@
 
 param()
 
-$script:INSTALLER_LAUNCHER_GUI_VERSION = "0.1.0"
+$script:INSTALLER_LAUNCHER_GUI_VERSION = "0.1.1"
 $script:APP_NAME = "installer-launcher"
 $script:APP_TITLE = "SD WebUI All In One Installer Launcher GUI"
 $script:SELF_REMOTE_URLS = @(
@@ -2389,37 +2389,54 @@ function Invoke-UpdateCheck {
     }
     $script:MainConfig["AUTO_UPDATE_LAST_CHECK"] = $now
     Save-MainConfig
+    $urlPayload = ConvertTo-Json -Compress -InputObject ([string[]]$script:SELF_REMOTE_URLS)
     $operation = {
-        param([string[]]$Urls, [string]$CurrentVersion, [string]$SelfPath)
+        param([string]$UrlPayload, [string]$CurrentVersion, [string]$SelfPath)
+        $Urls = @()
+        try {
+            $parsedUrls = ConvertFrom-Json -InputObject $UrlPayload -ErrorAction Stop
+            $Urls = @($parsedUrls | ForEach-Object { [string]$_ } | Where-Object { -not [string]::IsNullOrWhiteSpace($_) })
+        } catch {
+            return [PSCustomObject]@{ Success = $false; Updated = $false; Message = "更新检查失败：更新源列表解析失败: $($_.Exception.Message)"; Attempts = @() }
+        }
         $lastError = ""
+        $attempts = New-Object System.Collections.ArrayList
         foreach ($url in $Urls) {
             try {
-                $content = (Invoke-WebRequest -UseBasicParsing -Uri $url -TimeoutSec 20 -ErrorAction Stop).Content
+                $headers = @{ "User-Agent" = "installer-launcher-gui/$CurrentVersion" }
+                $content = (Invoke-WebRequest -UseBasicParsing -Uri $url -Headers $headers -TimeoutSec 20 -ErrorAction Stop).Content
                 if ($content -match '\$script:INSTALLER_LAUNCHER_GUI_VERSION\s*=\s*"([^"]+)"') {
                     $remote = $matches[1]
+                    [void]$attempts.Add("OK $url version=$remote")
                     if ([version]$remote -le [version]$CurrentVersion) {
-                        return [PSCustomObject]@{ Success = $true; Updated = $false; Message = "已是最新版本: $CurrentVersion" }
+                        return [PSCustomObject]@{ Success = $true; Updated = $false; Message = "已是最新版本: $CurrentVersion"; Attempts = @($attempts.ToArray()) }
                     }
                     $temp = Join-Path $env:TEMP "installer_launcher_gui.update.ps1"
                     Set-Content -LiteralPath $temp -Encoding UTF8 -Value $content
                     Copy-Item -LiteralPath $temp -Destination $SelfPath -Force
                     Remove-Item -LiteralPath $temp -Force -ErrorAction SilentlyContinue
-                    return [PSCustomObject]@{ Success = $true; Updated = $true; Message = "已更新到 $remote，重新启动 GUI 后生效。" }
+                    return [PSCustomObject]@{ Success = $true; Updated = $true; Message = "已更新到 $remote，重新启动 GUI 后生效。"; Attempts = @($attempts.ToArray()) }
                 }
+                $lastError = "未在远程脚本中找到 GUI 版本号"
+                [void]$attempts.Add("FAIL $url $lastError")
             } catch {
                 $lastError = $_.Exception.Message
+                [void]$attempts.Add("FAIL $url $lastError")
             }
         }
-        return [PSCustomObject]@{ Success = $false; Updated = $false; Message = "更新检查失败：无法从远程地址获取 GUI 脚本。最后错误: $lastError" }
+        return [PSCustomObject]@{ Success = $false; Updated = $false; Message = "更新检查失败：无法从远程地址获取 GUI 脚本。最后错误: $lastError"; Attempts = @($attempts.ToArray()) }
     }
     $manualCheck = $Manual
-    Start-GuiOperation -UI $UI -State $State -Name "检查更新" -ScriptBlock $operation -Arguments @((,[string[]]($script:SELF_REMOTE_URLS)), $script:INSTALLER_LAUNCHER_GUI_VERSION, $PSCommandPath) -CanTerminate $false -OnComplete {
+    Start-GuiOperation -UI $UI -State $State -Name "检查更新" -ScriptBlock $operation -Arguments @($urlPayload, $script:INSTALLER_LAUNCHER_GUI_VERSION, $PSCommandPath) -CanTerminate $false -OnComplete {
         param($result, $streamErrors)
         $item = $result | Select-Object -First 1
         if ($null -eq $item) {
             Append-UiLog $UI "更新检查没有返回结果。"
             if ($manualCheck) { Show-Message "更新检查没有返回结果。" "更新检查" "Warning" }
             return
+        }
+        foreach ($attempt in @($item.Attempts)) {
+            Write-Log DEBUG "update source attempt: $attempt"
         }
         Append-UiLog $UI $item.Message
         if ($manualCheck -or $item.Updated) {

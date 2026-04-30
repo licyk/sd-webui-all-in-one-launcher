@@ -267,6 +267,7 @@
 - [x] 修复 GUI WPF 事件闭包中 `$script:MainConfig` 作用域指向变化，导致选择项目时报 `Cannot index into a null array` 的问题。
 - [x] 修复 GUI 残留 `Report-UiError -Exception` 调用，确保初始化、Dispatcher 和自动更新异常都能按新格式记录。
 - [x] 修复 GUI 手动更新只尝试单个远程脚本地址导致 404 后直接失败的问题，改为按 GitHub/Gitee 与 `main`/`master` 多地址重试。
+- [x] GUI 更新检查的远程地址列表改为 JSON 传入后台任务，避免 PowerShell runspace 数组绑定导致更新源尝试异常，并在日志中记录每个源的尝试结果。
 - [x] 修复 GUI 启动时自动更新检查在回调状态对象缺少 `CurrentOperation` 时异常退出的问题，增加状态属性兜底补齐。
 - [x] GUI 启动器设置已移除“启动时显示欢迎提示”，设置项改为修改后自动保存，不再保留手动“保存设置”按钮。
 - [x] GUI 头图加载改为本地缓存优先；配置目录中的 `head_image.jpg` 能正常解码时直接使用，缺失或无效时才后台下载。
