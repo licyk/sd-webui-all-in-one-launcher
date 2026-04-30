@@ -985,7 +985,7 @@ function Append-UiLog {
 function Set-UiBusy {
     param($UI, [bool]$Busy, [string]$Message)
     $enabled = -not $Busy
-    foreach ($button in @($UI.RunInstallerBtn, $UI.RunScriptBtn, $UI.UninstallBtn, $UI.SaveConfigBtn, $UI.CheckUpdateBtn, $UI.UnifiedStartBtn, $UI.SaveMainBtn, $UI.OpenConfigFolderBtn)) {
+    foreach ($button in @($UI.UninstallBtn, $UI.SaveConfigBtn, $UI.CheckUpdateBtn, $UI.UnifiedStartBtn, $UI.SaveMainBtn, $UI.OpenConfigFolderBtn)) {
         if ($null -ne $button) { $button.IsEnabled = $enabled }
     }
     if ($null -ne $UI.BusyText) { $UI.BusyText.Text = $Message }
@@ -1184,8 +1184,10 @@ function Refresh-ScriptParamUi {
 
 function Save-ScriptParamUi {
     param($UI, $State, [System.Collections.IDictionary]$Config)
+    if ($null -eq $UI.ScriptCombo -or $null -eq $UI.ScriptCombo.SelectedItem) { return }
     if ($null -eq $Config["ScriptParams"]) { $Config["ScriptParams"] = @{} }
     $scriptName = Get-SelectedScriptName $UI.ScriptCombo
+    if ([string]::IsNullOrWhiteSpace($scriptName)) { return }
     $values = @{}
     foreach ($paramName in $State.ScriptParamControls.Keys) {
         $control = $State.ScriptParamControls[$paramName]
@@ -1196,6 +1198,20 @@ function Save-ScriptParamUi {
         }
     }
     $Config["ScriptParams"][$scriptName] = $values
+}
+
+function Collect-ProjectAndScriptConfigFromUi {
+    param($UI, $State)
+    $config = Collect-ProjectConfigFromUi $State
+    if ($null -ne $UI.ScriptCombo -and $null -ne $UI.ScriptCombo.SelectedItem) {
+        if ($null -eq $config["ScriptArgs"]) { $config["ScriptArgs"] = @{} }
+        $scriptName = Get-SelectedScriptName $UI.ScriptCombo
+        if (-not [string]::IsNullOrWhiteSpace($scriptName)) {
+            $config["ScriptArgs"][$scriptName] = $UI.ScriptArgsBox.Text
+            Save-ScriptParamUi $UI $State $config
+        }
+    }
+    return $config
 }
 
 function Refresh-ProjectConfigUi {
@@ -1469,7 +1485,7 @@ function Invoke-RunInstaller {
     $key = Get-CurrentProjectKey
     if ([string]::IsNullOrWhiteSpace($key)) { Show-Message "请先选择项目。" "未选择项目" "Warning"; return }
     $project = $script:Projects[$key]
-    $config = Collect-ProjectConfigFromUi $State
+    $config = Collect-ProjectAndScriptConfigFromUi $UI $State
     Save-ProjectConfig $key $config
     $args = Build-InstallerArgs $project $config
     $scriptPath = Get-InstallerCachePath $project
@@ -2361,7 +2377,6 @@ function Start-App {
                   <DockPanel Margin="2,14,2,0">
                     <StackPanel DockPanel.Dock="Bottom" Orientation="Horizontal" Margin="0,14,0,0">
                       <Button Name="UninstallBtn" Content="卸载已安装软件"/>
-                      <Button Name="RunInstallerBtn" Content="运行安装器" Style="{StaticResource PrimaryButton}"/>
                     </StackPanel>
                     <ScrollViewer VerticalScrollBarVisibility="Auto">
                       <StackPanel>
@@ -2385,7 +2400,6 @@ function Start-App {
                     <Grid.RowDefinitions>
                       <RowDefinition Height="Auto"/>
                       <RowDefinition Height="*"/>
-                      <RowDefinition Height="Auto"/>
                     </Grid.RowDefinitions>
                     <ComboBox Name="ScriptCombo" Grid.Row="0" Margin="0,0,0,12" DisplayMemberPath="Label"/>
                     <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto" Margin="0,0,0,14">
@@ -2395,10 +2409,6 @@ function Start-App {
                         <TextBox Name="ScriptArgsBox" MinHeight="96" AcceptsReturn="True" VerticalScrollBarVisibility="Auto" TextWrapping="Wrap" ToolTip="保存给当前管理脚本的额外原始参数"/>
                       </StackPanel>
                     </ScrollViewer>
-                    <StackPanel Grid.Row="2" Orientation="Horizontal">
-                      <Button Name="SaveScriptArgsBtn" Content="保存脚本参数"/>
-                      <Button Name="RunScriptBtn" Content="运行脚本" Style="{StaticResource PrimaryButton}"/>
-                    </StackPanel>
                   </Grid>
                 </TabItem>
               </TabControl>
@@ -2469,8 +2479,8 @@ function Start-App {
     $UI = [PSCustomObject]@{
         Window = $window; TitleBar = $window.FindName("TitleBar"); MinBtn = $window.FindName("MinBtn"); MaxBtn = $window.FindName("MaxBtn"); CloseBtn = $window.FindName("CloseBtn")
         MainBorder = $window.FindName("MainBorder"); StartPage = $window.FindName("StartPage"); AdvancedPage = $window.FindName("AdvancedPage"); SoftwarePage = $window.FindName("SoftwarePage"); SettingsPage = $window.FindName("SettingsPage"); MainTabs = $window.FindName("MainTabs"); ProjectList = $window.FindName("ProjectList"); ProjectStatusText = $window.FindName("ProjectStatusText"); BusyText = $window.FindName("BusyText")
-        PathPanel = $window.FindName("PathPanel"); ConfigPanel = $window.FindName("ConfigPanel"); SaveConfigBtn = $window.FindName("SaveConfigBtn"); RunInstallerBtn = $window.FindName("RunInstallerBtn")
-        ScriptCombo = $window.FindName("ScriptCombo"); ScriptParamPanel = $window.FindName("ScriptParamPanel"); ScriptArgsBox = $window.FindName("ScriptArgsBox"); SaveScriptArgsBtn = $window.FindName("SaveScriptArgsBtn"); RunScriptBtn = $window.FindName("RunScriptBtn")
+        PathPanel = $window.FindName("PathPanel"); ConfigPanel = $window.FindName("ConfigPanel"); SaveConfigBtn = $window.FindName("SaveConfigBtn")
+        ScriptCombo = $window.FindName("ScriptCombo"); ScriptParamPanel = $window.FindName("ScriptParamPanel"); ScriptArgsBox = $window.FindName("ScriptArgsBox")
         StartModeTabs = $window.FindName("StartModeTabs"); LaunchScriptList = $window.FindName("LaunchScriptList"); UnifiedStartBtn = $window.FindName("UnifiedStartBtn"); StartHintText = $window.FindName("StartHintText"); InstallHintText = $window.FindName("InstallHintText")
         AutoUpdateCheck = $window.FindName("AutoUpdateCheck"); WelcomeCheck = $window.FindName("WelcomeCheck"); LogLevelCombo = $window.FindName("LogLevelCombo"); ProxyModeCombo = $window.FindName("ProxyModeCombo"); ManualProxyBox = $window.FindName("ManualProxyBox")
         SaveMainBtn = $window.FindName("SaveMainBtn"); CheckUpdateBtn = $window.FindName("CheckUpdateBtn"); OpenConfigFolderBtn = $window.FindName("OpenConfigFolderBtn"); UninstallBtn = $window.FindName("UninstallBtn"); OneClickNavBtn = $window.FindName("OneClickNavBtn"); AdvancedNavBtn = $window.FindName("AdvancedNavBtn"); SoftwareNavBtn = $window.FindName("SoftwareNavBtn"); SettingsNavBtn = $window.FindName("SettingsNavBtn"); OneClickNavLabel = $window.FindName("OneClickNavLabel"); AdvancedNavLabel = $window.FindName("AdvancedNavLabel"); SoftwareNavLabel = $window.FindName("SoftwareNavLabel"); SettingsNavLabel = $window.FindName("SettingsNavLabel"); HelpBtn = $window.FindName("HelpBtn"); ShowLogBtn = $window.FindName("ShowLogBtn")
@@ -2521,11 +2531,10 @@ function Start-App {
     $UI.SaveConfigBtn.Add_Click({
         $key = Get-CurrentProjectKey
         if ([string]::IsNullOrWhiteSpace($key)) { Show-Message "请先选择项目。" "未选择项目" "Warning"; return }
-        Save-ProjectConfig $key (Collect-ProjectConfigFromUi $State)
+        Save-ProjectConfig $key (Collect-ProjectAndScriptConfigFromUi $UI $State)
         Refresh-Status $UI $State
-        Append-UiLog $UI "项目配置已保存: $key"
+        Append-UiLog $UI "项目配置和当前管理脚本参数已保存: $key"
     }.GetNewClosure())
-    $UI.RunInstallerBtn.Add_Click({ Invoke-RunInstaller $UI $State }.GetNewClosure())
     $UI.StartModeTabs.Add_SelectionChanged({ Update-OneClickModeUi $UI }.GetNewClosure())
     $UI.UnifiedStartBtn.Add_Click({ Invoke-OneClickAction $UI $State }.GetNewClosure())
     $UI.ScriptCombo.Add_SelectionChanged({
@@ -2540,18 +2549,6 @@ function Start-App {
         }
         Refresh-ScriptParamUi $UI $State
     }.GetNewClosure())
-    $UI.SaveScriptArgsBtn.Add_Click({
-        $key = Get-CurrentProjectKey
-        if ([string]::IsNullOrWhiteSpace($key) -or $null -eq $UI.ScriptCombo.SelectedItem) { return }
-        $config = Get-ProjectConfig $key
-        if ($null -eq $config["ScriptArgs"]) { $config["ScriptArgs"] = @{} }
-        $scriptName = Get-SelectedScriptName $UI.ScriptCombo
-        $config["ScriptArgs"][$scriptName] = $UI.ScriptArgsBox.Text
-        Save-ScriptParamUi $UI $State $config
-        Save-ProjectConfig $key $config
-        Append-UiLog $UI "管理脚本参数已保存: $scriptName"
-    }.GetNewClosure())
-    $UI.RunScriptBtn.Add_Click({ Invoke-RunManagementScript $UI $State }.GetNewClosure())
     $UI.SaveMainBtn.Add_Click({
         Save-MainConfigFromUi $UI
         Refresh-Status $UI $State
