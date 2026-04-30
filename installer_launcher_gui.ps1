@@ -2362,8 +2362,8 @@ function Start-App {
         </Border>
         <Grid Grid.Column="1" Margin="24,20,24,20">
           <Grid Name="StartPage">
-          <Grid.RowDefinitions><RowDefinition Height="142"/><RowDefinition Height="*"/><RowDefinition Height="132"/></Grid.RowDefinitions>
-          <Border Grid.Row="0" CornerRadius="10" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1" Padding="22" Margin="0,0,0,18">
+          <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="*"/><RowDefinition Height="132"/></Grid.RowDefinitions>
+          <Border Grid.Row="0" MinHeight="142" MaxHeight="190" CornerRadius="10" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1" Padding="22" Margin="0,0,0,18">
             <Border.Background>
               <LinearGradientBrush StartPoint="0,0" EndPoint="1,1">
                 <GradientStop Color="#FF0B75C9" Offset="0"/>
@@ -2372,15 +2372,15 @@ function Start-App {
               </LinearGradientBrush>
             </Border.Background>
             <Grid>
-              <Grid.ColumnDefinitions><ColumnDefinition Width="300"/><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
-              <StackPanel VerticalAlignment="Center">
+              <Grid.ColumnDefinitions><ColumnDefinition Width="300"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
+              <StackPanel VerticalAlignment="Top">
                 <TextBlock Text="AI WebUI 安装与管理" Foreground="White" FontSize="16" Opacity="0.9"/>
                 <TextBlock Text="启动器控制台" Foreground="White" FontSize="26" FontWeight="Bold" Margin="0,6,0,0"/>
+                <TextBlock Name="BusyText" Foreground="White" Opacity="0.9" Margin="0,14,0,0"/>
               </StackPanel>
-              <TextBlock Grid.Column="1" Name="ProjectStatusText" TextWrapping="Wrap" Foreground="White" FontSize="13" MaxWidth="760" VerticalAlignment="Center" Margin="28,0,20,0"/>
-              <StackPanel Grid.Column="2" VerticalAlignment="Bottom" HorizontalAlignment="Right">
-                <TextBlock Name="BusyText" HorizontalAlignment="Right" Foreground="White" Opacity="0.9" Margin="0,0,8,12"/>
-              </StackPanel>
+              <ScrollViewer Grid.Column="1" Margin="28,0,0,0" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled" MaxHeight="132">
+                <TextBlock Name="ProjectStatusText" TextWrapping="Wrap" Foreground="White" FontSize="13"/>
+              </ScrollViewer>
             </Grid>
           </Border>
           <Grid Grid.Row="1">
