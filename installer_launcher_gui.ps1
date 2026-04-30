@@ -971,7 +971,7 @@ function Append-UiLog {
 function Set-UiBusy {
     param($UI, [bool]$Busy, [string]$Message)
     $enabled = -not $Busy
-    foreach ($button in @($UI.RunInstallerBtn, $UI.RunScriptBtn, $UI.UninstallBtn, $UI.SaveConfigBtn, $UI.RefreshStatusBtn, $UI.CheckUpdateBtn)) {
+    foreach ($button in @($UI.RunInstallerBtn, $UI.RunScriptBtn, $UI.UninstallBtn, $UI.SaveConfigBtn, $UI.CheckUpdateBtn)) {
         if ($null -ne $button) { $button.IsEnabled = $enabled }
     }
     if ($null -ne $UI.BusyText) { $UI.BusyText.Text = $Message }
@@ -1186,10 +1186,15 @@ function Save-ScriptParamUi {
 
 function Refresh-ProjectConfigUi {
     param($UI, $State)
+    $UI.PathPanel.Children.Clear()
     $UI.ConfigPanel.Children.Clear()
     $State.ConfigControls = @{}
     $key = Get-CurrentProjectKey
     if ([string]::IsNullOrWhiteSpace($key)) {
+        $hint = New-Object System.Windows.Controls.TextBlock
+        $hint.Text = "请先在左侧选择要安装或管理的 WebUI / 工具。"
+        $hint.TextWrapping = "Wrap"
+        $UI.PathPanel.Children.Add($hint) | Out-Null
         $hint = New-Object System.Windows.Controls.TextBlock
         $hint.Text = "请先在左侧选择要安装或管理的 WebUI / 工具。"
         $hint.TextWrapping = "Wrap"
@@ -1202,7 +1207,14 @@ function Refresh-ProjectConfigUi {
     }
     $config = Get-ProjectConfig $key
     $State.ProjectConfig = $config
-    if (Test-ProjectParam $project "InstallPath") { Add-ConfigTextBox $UI.ConfigPanel $State "INSTALL_PATH" "安装路径（留空使用默认: $(Get-EffectiveInstallPath $project $config)）" $config["INSTALL_PATH"] }
+    if (Test-ProjectParam $project "InstallPath") {
+        Add-ConfigTextBox $UI.PathPanel $State "INSTALL_PATH" "安装路径（留空使用默认: $(Get-EffectiveInstallPath $project $config)）" $config["INSTALL_PATH"]
+    } else {
+        $hint = New-Object System.Windows.Controls.TextBlock
+        $hint.Text = "当前项目不支持自定义安装路径。"
+        $hint.TextWrapping = "Wrap"
+        $UI.PathPanel.Children.Add($hint) | Out-Null
+    }
     if (Test-ProjectParam $project "InstallBranch") { Add-ConfigComboBox $UI.ConfigPanel $State "INSTALL_BRANCH" "安装分支" $project.Branches $config["INSTALL_BRANCH"] }
     if (Test-ProjectParam $project "CorePrefix") { Add-ConfigTextBox $UI.ConfigPanel $State "CORE_PREFIX" "内核路径前缀" $config["CORE_PREFIX"] }
     if (Test-ProjectParam $project "PyTorchMirrorType") { Add-ConfigTextBox $UI.ConfigPanel $State "PYTORCH_MIRROR_TYPE" "PyTorch 镜像类型" $config["PYTORCH_MIRROR_TYPE"] }
@@ -1243,7 +1255,7 @@ function Refresh-Status {
     $status = Get-InstallationStatus $project $config
     $proxyMode = $script:MainConfig["PROXY_MODE"]
     $autoUpdate = $script:MainConfig["AUTO_UPDATE_ENABLED"]
-    $nextStep = "先在高级选项确认安装路径、分支和镜像，然后运行安装器完成首次安装。"
+    $nextStep = "先在安装路径确认目标目录，再到高级选项确认分支和镜像，然后运行安装器完成首次安装。"
     if ($status.Code -eq "installed") {
         $nextStep = "已安装完成。请进入管理脚本运行 launch.ps1 启动软件，或运行 update.ps1 / terminal.ps1 做维护。"
     } elseif ($status.Code -eq "incomplete") {
@@ -1273,7 +1285,7 @@ function Select-RelevantMainTab {
     $config = Get-ProjectConfig $key
     $status = Get-InstallationStatus $project $config
     if ($status.Code -eq "installed") {
-        $UI.MainTabs.SelectedIndex = 1
+        $UI.MainTabs.SelectedIndex = 2
     } else {
         $UI.MainTabs.SelectedIndex = 0
     }
@@ -1600,6 +1612,10 @@ function Invoke-UninstallProject {
     if ([string]::IsNullOrWhiteSpace($key)) { Show-Message "请先选择项目。" "未选择项目" "Warning"; return }
     $project = $script:Projects[$key]
     $config = Get-ProjectConfig $key
+    if ($null -ne $State -and $null -ne $State.ConfigControls -and $State.ConfigControls.ContainsKey("INSTALL_PATH")) {
+        $config = Collect-ProjectConfigFromUi $State
+        Save-ProjectConfig $key $config
+    }
     $path = Get-EffectiveInstallPath $project $config
     if ([string]::IsNullOrWhiteSpace($path) -or $path -eq "\" -or $path -eq ([Environment]::GetFolderPath("UserProfile"))) {
         Show-Message "卸载路径不安全，已拒绝: $path" "拒绝卸载" "Error"
@@ -1684,7 +1700,7 @@ function Show-HelpWindow {
 Windows GUI 启动器使用说明
 
 1. 在左侧选择要安装或管理的 WebUI / 工具。
-2. 在“安装器配置”中调整安装路径、分支、镜像、代理和开关参数。
+2. 在“安装路径”中确认目标目录，在“高级选项”中调整分支、镜像、代理和开关参数。
 3. 点击“保存配置”，再点击“运行安装器”。GUI 会重新下载安装器并打开 PowerShell 控制台执行。
 4. 安装完成后，在“管理脚本”中选择 launch.ps1、update.ps1、terminal.ps1 等脚本运行。
 5. 管理脚本参数会按当前脚本文档动态显示；结构化参数会排在“额外原始参数”之前，-NoPause 会自动追加。
@@ -2094,7 +2110,6 @@ function Start-App {
               <StackPanel Grid.Column="1" VerticalAlignment="Bottom" HorizontalAlignment="Right">
                 <TextBlock Name="BusyText" HorizontalAlignment="Right" Foreground="White" Opacity="0.9" Margin="0,0,8,12"/>
                 <StackPanel Orientation="Horizontal">
-                  <Button Name="RefreshStatusBtn" Content="刷新状态" Background="#CCFFFFFF" Foreground="#242424" BorderThickness="0"/>
                   <Button Name="RunInstallerBtn" Content="▶ 运行安装器" Style="{StaticResource PrimaryButton}" Padding="18,10" FontSize="15"/>
                 </StackPanel>
               </StackPanel>
@@ -2103,12 +2118,28 @@ function Start-App {
           <Grid Grid.Row="1">
             <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="330"/></Grid.ColumnDefinitions>
             <Border Grid.Column="0" Background="{DynamicResource PanelBGBrush}" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1" CornerRadius="10" Padding="18" Margin="0,0,18,0">
-              <TabControl Name="MainTabs">
+              <DockPanel>
+                <StackPanel DockPanel.Dock="Top" Orientation="Horizontal" Margin="0,0,0,14">
+                  <Button Name="SaveConfigBtn" Content="保存配置" Style="{StaticResource PrimaryButton}"/>
+                </StackPanel>
+                <TabControl Name="MainTabs">
+                <TabItem Header="安装路径">
+                  <DockPanel Margin="2,14,2,0">
+                    <StackPanel DockPanel.Dock="Bottom" Orientation="Horizontal" Margin="0,14,0,0">
+                      <Button Name="UninstallBtn" Content="卸载已安装软件"/>
+                    </StackPanel>
+                    <ScrollViewer VerticalScrollBarVisibility="Auto">
+                      <StackPanel>
+                        <StackPanel Name="PathPanel"/>
+                        <Border Background="{DynamicResource HeaderBGBrush}" CornerRadius="8" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1" Padding="14" Margin="0,8,0,0">
+                          <TextBlock Text="安装路径用于检测当前项目是否已安装，也会作为 -InstallPath 传给安装器。卸载按钮会删除该路径指向的已安装软件，并要求二次确认。" TextWrapping="Wrap" Foreground="{DynamicResource TextSecBrush}"/>
+                        </Border>
+                      </StackPanel>
+                    </ScrollViewer>
+                  </DockPanel>
+                </TabItem>
                 <TabItem Header="高级选项">
                   <DockPanel Margin="2,14,2,0">
-                    <StackPanel DockPanel.Dock="Top" Orientation="Horizontal" Margin="0,0,0,14">
-                      <Button Name="SaveConfigBtn" Content="保存配置" Style="{StaticResource PrimaryButton}"/>
-                    </StackPanel>
                     <ScrollViewer VerticalScrollBarVisibility="Auto">
                       <StackPanel Name="ConfigPanel"/>
                     </ScrollViewer>
@@ -2135,13 +2166,14 @@ function Start-App {
                     </StackPanel>
                   </Grid>
                 </TabItem>
-              </TabControl>
+                </TabControl>
+              </DockPanel>
             </Border>
             <Border Grid.Column="1" Background="{DynamicResource PanelBGBrush}" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1" CornerRadius="10" Padding="18">
               <StackPanel>
                 <TextBlock Text="快速操作" FontSize="18" FontWeight="SemiBold" Margin="0,0,0,14"/>
                 <TextBlock Text="已安装后：优先进入“管理脚本”，运行 launch.ps1 启动软件，或运行 update.ps1 / terminal.ps1 做维护。" Foreground="{DynamicResource TextSecBrush}" TextWrapping="Wrap" Margin="0,0,0,10"/>
-                <TextBlock Text="未安装时：先在“高级选项”确认安装路径、分支和镜像，再运行安装器完成首次安装。" Foreground="{DynamicResource TextSecBrush}" TextWrapping="Wrap" Margin="0,0,0,10"/>
+                <TextBlock Text="未安装时：先在“安装路径”确认目标目录，再到“高级选项”调整分支和镜像，最后运行安装器完成首次安装。" Foreground="{DynamicResource TextSecBrush}" TextWrapping="Wrap" Margin="0,0,0,10"/>
                 <TextBlock Text="如果检测到安装不完整，请重新运行安装器修复后再启动。" Foreground="{DynamicResource TextSecBrush}" TextWrapping="Wrap" Margin="0,0,0,18"/>
                 <Border Background="{DynamicResource HeaderBGBrush}" CornerRadius="8" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1" Padding="14" Margin="0,0,0,14">
                   <TextBlock Text="PowerShell 脚本会在独立控制台中运行；如果返回非零退出码，窗口会停留以便查看上游日志。" TextWrapping="Wrap" Foreground="{DynamicResource TextSecBrush}"/>
@@ -2163,7 +2195,7 @@ function Start-App {
             <Button Name="BackHomeBtn" DockPanel.Dock="Left" Content="← 返回主页" Padding="12,8"/>
             <StackPanel Margin="16,0,0,0">
               <TextBlock Text="启动器设置" FontSize="28" FontWeight="Bold"/>
-              <TextBlock Text="管理自动更新、欢迎页、日志等级、代理和已安装软件卸载。" Foreground="{DynamicResource TextSecBrush}" Margin="0,4,0,0"/>
+              <TextBlock Text="管理自动更新、欢迎页、日志等级和代理。" Foreground="{DynamicResource TextSecBrush}" Margin="0,4,0,0"/>
             </StackPanel>
           </DockPanel>
           <Grid Grid.Row="1">
@@ -2184,8 +2216,6 @@ function Start-App {
                     <Button Name="SaveMainBtn" Content="保存设置" Style="{StaticResource PrimaryButton}"/>
                     <Button Name="CheckUpdateBtn" Content="检查更新"/>
                   </StackPanel>
-                  <TextBlock Text="危险操作" FontSize="18" FontWeight="SemiBold" Margin="0,12,0,12"/>
-                  <Button Name="UninstallBtn" Content="卸载已安装软件"/>
                 </StackPanel>
               </ScrollViewer>
             </Border>
@@ -2193,8 +2223,7 @@ function Start-App {
               <StackPanel>
                 <TextBlock Text="设置说明" FontSize="18" FontWeight="SemiBold" Margin="0,0,0,14"/>
                 <TextBlock Text="自动更新只会更新启动器自身，失败不会阻止你继续使用当前版本。" Foreground="{DynamicResource TextSecBrush}" TextWrapping="Wrap" Margin="0,0,0,12"/>
-                <TextBlock Text="代理模式 auto 会读取 Windows 系统代理；manual 使用下方手动地址；off 会清理当前启动器进程中的代理变量。" Foreground="{DynamicResource TextSecBrush}" TextWrapping="Wrap" Margin="0,0,0,12"/>
-                <TextBlock Text="卸载已安装软件会删除当前项目的安装目录，需要二次确认。" Foreground="{DynamicResource TextSecBrush}" TextWrapping="Wrap"/>
+                <TextBlock Text="代理模式 auto 会读取 Windows 系统代理；manual 使用下方手动地址；off 会清理当前启动器进程中的代理变量。" Foreground="{DynamicResource TextSecBrush}" TextWrapping="Wrap"/>
               </StackPanel>
             </Border>
           </Grid>
@@ -2214,13 +2243,13 @@ function Start-App {
     $UI = [PSCustomObject]@{
         Window = $window; TitleBar = $window.FindName("TitleBar"); MinBtn = $window.FindName("MinBtn"); MaxBtn = $window.FindName("MaxBtn"); CloseBtn = $window.FindName("CloseBtn")
         MainBorder = $window.FindName("MainBorder"); HomePage = $window.FindName("HomePage"); SettingsPage = $window.FindName("SettingsPage"); MainTabs = $window.FindName("MainTabs"); ProjectList = $window.FindName("ProjectList"); ProjectStatusText = $window.FindName("ProjectStatusText"); BusyText = $window.FindName("BusyText")
-        ConfigPanel = $window.FindName("ConfigPanel"); SaveConfigBtn = $window.FindName("SaveConfigBtn"); RunInstallerBtn = $window.FindName("RunInstallerBtn"); RefreshStatusBtn = $window.FindName("RefreshStatusBtn")
+        PathPanel = $window.FindName("PathPanel"); ConfigPanel = $window.FindName("ConfigPanel"); SaveConfigBtn = $window.FindName("SaveConfigBtn"); RunInstallerBtn = $window.FindName("RunInstallerBtn")
         ScriptCombo = $window.FindName("ScriptCombo"); ScriptParamPanel = $window.FindName("ScriptParamPanel"); ScriptArgsBox = $window.FindName("ScriptArgsBox"); SaveScriptArgsBtn = $window.FindName("SaveScriptArgsBtn"); RunScriptBtn = $window.FindName("RunScriptBtn")
         AutoUpdateCheck = $window.FindName("AutoUpdateCheck"); WelcomeCheck = $window.FindName("WelcomeCheck"); LogLevelCombo = $window.FindName("LogLevelCombo"); ProxyModeCombo = $window.FindName("ProxyModeCombo"); ManualProxyBox = $window.FindName("ManualProxyBox")
         SaveMainBtn = $window.FindName("SaveMainBtn"); CheckUpdateBtn = $window.FindName("CheckUpdateBtn"); UninstallBtn = $window.FindName("UninstallBtn"); SettingsNavBtn = $window.FindName("SettingsNavBtn"); BackHomeBtn = $window.FindName("BackHomeBtn"); HelpBtn = $window.FindName("HelpBtn"); ShowLogBtn = $window.FindName("ShowLogBtn")
         LogBox = $window.FindName("LogBox")
     }
-    $State = [PSCustomObject]@{ CurrentOperation = $null; ConfigControls = @{}; ScriptParamControls = @{}; ProjectConfig = @{} }
+    $State = [PSCustomObject]@{ CurrentOperation = $null; ConfigControls = @{}; ScriptParamControls = @{}; ProjectConfig = @{}; StatusRefreshTimer = $null }
     $mainConfig = $script:MainConfig
 
     $UI.LogLevelCombo.ItemsSource = @("DEBUG", "INFO", "WARN", "ERROR")
@@ -2268,7 +2297,6 @@ function Start-App {
         Append-UiLog $UI "项目配置已保存: $key"
     }.GetNewClosure())
     $UI.RunInstallerBtn.Add_Click({ Invoke-RunInstaller $UI $State }.GetNewClosure())
-    $UI.RefreshStatusBtn.Add_Click({ Refresh-Status $UI $State }.GetNewClosure())
     $UI.ScriptCombo.Add_SelectionChanged({
         $key = Get-CurrentProjectKey
         if ([string]::IsNullOrWhiteSpace($key) -or $null -eq $UI.ScriptCombo.SelectedItem) { return }
@@ -2340,6 +2368,19 @@ function Start-App {
                 Append-UiLog $UI "选择项目，调整配置，然后运行安装器。"
             }
 
+            $statusRefreshTimer = New-Object System.Windows.Threading.DispatcherTimer
+            $statusRefreshTimer.Interval = [TimeSpan]::FromSeconds(15)
+            $statusRefreshTimer.Add_Tick({
+                try {
+                    if ($null -ne $State.CurrentOperation) { return }
+                    Refresh-Status $UI $State
+                } catch {
+                    Report-UiError -Context "自动刷新安装状态" -ErrorObject $_ -ShowDialog $false
+                }
+            }.GetNewClosure())
+            $State.StatusRefreshTimer = $statusRefreshTimer
+            $statusRefreshTimer.Start()
+
             $startupUpdateTimer = New-Object System.Windows.Threading.DispatcherTimer
             $startupUpdateTimer.Interval = [TimeSpan]::FromMilliseconds(1200)
             $startupUpdateTimer.Add_Tick({
@@ -2357,6 +2398,7 @@ function Start-App {
         }
     }.GetNewClosure())
     $window.ShowDialog() | Out-Null
+    if ($null -ne $State.StatusRefreshTimer) { $State.StatusRefreshTimer.Stop() }
     if ($null -ne $script:RunspacePool) { $script:RunspacePool.Close(); $script:RunspacePool.Dispose() }
     Write-Log INFO "gui launcher exited"
 }
