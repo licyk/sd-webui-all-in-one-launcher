@@ -1088,6 +1088,7 @@ function Add-ConfigTextBox {
     $rowInfo = New-ConfigCardRow $Label
     $box = New-Object System.Windows.Controls.TextBox
     $box.Text = $Value
+    $box.VerticalContentAlignment = "Center"
     $autoSave = $null
     if ($null -ne $State.PSObject.Properties["AutoSaveProjectConfig"]) {
         $autoSave = $State.AutoSaveProjectConfig
@@ -2078,13 +2079,13 @@ function Start-App {
       <Setter Property="MinHeight" Value="38"/>
       <Setter Property="CaretBrush" Value="{DynamicResource TextMainBrush}"/>
       <Setter Property="SelectionBrush" Value="{DynamicResource PrimaryBrush}"/>
-      <Setter Property="VerticalContentAlignment" Value="Center"/>
+      <Setter Property="VerticalContentAlignment" Value="Top"/>
       <Setter Property="Template">
         <Setter.Value>
           <ControlTemplate TargetType="TextBox">
             <Grid>
               <Border x:Name="Bd" Background="{TemplateBinding Background}" BorderBrush="{TemplateBinding BorderBrush}" BorderThickness="{TemplateBinding BorderThickness}" CornerRadius="6"/>
-              <ScrollViewer x:Name="PART_ContentHost" Margin="{TemplateBinding Padding}" Focusable="False" HorizontalScrollBarVisibility="{TemplateBinding HorizontalScrollBarVisibility}" VerticalScrollBarVisibility="{TemplateBinding VerticalScrollBarVisibility}"/>
+              <ScrollViewer x:Name="PART_ContentHost" Margin="{TemplateBinding Padding}" Focusable="False" HorizontalAlignment="Stretch" VerticalAlignment="{TemplateBinding VerticalContentAlignment}" HorizontalScrollBarVisibility="{TemplateBinding HorizontalScrollBarVisibility}" VerticalScrollBarVisibility="{TemplateBinding VerticalScrollBarVisibility}"/>
               <Border x:Name="FocusLine" Height="2" CornerRadius="1" Background="{DynamicResource PrimaryBrush}" HorizontalAlignment="Stretch" VerticalAlignment="Bottom" Margin="2,0,2,1" Opacity="0"/>
             </Grid>
             <ControlTemplate.Triggers>
@@ -2447,7 +2448,7 @@ function Start-App {
                       <StackPanel>
                         <StackPanel Name="ScriptParamPanel"/>
                         <TextBlock Text="额外原始参数（追加到结构化参数之后）" FontWeight="SemiBold" Margin="0,4,0,8"/>
-                        <TextBox Name="ScriptArgsBox" MinHeight="96" AcceptsReturn="True" VerticalScrollBarVisibility="Auto" TextWrapping="Wrap" ToolTip="保存给当前管理脚本的额外原始参数"/>
+                        <TextBox Name="ScriptArgsBox" MinHeight="96" AcceptsReturn="True" VerticalScrollBarVisibility="Auto" TextWrapping="Wrap" VerticalContentAlignment="Top" ToolTip="保存给当前管理脚本的额外原始参数"/>
                       </StackPanel>
                     </ScrollViewer>
                   </Grid>
@@ -2486,7 +2487,7 @@ function Start-App {
                   <TextBlock Text="代理模式" FontWeight="SemiBold" Margin="0,0,0,5"/>
                   <ComboBox Name="ProxyModeCombo" Margin="0,0,0,14"/>
                   <TextBlock Text="手动代理地址" FontWeight="SemiBold" Margin="0,0,0,5"/>
-                  <TextBox Name="ManualProxyBox" Margin="0,0,0,20"/>
+                  <TextBox Name="ManualProxyBox" Margin="0,0,0,20" VerticalContentAlignment="Center"/>
                   <StackPanel Orientation="Horizontal" Margin="0,0,0,18">
                     <Button Name="SaveMainBtn" Content="保存设置" Style="{StaticResource PrimaryButton}"/>
                     <Button Name="CheckUpdateBtn" Content="检查更新"/>
