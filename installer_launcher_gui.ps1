@@ -21,6 +21,10 @@ $script:SELF_REMOTE_URLS = @(
     "https://raw.githubusercontent.com/licyk/sd-webui-all-in-one-launcher/main/installer_launcher_gui.ps1",
     "https://gitee.com/licyk/sd-webui-all-in-one-launcher/raw/main/installer_launcher_gui.ps1"
 )
+$script:HERO_IMAGE_URLS = @(
+    "https://raw.githubusercontent.com/licyk/sd-webui-all-in-one/main/.github/head_image.jpg",
+    "https://gitee.com/licyk/sd-webui-all-in-one/raw/main/.github/head_image.jpg"
+)
 
 if ([Environment]::OSVersion.Platform -ne [PlatformID]::Win32NT) {
     Write-Error "installer_launcher_gui.ps1 only supports Windows."
@@ -112,18 +116,19 @@ $script:LocalHome = Join-Path $env:LOCALAPPDATA $script:APP_NAME
 $script:CacheHome = Join-Path $script:LocalHome "cache"
 $script:LogHome = Join-Path $script:LocalHome "logs"
 $script:MainConfigFile = Join-Path $script:ConfigHome "main.json"
+$script:HeroImageFile = Join-Path $script:ConfigHome "head_image.jpg"
 $script:LogFile = Join-Path $script:LogHome ("installer-launcher-gui-{0}.log" -f (Get-Date -Format "yyyyMMdd"))
 $script:AutoUpdateIntervalSeconds = 3600
 $script:RunspacePool = $null
 function Export-GuiEventFunctions {
     $names = @(
-        "Append-UiLog", "Get-CurrentProjectKey", "Get-ObjectPropertyValue", "Get-ProjectConfig",
+        "Append-UiLog", "Apply-HeroImage", "Get-CurrentProjectKey", "Get-ObjectPropertyValue", "Get-ProjectConfig",
         "Get-SelectedScriptName", "Invoke-OneClickAction", "Invoke-TerminateCurrentOperation",
         "Invoke-UninstallProject", "Invoke-UpdateCheck", "Open-ConfigFolder", "Refresh-MainConfigUi",
         "Refresh-ProjectConfigUi", "Refresh-ScriptParamUi", "Refresh-Status", "Report-UiError",
         "Save-CurrentProjectConfigFromUi", "Save-MainConfig", "Save-MainConfigFromUi",
         "Select-FolderPath", "Select-RelevantMainTab", "Set-UiBusy", "Show-AppPage",
-        "Show-HelpWindow", "Show-LogWindow", "Show-Message", "Start-TabTransition",
+        "Show-HelpWindow", "Show-LogWindow", "Show-Message", "Start-HeroImageDownload", "Start-TabTransition",
         "Test-DictionaryKey", "Update-OneClickModeUi", "Write-Log"
     )
     foreach ($name in $names) {
@@ -1625,6 +1630,103 @@ function Start-TabTransition {
     $translate.BeginAnimation([System.Windows.Media.TranslateTransform]::YProperty, $yAnimation)
 }
 
+function Apply-HeroImage {
+    param($UI, [string]$ImagePath)
+    if ([string]::IsNullOrWhiteSpace($ImagePath) -or -not (Test-Path -LiteralPath $ImagePath -PathType Leaf)) { return }
+    $heroImage = Get-UiControl $UI "HeroImage"
+    $heroOverlay = Get-UiControl $UI "HeroImageOverlay"
+    if ($null -eq $heroImage -or $null -eq $heroOverlay) { return }
+
+    try {
+        $bitmap = New-Object System.Windows.Media.Imaging.BitmapImage
+        $bitmap.BeginInit()
+        $bitmap.CacheOption = [System.Windows.Media.Imaging.BitmapCacheOption]::OnLoad
+        $bitmap.UriSource = New-Object System.Uri($ImagePath, [System.UriKind]::Absolute)
+        $bitmap.EndInit()
+        $bitmap.Freeze()
+
+        $heroImage.Source = $bitmap
+        $heroImage.Visibility = "Visible"
+        $heroOverlay.Visibility = "Visible"
+        $heroImage.Opacity = 0.0
+        $heroOverlay.Opacity = 0.0
+
+        $duration = New-Object System.Windows.Duration ([TimeSpan]::FromMilliseconds(420))
+        $imageAnimation = New-Object System.Windows.Media.Animation.DoubleAnimation
+        $imageAnimation.From = 0.0
+        $imageAnimation.To = 1.0
+        $imageAnimation.Duration = $duration
+        $imageAnimation.EasingFunction = New-Object System.Windows.Media.Animation.CubicEase -Property @{ EasingMode = [System.Windows.Media.Animation.EasingMode]::EaseOut }
+
+        $overlayAnimation = New-Object System.Windows.Media.Animation.DoubleAnimation
+        $overlayAnimation.From = 0.0
+        $overlayAnimation.To = 0.48
+        $overlayAnimation.Duration = $duration
+        $overlayAnimation.EasingFunction = New-Object System.Windows.Media.Animation.CubicEase -Property @{ EasingMode = [System.Windows.Media.Animation.EasingMode]::EaseOut }
+
+        $heroImage.BeginAnimation([System.Windows.UIElement]::OpacityProperty, $imageAnimation)
+        $heroOverlay.BeginAnimation([System.Windows.UIElement]::OpacityProperty, $overlayAnimation)
+        Write-Log INFO "hero image applied: $ImagePath"
+    } catch {
+        Write-Log WARN "failed to apply hero image: $($_.Exception.Message)"
+    }
+}
+
+function Start-HeroImageDownload {
+    param($UI)
+    if ($null -eq $script:RunspacePool) { return }
+    $operation = {
+        param([string[]]$Urls, [string]$OutputPath)
+        New-Item -ItemType Directory -Force -Path (Split-Path -Parent $OutputPath) | Out-Null
+        $lastError = ""
+        foreach ($url in $Urls) {
+            try {
+                $temp = "$OutputPath.tmp"
+                Invoke-WebRequest -UseBasicParsing -Uri $url -OutFile $temp -TimeoutSec 20 -ErrorAction Stop
+                Move-Item -LiteralPath $temp -Destination $OutputPath -Force
+                return [PSCustomObject]@{ Success = $true; Path = $OutputPath; Url = $url; Message = "" }
+            } catch {
+                Remove-Item -LiteralPath "$OutputPath.tmp" -Force -ErrorAction SilentlyContinue
+                $lastError = $_.Exception.Message
+            }
+        }
+        return [PSCustomObject]@{ Success = $false; Path = ""; Url = ""; Message = $lastError }
+    }
+
+    try {
+        $ps = [powershell]::Create()
+        $ps.RunspacePool = $script:RunspacePool
+        [void]$ps.AddScript($operation.ToString())
+        [void]$ps.AddArgument([string[]]$script:HERO_IMAGE_URLS)
+        [void]$ps.AddArgument($script:HeroImageFile)
+        $async = $ps.BeginInvoke()
+        $timer = New-Object System.Windows.Threading.DispatcherTimer
+        $timer.Interval = [TimeSpan]::FromMilliseconds(300)
+        $timer.Add_Tick({
+            if (-not $async.IsCompleted) { return }
+            $timer.Stop()
+            try {
+                $result = $ps.EndInvoke($async) | Select-Object -First 1
+                if ($null -ne $result -and $result.Success) {
+                    Write-Log INFO "hero image downloaded: $($result.Url)"
+                    Apply-HeroImage $UI ([string]$result.Path)
+                } else {
+                    $message = ""
+                    if ($null -ne $result) { $message = [string]$result.Message }
+                    Write-Log WARN "hero image download failed: $message"
+                }
+            } catch {
+                Write-Log WARN "hero image download task failed: $($_.Exception.Message)"
+            } finally {
+                $ps.Dispose()
+            }
+        }.GetNewClosure())
+        $timer.Start()
+    } catch {
+        Write-Log WARN "failed to start hero image download: $($_.Exception.Message)"
+    }
+}
+
 function Show-AppPage {
     param($UI, [string]$PageName)
     $startPageTransition = ${function:Start-PageTransition}
@@ -2783,7 +2885,7 @@ function Start-App {
         <Grid Grid.Column="1" Margin="24,20,24,20">
           <Grid Name="StartPage">
           <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="*"/><RowDefinition Height="132"/></Grid.RowDefinitions>
-          <Border Grid.Row="0" MinHeight="142" MaxHeight="190" CornerRadius="10" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1" Padding="22" Margin="0,0,0,18">
+          <Border Grid.Row="0" MinHeight="142" MaxHeight="190" CornerRadius="10" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1" Margin="0,0,0,18" ClipToBounds="True">
             <Border.Background>
               <LinearGradientBrush StartPoint="0,0" EndPoint="1,1">
                 <GradientStop Color="#FF1E5B9A" Offset="0"/>
@@ -2793,12 +2895,14 @@ function Start-App {
             </Border.Background>
             <Grid>
               <Grid.ColumnDefinitions><ColumnDefinition Width="300"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
-              <StackPanel VerticalAlignment="Top">
+              <Image Name="HeroImage" Grid.ColumnSpan="2" Stretch="UniformToFill" Visibility="Collapsed" Opacity="0"/>
+              <Border Name="HeroImageOverlay" Grid.ColumnSpan="2" Background="#CC000000" Visibility="Collapsed" Opacity="0"/>
+              <StackPanel VerticalAlignment="Top" Margin="22">
                 <TextBlock Text="AI WebUI 安装与管理" Foreground="White" FontSize="16" Opacity="0.9"/>
                 <TextBlock Text="启动器控制台" Foreground="White" FontSize="26" FontWeight="Bold" Margin="0,6,0,0"/>
                 <TextBlock Name="BusyText" Foreground="White" Opacity="0.9" Margin="0,14,0,0"/>
               </StackPanel>
-              <ScrollViewer Grid.Column="1" Margin="28,0,0,0" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled" MaxHeight="132">
+              <ScrollViewer Grid.Column="1" Margin="28,22,22,22" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled" MaxHeight="132">
                 <TextBlock Name="ProjectStatusText" TextWrapping="Wrap" Foreground="White" FontSize="13"/>
               </ScrollViewer>
             </Grid>
@@ -2975,7 +3079,7 @@ function Start-App {
     }.GetNewClosure())
     $UI = [PSCustomObject]@{
         Window = $window; TitleBar = $window.FindName("TitleBar"); MinBtn = $window.FindName("MinBtn"); MaxBtn = $window.FindName("MaxBtn"); CloseBtn = $window.FindName("CloseBtn")
-        MainBorder = $window.FindName("MainBorder"); StartPage = $window.FindName("StartPage"); AdvancedPage = $window.FindName("AdvancedPage"); SoftwarePage = $window.FindName("SoftwarePage"); SettingsPage = $window.FindName("SettingsPage"); MainTabs = $window.FindName("MainTabs"); ProjectList = $window.FindName("ProjectList"); ProjectStatusText = $window.FindName("ProjectStatusText"); BusyText = $window.FindName("BusyText")
+        MainBorder = $window.FindName("MainBorder"); StartPage = $window.FindName("StartPage"); AdvancedPage = $window.FindName("AdvancedPage"); SoftwarePage = $window.FindName("SoftwarePage"); SettingsPage = $window.FindName("SettingsPage"); MainTabs = $window.FindName("MainTabs"); ProjectList = $window.FindName("ProjectList"); ProjectStatusText = $window.FindName("ProjectStatusText"); BusyText = $window.FindName("BusyText"); HeroImage = $window.FindName("HeroImage"); HeroImageOverlay = $window.FindName("HeroImageOverlay")
         SelectedProjectHintText = $window.FindName("SelectedProjectHintText")
         PathPanel = $window.FindName("PathPanel"); ConfigPanel = $window.FindName("ConfigPanel")
         ScriptCombo = $window.FindName("ScriptCombo"); ScriptParamPanel = $window.FindName("ScriptParamPanel"); ScriptArgsBox = $window.FindName("ScriptArgsBox")
@@ -3092,6 +3196,7 @@ function Start-App {
             if ([bool]$mainConfig["SHOW_WELCOME_SCREEN"]) {
                 Append-UiLog $UI "选择项目，调整配置，然后运行安装器。"
             }
+            Start-HeroImageDownload $UI
 
             $statusRefreshTimer = New-Object System.Windows.Threading.DispatcherTimer
             $statusRefreshTimer.Interval = [TimeSpan]::FromSeconds(15)
