@@ -14,7 +14,7 @@
 
 param()
 
-$script:INSTALLER_LAUNCHER_GUI_VERSION = "0.1.2"
+$script:INSTALLER_LAUNCHER_GUI_VERSION = "0.1.3"
 $script:APP_NAME = "installer-launcher"
 $script:APP_TITLE = "SD WebUI All In One Installer Launcher GUI"
 $script:SELF_REMOTE_URLS = @(
@@ -2150,11 +2150,6 @@ function Invoke-RunManagementScript {
     if (-not (Test-Path $scriptPath -PathType Leaf)) {
         Show-Message "未找到管理脚本:`n$scriptPath`n`n请先运行安装器，或检查安装路径。" "脚本不存在" "Error"
         return
-    }
-    if ($scriptName -eq "launch.ps1") {
-        if (-not (Confirm-Message "即将运行 launch.ps1。`n`n运行开始后会打开 PowerShell 控制台。如果需要终止运行中的服务，可在控制台按 Ctrl+C。" "继续运行 launch.ps1")) { return }
-    } elseif ($scriptName -eq "terminal.ps1") {
-        if (-not (Confirm-Message "即将打开 terminal.ps1 交互终端。`n`n打开后可以输入命令并回车执行；需要退出时输入 exit 并回车。" "继续打开 terminal.ps1")) { return }
     }
     if ($null -eq $config["ScriptArgs"]) { $config["ScriptArgs"] = @{} }
     $config["ScriptArgs"][$scriptName] = $UI.ScriptArgsBox.Text
