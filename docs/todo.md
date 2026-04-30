@@ -307,6 +307,7 @@
 - [x] GUI 运行安装器或管理脚本时，统一启动按钮下方会显示紧贴按钮的 indeterminate 加载进度条，替代按钮内不够明显的旋转加载指示。
 - [x] GUI 顶部标题栏和启动横幅已调整为更克制的蓝灰配色，日志入口已从标题栏移动到启动器设置页。
 - [x] GUI 启动横幅会先显示默认渐变配色，随后在后台尝试从 GitHub/Gitee 下载 `.github/head_image.jpg` 到配置目录；下载成功后以淡入动画切换为头图并叠加暗色遮罩保证文字可读。
+- [x] GUI 启动横幅头图已设置水平和垂直居中显示，避免 `UniformToFill` 裁切时偏向边缘。
 - [x] 修复 GUI 开关动画模板中对 `TranslateTransform.X` 使用 `Setter` 导致 WPF 初始化失败的问题。
 - [x] GUI 自动刷新安装状态已改为安全访问 UI 控件属性，避免严格模式下因控件属性缺失写入错误日志。
 - [x] GUI 一键启动模式切换也已改为安全访问 `StartModeTabs` / `LaunchScriptList` / `UnifiedStartBtn`，避免自动刷新继续触发严格模式属性缺失错误。

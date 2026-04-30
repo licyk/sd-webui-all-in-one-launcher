@@ -2895,7 +2895,7 @@ function Start-App {
             </Border.Background>
             <Grid>
               <Grid.ColumnDefinitions><ColumnDefinition Width="300"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
-              <Image Name="HeroImage" Grid.ColumnSpan="2" Stretch="UniformToFill" Visibility="Collapsed" Opacity="0"/>
+              <Image Name="HeroImage" Grid.ColumnSpan="2" Stretch="UniformToFill" HorizontalAlignment="Center" VerticalAlignment="Center" Visibility="Collapsed" Opacity="0"/>
               <Border Name="HeroImageOverlay" Grid.ColumnSpan="2" Background="#CC000000" Visibility="Collapsed" Opacity="0"/>
               <StackPanel VerticalAlignment="Top" Margin="22">
                 <TextBlock Text="AI WebUI 安装与管理" Foreground="White" FontSize="16" Opacity="0.9"/>
