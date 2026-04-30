@@ -87,7 +87,7 @@ public class LauncherWindowHelper {
     }
 
     public static void EnableAcrylic(IntPtr hwnd, bool dark) {
-        int gradientColor = dark ? unchecked((int)0xC0202020) : unchecked((int)0xD8F6FAFF);
+        int gradientColor = dark ? unchecked((int)0x2E080808) : unchecked((int)0x28FFFFFF);
         SetBlurState(hwnd, 4, 2, gradientColor);
     }
 
@@ -2514,11 +2514,11 @@ function Get-ThemeColors {
     } catch {}
     if ($dark) {
         return @{
-            IsDark = $true; WinBG1 = "#8C1E232B"; WinBG2 = "#7812151A"; PanelBG = "#731F242C"; TextMain = "#FFFFFF"; TextSec = "#D4DCE5"; Border = "#66FFFFFF"; InputBG = "#A8232830"; BtnNormal = "#592A3038"; BtnHover = "#73343D48"; ItemHover = "#2EFFFFFF"; HeaderBG = "#14FFFFFF"
+            IsDark = $true; WinBG1 = "#A81E1E1E"; WinBG2 = "#94121212"; PanelBG = "#461F1F1F"; TextMain = "#FFFFFF"; TextSec = "#B8BFC7"; Border = "#58FFFFFF"; InputBG = "#662B2B2B"; BtnNormal = "#553A3A3A"; BtnHover = "#744A4A4A"; ItemHover = "#2EFFFFFF"; HeaderBG = "#18FFFFFF"
         }
     }
     return @{
-        IsDark = $false; WinBG1 = "#9AFAFCFF"; WinBG2 = "#88ECF4FC"; PanelBG = "#8FFFFFFF"; TextMain = "#242424"; TextSec = "#55606B"; Border = "#A8C0CEDA"; InputBG = "#B8FFFFFF"; BtnNormal = "#99FFFFFF"; BtnHover = "#C8F3F8FF"; ItemHover = "#C4EAF4FF"; HeaderBG = "#3DFFFFFF"
+        IsDark = $false; WinBG1 = "#B8F9FAFC"; WinBG2 = "#A6F3F7FB"; PanelBG = "#A8FFFFFF"; TextMain = "#242424"; TextSec = "#5A636D"; Border = "#C8D7DCE2"; InputBG = "#B8FCFCFD"; BtnNormal = "#A8FFFFFF"; BtnHover = "#C8F3F8FF"; ItemHover = "#C8EAF4FF"; HeaderBG = "#8CF5F9FF"
     }
 }
 
@@ -2998,7 +2998,7 @@ function Start-App {
   </Window.Resources>
   <Border Name="MainBorder" CornerRadius="12" BorderThickness="1" BorderBrush="{DynamicResource BorderBrush}">
     <Border.Effect>
-      <DropShadowEffect BlurRadius="46" ShadowDepth="0" Opacity="0.38"/>
+      <DropShadowEffect BlurRadius="26" ShadowDepth="0" Opacity="0.22"/>
     </Border.Effect>
     <Border.Background>
       <LinearGradientBrush StartPoint="0,0" EndPoint="1,1">
