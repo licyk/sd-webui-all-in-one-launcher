@@ -1125,25 +1125,9 @@ function Set-UiBusy {
         $terminateButton.Visibility = $(if ($Busy -and $CanTerminate) { "Visible" } else { "Collapsed" })
         $terminateButton.IsEnabled = $Busy -and $CanTerminate -and ($Message -notmatch "正在终止")
     }
-    $loadingIcon = Get-UiControl $UI "StartLoadingIcon"
-    if ($null -ne $loadingIcon) {
-        if ($Busy -and $CanTerminate) {
-            $loadingIcon.Visibility = "Visible"
-            $rotate = $loadingIcon.RenderTransform
-            if ($null -ne $rotate -and $rotate -is [System.Windows.Media.RotateTransform]) {
-                $animation = New-Object System.Windows.Media.Animation.DoubleAnimation
-                $animation.From = 0
-                $animation.To = 360
-                $animation.Duration = New-Object System.Windows.Duration ([TimeSpan]::FromSeconds(0.9))
-                $animation.RepeatBehavior = [System.Windows.Media.Animation.RepeatBehavior]::Forever
-                $rotate.BeginAnimation([System.Windows.Media.RotateTransform]::AngleProperty, $animation)
-            }
-        } else {
-            if ($loadingIcon.RenderTransform -is [System.Windows.Media.RotateTransform]) {
-                $loadingIcon.RenderTransform.BeginAnimation([System.Windows.Media.RotateTransform]::AngleProperty, $null)
-            }
-            $loadingIcon.Visibility = "Collapsed"
-        }
+    $progressBar = Get-UiControl $UI "StartProgressBar"
+    if ($null -ne $progressBar) {
+        $progressBar.Visibility = $(if ($Busy -and $CanTerminate) { "Visible" } else { "Collapsed" })
     }
     $busyText = Get-UiControl $UI "BusyText"
     if ($null -ne $busyText) { $busyText.Text = $Message }
@@ -2727,6 +2711,12 @@ function Start-App {
         </Setter.Value>
       </Setter>
     </Style>
+    <Style TargetType="ProgressBar">
+      <Setter Property="Height" Value="4"/>
+      <Setter Property="Foreground" Value="{DynamicResource PrimaryBrush}"/>
+      <Setter Property="Background" Value="#FFDADDE2"/>
+      <Setter Property="BorderThickness" Value="0"/>
+    </Style>
   </Window.Resources>
   <Border Name="MainBorder" CornerRadius="12" BorderThickness="1" BorderBrush="{DynamicResource BorderBrush}">
     <Border.Effect>
@@ -2850,14 +2840,10 @@ function Start-App {
                 <Button Name="UnifiedStartBtn" Style="{StaticResource PrimaryButton}" Padding="18,12" FontSize="16" HorizontalAlignment="Stretch">
                   <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" VerticalAlignment="Center">
                     <TextBlock Text="▶" Foreground="White" Margin="0,0,8,0"/>
-                    <TextBlock Name="StartLoadingIcon" Text="◌" Foreground="White" FontSize="16" FontWeight="Bold" Margin="0,0,8,0" Visibility="Collapsed" RenderTransformOrigin="0.5,0.5">
-                      <TextBlock.RenderTransform>
-                        <RotateTransform Angle="0"/>
-                      </TextBlock.RenderTransform>
-                    </TextBlock>
                     <TextBlock Name="UnifiedStartLabel" Text="启动所选脚本" Foreground="White"/>
                   </StackPanel>
                 </Button>
+                <ProgressBar Name="StartProgressBar" IsIndeterminate="True" HorizontalAlignment="Stretch" Margin="0,0,8,0" Visibility="Collapsed"/>
                 <Button Name="TerminateOperationBtn" Content="■ 终止当前任务" Background="#FFE53935" Foreground="White" BorderThickness="0" Padding="18,12" FontSize="16" HorizontalAlignment="Stretch" Margin="0,10,0,0" Visibility="Collapsed" IsEnabled="False"/>
               </StackPanel>
             </Border>
@@ -2992,7 +2978,7 @@ function Start-App {
         SelectedProjectHintText = $window.FindName("SelectedProjectHintText")
         PathPanel = $window.FindName("PathPanel"); ConfigPanel = $window.FindName("ConfigPanel")
         ScriptCombo = $window.FindName("ScriptCombo"); ScriptParamPanel = $window.FindName("ScriptParamPanel"); ScriptArgsBox = $window.FindName("ScriptArgsBox")
-        StartModeTabs = $window.FindName("StartModeTabs"); LaunchScriptList = $window.FindName("LaunchScriptList"); UnifiedStartBtn = $window.FindName("UnifiedStartBtn"); UnifiedStartLabel = $window.FindName("UnifiedStartLabel"); StartLoadingIcon = $window.FindName("StartLoadingIcon"); TerminateOperationBtn = $window.FindName("TerminateOperationBtn"); StartHintText = $window.FindName("StartHintText"); InstallHintText = $window.FindName("InstallHintText")
+        StartModeTabs = $window.FindName("StartModeTabs"); LaunchScriptList = $window.FindName("LaunchScriptList"); UnifiedStartBtn = $window.FindName("UnifiedStartBtn"); UnifiedStartLabel = $window.FindName("UnifiedStartLabel"); StartProgressBar = $window.FindName("StartProgressBar"); TerminateOperationBtn = $window.FindName("TerminateOperationBtn"); StartHintText = $window.FindName("StartHintText"); InstallHintText = $window.FindName("InstallHintText")
         AutoUpdateCheck = $window.FindName("AutoUpdateCheck"); WelcomeCheck = $window.FindName("WelcomeCheck"); LogLevelCombo = $window.FindName("LogLevelCombo"); ProxyModeCombo = $window.FindName("ProxyModeCombo"); ManualProxyBox = $window.FindName("ManualProxyBox")
         SaveMainBtn = $window.FindName("SaveMainBtn"); CheckUpdateBtn = $window.FindName("CheckUpdateBtn"); OpenConfigFolderBtn = $window.FindName("OpenConfigFolderBtn"); UninstallBtn = $window.FindName("UninstallBtn"); OneClickNavBtn = $window.FindName("OneClickNavBtn"); AdvancedNavBtn = $window.FindName("AdvancedNavBtn"); SoftwareNavBtn = $window.FindName("SoftwareNavBtn"); SettingsNavBtn = $window.FindName("SettingsNavBtn"); OneClickNavLabel = $window.FindName("OneClickNavLabel"); AdvancedNavLabel = $window.FindName("AdvancedNavLabel"); SoftwareNavLabel = $window.FindName("SoftwareNavLabel"); SettingsNavLabel = $window.FindName("SettingsNavLabel"); OneClickNavIcon = $window.FindName("OneClickNavIcon"); AdvancedNavIcon = $window.FindName("AdvancedNavIcon"); SoftwareNavIcon = $window.FindName("SoftwareNavIcon"); SettingsNavIcon = $window.FindName("SettingsNavIcon"); HelpBtn = $window.FindName("HelpBtn"); ShowLogBtn = $window.FindName("ShowLogBtn")
         LogBox = $window.FindName("LogBox")

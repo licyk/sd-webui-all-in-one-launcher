@@ -304,7 +304,7 @@
 - [x] GUI Tab 按钮选中态已改为浅色背景加底部蓝色强调条，避开 WPF TabItem 头部区域对整块按钮/边框的裁切问题。
 - [x] GUI `TabControl` 已替换默认模板，页签头改用横向 `StackPanel` 而不是 WPF 默认 `TabPanel`，从根源避免 Tab 按钮被默认头部面板裁切。
 - [x] GUI `TabControl` 内容切换已增加轻量淡入和向上位移动画，覆盖一键启动模式和高级选项页签。
-- [x] GUI 运行安装器或管理脚本时，统一启动按钮旁会显示旋转加载指示。
+- [x] GUI 运行安装器或管理脚本时，统一启动按钮下方会显示紧贴按钮的 indeterminate 加载进度条，替代按钮内不够明显的旋转加载指示。
 - [x] 修复 GUI 开关动画模板中对 `TranslateTransform.X` 使用 `Setter` 导致 WPF 初始化失败的问题。
 - [x] GUI 自动刷新安装状态已改为安全访问 UI 控件属性，避免严格模式下因控件属性缺失写入错误日志。
 - [x] GUI 一键启动模式切换也已改为安全访问 `StartModeTabs` / `LaunchScriptList` / `UnifiedStartBtn`，避免自动刷新继续触发严格模式属性缺失错误。
