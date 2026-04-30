@@ -1483,6 +1483,7 @@ function Refresh-ProjectConfigUi {
 function Refresh-Status {
     param($UI, $State)
     $projectStatusText = Get-UiControl $UI "ProjectStatusText"
+    $selectedProjectHintText = Get-UiControl $UI "SelectedProjectHintText"
     $scriptCombo = Get-UiControl $UI "ScriptCombo"
     $launchScriptList = Get-UiControl $UI "LaunchScriptList"
     $startHintText = Get-UiControl $UI "StartHintText"
@@ -1490,6 +1491,7 @@ function Refresh-Status {
     $key = Get-CurrentProjectKey
     if ([string]::IsNullOrWhiteSpace($key)) {
         if ($null -ne $projectStatusText) { $projectStatusText.Text = "当前项目: 未选择`n安装状态: 未检测`n请先在左侧选择要安装或管理的 WebUI / 工具。" }
+        if ($null -ne $selectedProjectHintText) { $selectedProjectHintText.Text = "当前未选择软件" }
         if ($null -ne $scriptCombo) { $scriptCombo.ItemsSource = $null }
         if ($null -ne $launchScriptList) { $launchScriptList.ItemsSource = $null }
         if ($null -ne $startHintText) { $startHintText.Text = "请先进入「软件选择」选择要安装或管理的 WebUI / 工具。" }
@@ -1509,6 +1511,7 @@ function Refresh-Status {
         $nextStep = "检测到安装目录但缺少管理脚本。请重新运行安装器修复完整安装。"
     }
     if ($null -ne $projectStatusText) { $projectStatusText.Text = "当前项目: $($project.Name)`n安装状态: $($status.Label)`n$($status.Detail)`n下一步: $nextStep`n代理模式: $proxyMode    自动更新: $autoUpdate" }
+    if ($null -ne $selectedProjectHintText) { $selectedProjectHintText.Text = "当前选择：$($project.Name)    安装状态：$($status.Label)" }
     $scripts = @()
     foreach ($scriptName in $project.Scripts.Keys) {
         $scripts += [LauncherChoice]::new($scriptName, "$scriptName - $($project.Scripts[$scriptName])")
@@ -2365,6 +2368,8 @@ function Start-App {
     <SolidColorBrush x:Key="ItemHoverBrush" Color="$($colors.ItemHover)"/>
     <SolidColorBrush x:Key="HeaderBGBrush" Color="$($colors.HeaderBG)"/>
     <SolidColorBrush x:Key="PanelBGBrush" Color="$($colors.PanelBG)"/>
+    <SolidColorBrush x:Key="SelectedItemBGBrush" Color="#220078D4"/>
+    <SolidColorBrush x:Key="SelectedItemBorderBrush" Color="#880078D4"/>
     <Style TargetType="Button">
       <Setter Property="Background" Value="{DynamicResource BtnNormalBrush}"/>
       <Setter Property="Foreground" Value="{DynamicResource TextMainBrush}"/>
@@ -2605,7 +2610,7 @@ function Start-App {
       <Setter Property="Template">
         <Setter.Value>
           <ControlTemplate TargetType="TabItem">
-            <Border x:Name="Bd" Background="Transparent" CornerRadius="7" Padding="{TemplateBinding Padding}">
+            <Border x:Name="Bd" Background="Transparent" BorderBrush="Transparent" BorderThickness="1" CornerRadius="7" Padding="{TemplateBinding Padding}">
               <ContentPresenter ContentSource="Header" HorizontalAlignment="Center" VerticalAlignment="Center"/>
             </Border>
             <ControlTemplate.Triggers>
@@ -2613,7 +2618,9 @@ function Start-App {
                 <Setter TargetName="Bd" Property="Background" Value="{DynamicResource ItemHoverBrush}"/>
               </Trigger>
               <Trigger Property="IsSelected" Value="True">
-                <Setter TargetName="Bd" Property="Background" Value="{DynamicResource HeaderBGBrush}"/>
+                <Setter TargetName="Bd" Property="Background" Value="{DynamicResource SelectedItemBGBrush}"/>
+                <Setter TargetName="Bd" Property="BorderBrush" Value="{DynamicResource PrimaryBrush}"/>
+                <Setter Property="Foreground" Value="{DynamicResource PrimaryBrush}"/>
                 <Setter Property="FontWeight" Value="SemiBold"/>
               </Trigger>
             </ControlTemplate.Triggers>
@@ -2635,15 +2642,25 @@ function Start-App {
       <Setter Property="Template">
         <Setter.Value>
           <ControlTemplate TargetType="ListBoxItem">
-            <Border x:Name="Bd" Background="Transparent" CornerRadius="6" Padding="{TemplateBinding Padding}">
-              <ContentPresenter/>
+            <Border x:Name="Bd" Background="Transparent" BorderBrush="Transparent" BorderThickness="1" CornerRadius="6" Padding="{TemplateBinding Padding}">
+              <Grid>
+                <Grid.ColumnDefinitions>
+                  <ColumnDefinition Width="4"/>
+                  <ColumnDefinition Width="*"/>
+                </Grid.ColumnDefinitions>
+                <Border x:Name="Accent" Grid.Column="0" Width="4" CornerRadius="3" Background="Transparent" Margin="0,1,8,1"/>
+                <ContentPresenter Grid.Column="1" VerticalAlignment="Center"/>
+              </Grid>
             </Border>
             <ControlTemplate.Triggers>
               <Trigger Property="IsMouseOver" Value="True">
                 <Setter TargetName="Bd" Property="Background" Value="{DynamicResource ItemHoverBrush}"/>
               </Trigger>
               <Trigger Property="IsSelected" Value="True">
-                <Setter TargetName="Bd" Property="Background" Value="{DynamicResource HeaderBGBrush}"/>
+                <Setter TargetName="Bd" Property="Background" Value="{DynamicResource SelectedItemBGBrush}"/>
+                <Setter TargetName="Bd" Property="BorderBrush" Value="{DynamicResource SelectedItemBorderBrush}"/>
+                <Setter TargetName="Accent" Property="Background" Value="{DynamicResource PrimaryBrush}"/>
+                <Setter Property="Foreground" Value="{DynamicResource PrimaryBrush}"/>
                 <Setter Property="FontWeight" Value="SemiBold"/>
               </Trigger>
             </ControlTemplate.Triggers>
@@ -2849,6 +2866,9 @@ function Start-App {
             <StackPanel Grid.Row="0" Margin="0,0,0,18">
               <TextBlock Text="软件选择" FontSize="28" FontWeight="Bold"/>
               <TextBlock Text="选择要安装或管理的 WebUI / 工具。切换后会自动刷新安装状态和可用脚本。" Foreground="{DynamicResource TextSecBrush}" Margin="0,4,0,0"/>
+              <Border Background="{DynamicResource SelectedItemBGBrush}" BorderBrush="{DynamicResource SelectedItemBorderBrush}" BorderThickness="1" CornerRadius="8" Padding="12,8" Margin="0,14,0,0">
+                <TextBlock Name="SelectedProjectHintText" Text="当前未选择软件" Foreground="{DynamicResource PrimaryBrush}" FontWeight="SemiBold"/>
+              </Border>
             </StackPanel>
             <Border Grid.Row="1" Background="{DynamicResource PanelBGBrush}" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1" CornerRadius="10" Padding="18">
               <ListBox Name="ProjectList" DisplayMemberPath="Name"/>
@@ -2910,6 +2930,7 @@ function Start-App {
     $UI = [PSCustomObject]@{
         Window = $window; TitleBar = $window.FindName("TitleBar"); MinBtn = $window.FindName("MinBtn"); MaxBtn = $window.FindName("MaxBtn"); CloseBtn = $window.FindName("CloseBtn")
         MainBorder = $window.FindName("MainBorder"); StartPage = $window.FindName("StartPage"); AdvancedPage = $window.FindName("AdvancedPage"); SoftwarePage = $window.FindName("SoftwarePage"); SettingsPage = $window.FindName("SettingsPage"); MainTabs = $window.FindName("MainTabs"); ProjectList = $window.FindName("ProjectList"); ProjectStatusText = $window.FindName("ProjectStatusText"); BusyText = $window.FindName("BusyText")
+        SelectedProjectHintText = $window.FindName("SelectedProjectHintText")
         PathPanel = $window.FindName("PathPanel"); ConfigPanel = $window.FindName("ConfigPanel")
         ScriptCombo = $window.FindName("ScriptCombo"); ScriptParamPanel = $window.FindName("ScriptParamPanel"); ScriptArgsBox = $window.FindName("ScriptArgsBox")
         StartModeTabs = $window.FindName("StartModeTabs"); LaunchScriptList = $window.FindName("LaunchScriptList"); UnifiedStartBtn = $window.FindName("UnifiedStartBtn"); UnifiedStartLabel = $window.FindName("UnifiedStartLabel"); StartLoadingIcon = $window.FindName("StartLoadingIcon"); TerminateOperationBtn = $window.FindName("TerminateOperationBtn"); StartHintText = $window.FindName("StartHintText"); InstallHintText = $window.FindName("InstallHintText")
