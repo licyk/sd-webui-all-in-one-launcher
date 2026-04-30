@@ -266,6 +266,10 @@
 - [x] GUI 错误日志已增强为包含行号、命令和调用栈，便于定位 Windows 端 WPF 事件异常。
 - [x] 修复 GUI WPF 事件闭包中 `$script:MainConfig` 作用域指向变化，导致选择项目时报 `Cannot index into a null array` 的问题。
 - [x] 修复 GUI 残留 `Report-UiError -Exception` 调用，确保初始化、Dispatcher 和自动更新异常都能按新格式记录。
+- [x] 修复 GUI 手动更新只尝试单个远程脚本地址导致 404 后直接失败的问题，改为按 GitHub/Gitee 与 `main`/`master` 多地址重试。
+- [x] 修复 GUI 启动时自动更新检查在回调状态对象缺少 `CurrentOperation` 时异常退出的问题，增加状态属性兜底补齐。
+- [x] GUI 启动器设置已移除“启动时显示欢迎提示”，设置项改为修改后自动保存，不再保留手动“保存设置”按钮。
+- [x] GUI 头图加载改为本地缓存优先；配置目录中的 `head_image.jpg` 能正常解码时直接使用，缺失或无效时才后台下载。
 - [x] GUI 版已记录安装器和管理脚本的最终启动参数摘要，便于定位参数拼接问题。
 - [x] GUI 版执行 PowerShell 时不再把目标脚本参数直接拼进 `Start-Process -ArgumentList`，改为提前处理成已引用的参数字符串并写入临时文本文件，由 wrapper 读取后通过 `powershell/pwsh -File <script> <args>` 传入目标脚本，避免空格路径和复杂参数被二次拆分。
 - [x] GUI/TUI 在参数传递修复后恢复管理脚本自动追加 `-NoPause`。

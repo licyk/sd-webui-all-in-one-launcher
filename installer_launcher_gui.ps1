@@ -19,7 +19,11 @@ $script:APP_NAME = "installer-launcher"
 $script:APP_TITLE = "SD WebUI All In One Installer Launcher GUI"
 $script:SELF_REMOTE_URLS = @(
     "https://raw.githubusercontent.com/licyk/sd-webui-all-in-one-launcher/main/installer_launcher_gui.ps1",
-    "https://gitee.com/licyk/sd-webui-all-in-one-launcher/raw/main/installer_launcher_gui.ps1"
+    "https://github.com/licyk/sd-webui-all-in-one-launcher/raw/main/installer_launcher_gui.ps1",
+    "https://gitee.com/licyk/sd-webui-all-in-one-launcher/raw/main/installer_launcher_gui.ps1",
+    "https://raw.githubusercontent.com/licyk/sd-webui-all-in-one-launcher/master/installer_launcher_gui.ps1",
+    "https://github.com/licyk/sd-webui-all-in-one-launcher/raw/master/installer_launcher_gui.ps1",
+    "https://gitee.com/licyk/sd-webui-all-in-one-launcher/raw/master/installer_launcher_gui.ps1"
 )
 $script:HERO_IMAGE_URLS = @(
     "https://raw.githubusercontent.com/licyk/sd-webui-all-in-one/main/.github/head_image.jpg",
@@ -122,7 +126,7 @@ $script:AutoUpdateIntervalSeconds = 3600
 $script:RunspacePool = $null
 function Export-GuiEventFunctions {
     $names = @(
-        "Append-UiLog", "Apply-HeroImage", "Get-CurrentProjectKey", "Get-ObjectPropertyValue", "Get-ProjectConfig",
+        "Append-UiLog", "Apply-HeroImage", "AutoSave-MainConfigFromUi", "Ensure-GuiState", "Get-CurrentProjectKey", "Get-ObjectPropertyValue", "Get-ProjectConfig",
         "Get-SelectedScriptName", "Invoke-OneClickAction", "Invoke-TerminateCurrentOperation",
         "Invoke-UninstallProject", "Invoke-UpdateCheck", "Open-ConfigFolder", "Refresh-MainConfigUi",
         "Refresh-ProjectConfigUi", "Refresh-ScriptParamUi", "Refresh-Status", "Report-UiError",
@@ -314,11 +318,34 @@ function Get-ObjectPropertyValue {
     return $InputObject.PSObject.Properties[$Name].Value
 }
 
+function Ensure-GuiState {
+    param($State)
+    if ($null -eq $State) {
+        return [PSCustomObject]@{ CurrentOperation = $null; ConfigControls = @{}; ScriptParamControls = @{}; ProjectConfig = @{}; StatusRefreshTimer = $null; LastOneClickStatus = ""; IsRefreshing = $false; AutoSaveProjectConfig = $null; IsAutoSavingMainConfig = $false }
+    }
+    $defaults = [ordered]@{
+        CurrentOperation = $null
+        ConfigControls = @{}
+        ScriptParamControls = @{}
+        ProjectConfig = @{}
+        StatusRefreshTimer = $null
+        LastOneClickStatus = ""
+        IsRefreshing = $false
+        AutoSaveProjectConfig = $null
+        IsAutoSavingMainConfig = $false
+    }
+    foreach ($name in $defaults.Keys) {
+        if ($null -eq $State.PSObject.Properties[$name]) {
+            $State | Add-Member -MemberType NoteProperty -Name $name -Value $defaults[$name] -Force
+        }
+    }
+    return $State
+}
+
 function Get-DefaultMainConfig {
     [ordered]@{
         CURRENT_PROJECT = ""
         AUTO_UPDATE_ENABLED = $true
-        SHOW_WELCOME_SCREEN = $true
         LOG_LEVEL = "DEBUG"
         PROXY_MODE = "auto"
         MANUAL_PROXY = ""
@@ -1018,7 +1045,8 @@ function Start-GuiOperation {
         [scriptblock]$OnComplete,
         [bool]$CanTerminate = $true
     )
-    if ($null -ne $State.CurrentOperation) {
+    $State = Ensure-GuiState $State
+    if ($null -ne (Get-ObjectPropertyValue $State "CurrentOperation" $null)) {
         Show-Message "已有任务正在运行，请等待当前任务完成。" "任务运行中" "Warning"
         return
     }
@@ -1067,6 +1095,7 @@ function Start-GuiOperation {
 
 function Invoke-TerminateCurrentOperation {
     param($UI, $State)
+    $State = Ensure-GuiState $State
     if ($null -eq $State.CurrentOperation) {
         Show-Message "当前没有正在运行的任务。" "无需终止" "Information"
         return
@@ -1121,7 +1150,7 @@ function Append-UiLog {
 function Set-UiBusy {
     param($UI, [bool]$Busy, [string]$Message, [bool]$CanTerminate = $true)
     $enabled = -not $Busy
-    foreach ($name in @("UninstallBtn", "CheckUpdateBtn", "UnifiedStartBtn", "SaveMainBtn", "OpenConfigFolderBtn")) {
+    foreach ($name in @("UninstallBtn", "CheckUpdateBtn", "UnifiedStartBtn", "OpenConfigFolderBtn", "ShowLogBtn")) {
         $button = Get-UiControl $UI $name
         if ($null -ne $button) { $button.IsEnabled = $enabled }
     }
@@ -1632,10 +1661,10 @@ function Start-TabTransition {
 
 function Apply-HeroImage {
     param($UI, [string]$ImagePath)
-    if ([string]::IsNullOrWhiteSpace($ImagePath) -or -not (Test-Path -LiteralPath $ImagePath -PathType Leaf)) { return }
+    if ([string]::IsNullOrWhiteSpace($ImagePath) -or -not (Test-Path -LiteralPath $ImagePath -PathType Leaf)) { return $false }
     $heroImage = Get-UiControl $UI "HeroImage"
     $heroOverlay = Get-UiControl $UI "HeroImageOverlay"
-    if ($null -eq $heroImage -or $null -eq $heroOverlay) { return }
+    if ($null -eq $heroImage -or $null -eq $heroOverlay) { return $false }
 
     try {
         $bitmap = New-Object System.Windows.Media.Imaging.BitmapImage
@@ -1667,13 +1696,20 @@ function Apply-HeroImage {
         $heroImage.BeginAnimation([System.Windows.UIElement]::OpacityProperty, $imageAnimation)
         $heroOverlay.BeginAnimation([System.Windows.UIElement]::OpacityProperty, $overlayAnimation)
         Write-Log INFO "hero image applied: $ImagePath"
+        return $true
     } catch {
         Write-Log WARN "failed to apply hero image: $($_.Exception.Message)"
+        return $false
     }
 }
 
 function Start-HeroImageDownload {
     param($UI)
+    if (Apply-HeroImage $UI $script:HeroImageFile) {
+        Write-Log DEBUG "using cached hero image: $script:HeroImageFile"
+        return
+    }
+    Write-Log DEBUG "cached hero image missing or invalid, starting download"
     if ($null -eq $script:RunspacePool) { return }
     $operation = {
         param([string[]]$Urls, [string]$OutputPath)
@@ -1836,7 +1872,6 @@ function Open-ConfigFolder {
 function Refresh-MainConfigUi {
     param($UI)
     $UI.AutoUpdateCheck.IsChecked = [bool]$script:MainConfig["AUTO_UPDATE_ENABLED"]
-    $UI.WelcomeCheck.IsChecked = [bool]$script:MainConfig["SHOW_WELCOME_SCREEN"]
     $UI.LogLevelCombo.SelectedItem = $script:MainConfig["LOG_LEVEL"]
     $UI.ProxyModeCombo.SelectedItem = $script:MainConfig["PROXY_MODE"]
     $UI.ManualProxyBox.Text = [string]$script:MainConfig["MANUAL_PROXY"]
@@ -1845,11 +1880,23 @@ function Refresh-MainConfigUi {
 function Save-MainConfigFromUi {
     param($UI)
     $script:MainConfig["AUTO_UPDATE_ENABLED"] = [bool]$UI.AutoUpdateCheck.IsChecked
-    $script:MainConfig["SHOW_WELCOME_SCREEN"] = [bool]$UI.WelcomeCheck.IsChecked
     $script:MainConfig["LOG_LEVEL"] = Normalize-LogLevel ([string]$UI.LogLevelCombo.SelectedItem)
     $script:MainConfig["PROXY_MODE"] = Normalize-ProxyMode ([string]$UI.ProxyModeCombo.SelectedItem)
     $script:MainConfig["MANUAL_PROXY"] = $UI.ManualProxyBox.Text
     Save-MainConfig
+}
+
+function AutoSave-MainConfigFromUi {
+    param($UI, $State)
+    $State = Ensure-GuiState $State
+    if ([bool](Get-ObjectPropertyValue $State "IsRefreshing" $false) -or [bool](Get-ObjectPropertyValue $State "IsAutoSavingMainConfig" $false)) { return }
+    $State.IsAutoSavingMainConfig = $true
+    try {
+        Save-MainConfigFromUi $UI
+        Append-UiLog $UI "启动器设置已自动保存。"
+    } finally {
+        $State.IsAutoSavingMainConfig = $false
+    }
 }
 
 function Invoke-RunInstaller {
@@ -2331,6 +2378,7 @@ function Invoke-UninstallProject {
 
 function Invoke-UpdateCheck {
     param($UI, $State, [bool]$Manual)
+    $State = Ensure-GuiState $State
     Write-Log DEBUG "update check requested: manual=$Manual"
     $now = [DateTimeOffset]::Now.ToUnixTimeSeconds()
     if (-not $Manual -and -not [bool]$script:MainConfig["AUTO_UPDATE_ENABLED"]) { return }
@@ -2343,6 +2391,7 @@ function Invoke-UpdateCheck {
     Save-MainConfig
     $operation = {
         param([string[]]$Urls, [string]$CurrentVersion, [string]$SelfPath)
+        $lastError = ""
         foreach ($url in $Urls) {
             try {
                 $content = (Invoke-WebRequest -UseBasicParsing -Uri $url -TimeoutSec 20 -ErrorAction Stop).Content
@@ -2361,7 +2410,7 @@ function Invoke-UpdateCheck {
                 $lastError = $_.Exception.Message
             }
         }
-        return [PSCustomObject]@{ Success = $false; Updated = $false; Message = "更新检查失败: $lastError" }
+        return [PSCustomObject]@{ Success = $false; Updated = $false; Message = "更新检查失败：无法从远程地址获取 GUI 脚本。最后错误: $lastError" }
     }
     $manualCheck = $Manual
     Start-GuiOperation -UI $UI -State $State -Name "检查更新" -ScriptBlock $operation -Arguments @((,[string[]]($script:SELF_REMOTE_URLS)), $script:INSTALLER_LAUNCHER_GUI_VERSION, $PSCommandPath) -CanTerminate $false -OnComplete {
@@ -3027,7 +3076,7 @@ function Start-App {
           <DockPanel Grid.Row="0" Margin="0,0,0,18">
             <StackPanel>
               <TextBlock Text="启动器设置" FontSize="28" FontWeight="Bold"/>
-              <TextBlock Text="管理自动更新、欢迎页、日志等级、代理和配置文件位置。" Foreground="{DynamicResource TextSecBrush}" Margin="0,4,0,0"/>
+              <TextBlock Text="管理自动更新、日志等级、代理和配置文件位置。修改后会自动保存。" Foreground="{DynamicResource TextSecBrush}" Margin="0,4,0,0"/>
             </StackPanel>
           </DockPanel>
           <Grid Grid.Row="1">
@@ -3036,8 +3085,7 @@ function Start-App {
               <ScrollViewer VerticalScrollBarVisibility="Auto">
                 <StackPanel MaxWidth="680" HorizontalAlignment="Left">
                   <TextBlock Text="基础行为" FontSize="18" FontWeight="SemiBold" Margin="0,0,0,14"/>
-                  <CheckBox Name="AutoUpdateCheck" Content="启动时自动检查更新"/>
-                  <CheckBox Name="WelcomeCheck" Content="启动时显示欢迎提示" Margin="0,0,0,18"/>
+                  <CheckBox Name="AutoUpdateCheck" Content="启动时自动检查更新" Margin="0,0,0,18"/>
                   <TextBlock Text="日志等级" FontWeight="SemiBold" Margin="0,0,0,5"/>
                   <ComboBox Name="LogLevelCombo" Margin="0,0,0,14"/>
                   <TextBlock Text="代理模式" FontWeight="SemiBold" Margin="0,0,0,5"/>
@@ -3045,7 +3093,6 @@ function Start-App {
                   <TextBlock Text="手动代理地址" FontWeight="SemiBold" Margin="0,0,0,5"/>
                   <TextBox Name="ManualProxyBox" Margin="0,0,0,20" VerticalContentAlignment="Center"/>
                   <StackPanel Orientation="Horizontal" Margin="0,0,0,18">
-                    <Button Name="SaveMainBtn" Content="保存设置" Style="{StaticResource PrimaryButton}"/>
                     <Button Name="CheckUpdateBtn" Content="检查更新"/>
                     <Button Name="ShowLogBtn" Content="查看日志"/>
                     <Button Name="OpenConfigFolderBtn" Content="打开配置文件夹"/>
@@ -3084,11 +3131,11 @@ function Start-App {
         PathPanel = $window.FindName("PathPanel"); ConfigPanel = $window.FindName("ConfigPanel")
         ScriptCombo = $window.FindName("ScriptCombo"); ScriptParamPanel = $window.FindName("ScriptParamPanel"); ScriptArgsBox = $window.FindName("ScriptArgsBox")
         StartModeTabs = $window.FindName("StartModeTabs"); LaunchScriptList = $window.FindName("LaunchScriptList"); UnifiedStartBtn = $window.FindName("UnifiedStartBtn"); UnifiedStartLabel = $window.FindName("UnifiedStartLabel"); StartProgressBar = $window.FindName("StartProgressBar"); TerminateOperationBtn = $window.FindName("TerminateOperationBtn"); StartHintText = $window.FindName("StartHintText"); InstallHintText = $window.FindName("InstallHintText")
-        AutoUpdateCheck = $window.FindName("AutoUpdateCheck"); WelcomeCheck = $window.FindName("WelcomeCheck"); LogLevelCombo = $window.FindName("LogLevelCombo"); ProxyModeCombo = $window.FindName("ProxyModeCombo"); ManualProxyBox = $window.FindName("ManualProxyBox")
-        SaveMainBtn = $window.FindName("SaveMainBtn"); CheckUpdateBtn = $window.FindName("CheckUpdateBtn"); OpenConfigFolderBtn = $window.FindName("OpenConfigFolderBtn"); UninstallBtn = $window.FindName("UninstallBtn"); OneClickNavBtn = $window.FindName("OneClickNavBtn"); AdvancedNavBtn = $window.FindName("AdvancedNavBtn"); SoftwareNavBtn = $window.FindName("SoftwareNavBtn"); SettingsNavBtn = $window.FindName("SettingsNavBtn"); OneClickNavLabel = $window.FindName("OneClickNavLabel"); AdvancedNavLabel = $window.FindName("AdvancedNavLabel"); SoftwareNavLabel = $window.FindName("SoftwareNavLabel"); SettingsNavLabel = $window.FindName("SettingsNavLabel"); OneClickNavIcon = $window.FindName("OneClickNavIcon"); AdvancedNavIcon = $window.FindName("AdvancedNavIcon"); SoftwareNavIcon = $window.FindName("SoftwareNavIcon"); SettingsNavIcon = $window.FindName("SettingsNavIcon"); HelpBtn = $window.FindName("HelpBtn"); ShowLogBtn = $window.FindName("ShowLogBtn")
+        AutoUpdateCheck = $window.FindName("AutoUpdateCheck"); LogLevelCombo = $window.FindName("LogLevelCombo"); ProxyModeCombo = $window.FindName("ProxyModeCombo"); ManualProxyBox = $window.FindName("ManualProxyBox")
+        CheckUpdateBtn = $window.FindName("CheckUpdateBtn"); OpenConfigFolderBtn = $window.FindName("OpenConfigFolderBtn"); UninstallBtn = $window.FindName("UninstallBtn"); OneClickNavBtn = $window.FindName("OneClickNavBtn"); AdvancedNavBtn = $window.FindName("AdvancedNavBtn"); SoftwareNavBtn = $window.FindName("SoftwareNavBtn"); SettingsNavBtn = $window.FindName("SettingsNavBtn"); OneClickNavLabel = $window.FindName("OneClickNavLabel"); AdvancedNavLabel = $window.FindName("AdvancedNavLabel"); SoftwareNavLabel = $window.FindName("SoftwareNavLabel"); SettingsNavLabel = $window.FindName("SettingsNavLabel"); OneClickNavIcon = $window.FindName("OneClickNavIcon"); AdvancedNavIcon = $window.FindName("AdvancedNavIcon"); SoftwareNavIcon = $window.FindName("SoftwareNavIcon"); SettingsNavIcon = $window.FindName("SettingsNavIcon"); HelpBtn = $window.FindName("HelpBtn"); ShowLogBtn = $window.FindName("ShowLogBtn")
         LogBox = $window.FindName("LogBox")
     }
-    $State = [PSCustomObject]@{ CurrentOperation = $null; ConfigControls = @{}; ScriptParamControls = @{}; ProjectConfig = @{}; StatusRefreshTimer = $null; LastOneClickStatus = ""; IsRefreshing = $false; AutoSaveProjectConfig = $null }
+    $State = [PSCustomObject]@{ CurrentOperation = $null; ConfigControls = @{}; ScriptParamControls = @{}; ProjectConfig = @{}; StatusRefreshTimer = $null; LastOneClickStatus = ""; IsRefreshing = $false; AutoSaveProjectConfig = $null; IsAutoSavingMainConfig = $false }
     $mainConfig = $script:MainConfig
     $State.AutoSaveProjectConfig = { Save-CurrentProjectConfigFromUi $UI $State $false }.GetNewClosure()
 
@@ -3153,11 +3200,11 @@ function Start-App {
         }
     }.GetNewClosure())
     $UI.ScriptArgsBox.Add_TextChanged({ Save-CurrentProjectConfigFromUi $UI $State $false }.GetNewClosure())
-    $UI.SaveMainBtn.Add_Click({
-        Save-MainConfigFromUi $UI
-        Refresh-Status $UI $State
-        Append-UiLog $UI "启动器设置已保存。"
-    }.GetNewClosure())
+    $UI.AutoUpdateCheck.Add_Checked({ AutoSave-MainConfigFromUi $UI $State }.GetNewClosure())
+    $UI.AutoUpdateCheck.Add_Unchecked({ AutoSave-MainConfigFromUi $UI $State }.GetNewClosure())
+    $UI.LogLevelCombo.Add_SelectionChanged({ AutoSave-MainConfigFromUi $UI $State }.GetNewClosure())
+    $UI.ProxyModeCombo.Add_SelectionChanged({ AutoSave-MainConfigFromUi $UI $State }.GetNewClosure())
+    $UI.ManualProxyBox.Add_TextChanged({ AutoSave-MainConfigFromUi $UI $State }.GetNewClosure())
     $UI.CheckUpdateBtn.Add_Click({ Invoke-UpdateCheck $UI $State $true }.GetNewClosure())
     $UI.OpenConfigFolderBtn.Add_Click({ Open-ConfigFolder }.GetNewClosure())
     $UI.OneClickNavBtn.Add_Click({ Show-AppPage $UI "start" }.GetNewClosure())
@@ -3193,9 +3240,7 @@ function Start-App {
             Select-RelevantMainTab $UI
             Show-AppPage $UI "start"
             Append-UiLog $UI "GUI 启动完成。配置: $displayConfigHome 日志: $displayLogFile"
-            if ([bool]$mainConfig["SHOW_WELCOME_SCREEN"]) {
-                Append-UiLog $UI "选择项目，调整配置，然后运行安装器。"
-            }
+            Append-UiLog $UI "选择项目，调整配置，然后运行安装器。"
             Start-HeroImageDownload $UI
 
             $statusRefreshTimer = New-Object System.Windows.Threading.DispatcherTimer
