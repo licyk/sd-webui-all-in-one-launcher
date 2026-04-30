@@ -1250,6 +1250,8 @@ function Refresh-Status {
         $UI.ScriptCombo.ItemsSource = $null
         if ($null -ne $UI.LaunchScriptList) { $UI.LaunchScriptList.ItemsSource = $null }
         if ($null -ne $UI.StartHintText) { $UI.StartHintText.Text = "请先进入「软件选择」选择要安装或管理的 WebUI / 工具。" }
+        if ($null -ne $UI.InstallHintText) { $UI.InstallHintText.Text = "请先选择项目，再确认安装路径和安装器参数。" }
+        Set-OneClickModeFromStatus $UI $State "none"
         return
     }
     $project = $script:Projects[$key]
@@ -1291,6 +1293,16 @@ function Refresh-Status {
             $UI.StartHintText.Text = "当前项目还未完整安装。请选择安装模式，确认路径和高级选项后运行安装器。"
         }
     }
+    if ($null -ne $UI.InstallHintText) {
+        if ($status.Code -eq "installed") {
+            $UI.InstallHintText.Text = "当前项目已安装。只有需要修复、更新安装器配置或重新安装时，才建议运行安装器。"
+        } elseif ($status.Code -eq "incomplete") {
+            $UI.InstallHintText.Text = "检测到安装目录但缺少管理脚本。建议运行安装器修复完整安装。"
+        } else {
+            $UI.InstallHintText.Text = "当前项目未安装。确认高级选项中的安装路径、分支和镜像后，点击右侧按钮运行安装器。"
+        }
+    }
+    Set-OneClickModeFromStatus $UI $State $status.Code
 }
 
 function Select-RelevantMainTab {
@@ -1349,16 +1361,32 @@ function Show-AppPage {
 
 function Update-OneClickModeUi {
     param($UI)
-    if ($null -eq $UI.StartModeCombo -or $null -eq $UI.LaunchScriptList) { return }
-    $mode = [string]$UI.StartModeCombo.SelectedItem
-    if ([string]::IsNullOrWhiteSpace($mode)) { $mode = "启动模式" }
-    if ($mode -eq "安装模式") {
+    if ($null -eq $UI.StartModeTabs -or $null -eq $UI.LaunchScriptList) { return }
+    if ($UI.StartModeTabs.SelectedIndex -eq 1) {
         $UI.LaunchScriptList.IsEnabled = $false
         if ($null -ne $UI.UnifiedStartBtn) { $UI.UnifiedStartBtn.Content = "▶ 运行安装器" }
     } else {
         $UI.LaunchScriptList.IsEnabled = $true
         if ($null -ne $UI.UnifiedStartBtn) { $UI.UnifiedStartBtn.Content = "▶ 启动所选脚本" }
     }
+}
+
+function Set-OneClickModeFromStatus {
+    param($UI, $State, [string]$StatusCode)
+    if ($null -eq $UI.StartModeTabs) { return }
+    if ($null -ne $State -and $null -ne $State.PSObject.Properties["LastOneClickStatus"]) {
+        if ([string]$State.LastOneClickStatus -eq $StatusCode) {
+            Update-OneClickModeUi $UI
+            return
+        }
+        $State.LastOneClickStatus = $StatusCode
+    }
+    if ($StatusCode -eq "installed") {
+        $UI.StartModeTabs.SelectedIndex = 0
+    } else {
+        $UI.StartModeTabs.SelectedIndex = 1
+    }
+    Update-OneClickModeUi $UI
 }
 
 function Select-ScriptByName {
@@ -1374,7 +1402,7 @@ function Select-ScriptByName {
 
 function Invoke-OneClickAction {
     param($UI, $State)
-    if ($null -eq $UI.StartModeCombo -or [string]$UI.StartModeCombo.SelectedItem -eq "安装模式") {
+    if ($null -eq $UI.StartModeTabs -or $UI.StartModeTabs.SelectedIndex -eq 1) {
         Invoke-RunInstaller $UI $State
         return
     }
@@ -2221,13 +2249,21 @@ function Start-App {
               <DockPanel>
                 <StackPanel DockPanel.Dock="Top" Margin="0,0,0,16">
                   <TextBlock Text="启动方式" FontSize="18" FontWeight="SemiBold" Margin="0,0,0,10"/>
-                  <ComboBox Name="StartModeCombo" Width="220" HorizontalAlignment="Left"/>
                 </StackPanel>
-                <Grid>
-                  <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="*"/></Grid.RowDefinitions>
-                  <TextBlock Name="StartHintText" TextWrapping="Wrap" Foreground="{DynamicResource TextSecBrush}" Margin="0,0,0,12"/>
-                  <ListBox Name="LaunchScriptList" Grid.Row="1"/>
-                </Grid>
+                <TabControl Name="StartModeTabs">
+                  <TabItem Header="启动模式">
+                    <Grid Margin="2,14,2,0">
+                      <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="*"/></Grid.RowDefinitions>
+                      <TextBlock Name="StartHintText" TextWrapping="Wrap" Foreground="{DynamicResource TextSecBrush}" Margin="0,0,0,12"/>
+                      <ListBox Name="LaunchScriptList" Grid.Row="1"/>
+                    </Grid>
+                  </TabItem>
+                  <TabItem Header="安装模式">
+                    <Border Margin="2,14,2,0" Background="{DynamicResource HeaderBGBrush}" CornerRadius="8" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1" Padding="14">
+                      <TextBlock Name="InstallHintText" TextWrapping="Wrap" Foreground="{DynamicResource TextSecBrush}"/>
+                    </Border>
+                  </TabItem>
+                </TabControl>
               </DockPanel>
             </Border>
             <Border Grid.Column="1" Background="{DynamicResource PanelBGBrush}" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1" CornerRadius="10" Padding="18">
@@ -2376,18 +2412,17 @@ function Start-App {
         MainBorder = $window.FindName("MainBorder"); StartPage = $window.FindName("StartPage"); AdvancedPage = $window.FindName("AdvancedPage"); SoftwarePage = $window.FindName("SoftwarePage"); SettingsPage = $window.FindName("SettingsPage"); MainTabs = $window.FindName("MainTabs"); ProjectList = $window.FindName("ProjectList"); ProjectStatusText = $window.FindName("ProjectStatusText"); BusyText = $window.FindName("BusyText")
         PathPanel = $window.FindName("PathPanel"); ConfigPanel = $window.FindName("ConfigPanel"); SaveConfigBtn = $window.FindName("SaveConfigBtn"); RunInstallerBtn = $window.FindName("RunInstallerBtn")
         ScriptCombo = $window.FindName("ScriptCombo"); ScriptParamPanel = $window.FindName("ScriptParamPanel"); ScriptArgsBox = $window.FindName("ScriptArgsBox"); SaveScriptArgsBtn = $window.FindName("SaveScriptArgsBtn"); RunScriptBtn = $window.FindName("RunScriptBtn")
-        StartModeCombo = $window.FindName("StartModeCombo"); LaunchScriptList = $window.FindName("LaunchScriptList"); UnifiedStartBtn = $window.FindName("UnifiedStartBtn"); StartHintText = $window.FindName("StartHintText")
+        StartModeTabs = $window.FindName("StartModeTabs"); LaunchScriptList = $window.FindName("LaunchScriptList"); UnifiedStartBtn = $window.FindName("UnifiedStartBtn"); StartHintText = $window.FindName("StartHintText"); InstallHintText = $window.FindName("InstallHintText")
         AutoUpdateCheck = $window.FindName("AutoUpdateCheck"); WelcomeCheck = $window.FindName("WelcomeCheck"); LogLevelCombo = $window.FindName("LogLevelCombo"); ProxyModeCombo = $window.FindName("ProxyModeCombo"); ManualProxyBox = $window.FindName("ManualProxyBox")
         SaveMainBtn = $window.FindName("SaveMainBtn"); CheckUpdateBtn = $window.FindName("CheckUpdateBtn"); OpenConfigFolderBtn = $window.FindName("OpenConfigFolderBtn"); UninstallBtn = $window.FindName("UninstallBtn"); OneClickNavBtn = $window.FindName("OneClickNavBtn"); AdvancedNavBtn = $window.FindName("AdvancedNavBtn"); SoftwareNavBtn = $window.FindName("SoftwareNavBtn"); SettingsNavBtn = $window.FindName("SettingsNavBtn"); HelpBtn = $window.FindName("HelpBtn"); ShowLogBtn = $window.FindName("ShowLogBtn")
         LogBox = $window.FindName("LogBox")
     }
-    $State = [PSCustomObject]@{ CurrentOperation = $null; ConfigControls = @{}; ScriptParamControls = @{}; ProjectConfig = @{}; StatusRefreshTimer = $null }
+    $State = [PSCustomObject]@{ CurrentOperation = $null; ConfigControls = @{}; ScriptParamControls = @{}; ProjectConfig = @{}; StatusRefreshTimer = $null; LastOneClickStatus = "" }
     $mainConfig = $script:MainConfig
 
     $UI.LogLevelCombo.ItemsSource = @("DEBUG", "INFO", "WARN", "ERROR")
     $UI.ProxyModeCombo.ItemsSource = @("auto", "manual", "off")
-    $UI.StartModeCombo.ItemsSource = @("启动模式", "安装模式")
-    $UI.StartModeCombo.SelectedIndex = 0
+    $UI.StartModeTabs.SelectedIndex = 0
     Update-OneClickModeUi $UI
     Refresh-MainConfigUi $UI
     $projectItems = @()
@@ -2432,7 +2467,7 @@ function Start-App {
         Append-UiLog $UI "项目配置已保存: $key"
     }.GetNewClosure())
     $UI.RunInstallerBtn.Add_Click({ Invoke-RunInstaller $UI $State }.GetNewClosure())
-    $UI.StartModeCombo.Add_SelectionChanged({ Update-OneClickModeUi $UI }.GetNewClosure())
+    $UI.StartModeTabs.Add_SelectionChanged({ Update-OneClickModeUi $UI }.GetNewClosure())
     $UI.UnifiedStartBtn.Add_Click({ Invoke-OneClickAction $UI $State }.GetNewClosure())
     $UI.ScriptCombo.Add_SelectionChanged({
         $key = Get-CurrentProjectKey
