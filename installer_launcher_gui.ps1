@@ -2730,7 +2730,7 @@ function Start-App {
     </Border.Background>
     <Grid>
       <Grid.RowDefinitions><RowDefinition Height="48"/><RowDefinition Height="*"/></Grid.RowDefinitions>
-      <Grid Name="TitleBar" Grid.Row="0" Background="#08FFFFFF">
+      <Grid Name="TitleBar" Grid.Row="0" Background="#18FFFFFF">
         <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
         <StackPanel Orientation="Horizontal" Margin="18,0,0,0" VerticalAlignment="Center">
           <Border Width="24" Height="24" CornerRadius="7" Background="{DynamicResource PrimaryBrush}" Margin="0,0,10,0">
@@ -2741,7 +2741,6 @@ function Start-App {
         </StackPanel>
         <StackPanel Grid.Column="1" Orientation="Horizontal" HorizontalAlignment="Right" VerticalAlignment="Center">
           <Button Name="HelpBtn" Content="?" Width="34" Height="32" Padding="0" Margin="0,0,2,0" BorderThickness="0" Background="Transparent"/>
-          <Button Name="ShowLogBtn" Content="日志" Width="50" Height="32" Padding="0" Margin="0,0,8,0" BorderThickness="0" Background="Transparent"/>
           <Button Name="MinBtn" Content="—" Width="44" Height="32" Padding="0" Margin="0" BorderThickness="0" Background="Transparent"/>
           <Button Name="MaxBtn" Content="□" Width="44" Height="32" Padding="0" Margin="0" BorderThickness="0" Background="Transparent"/>
           <Button Name="CloseBtn" Content="×" Width="44" Height="32" Padding="0" Margin="0" BorderThickness="0" Background="Transparent"/>
@@ -2787,9 +2786,9 @@ function Start-App {
           <Border Grid.Row="0" MinHeight="142" MaxHeight="190" CornerRadius="10" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1" Padding="22" Margin="0,0,0,18">
             <Border.Background>
               <LinearGradientBrush StartPoint="0,0" EndPoint="1,1">
-                <GradientStop Color="#FF0B75C9" Offset="0"/>
-                <GradientStop Color="#CC39D1C8" Offset="0.56"/>
-                <GradientStop Color="#55FFFFFF" Offset="1"/>
+                <GradientStop Color="#FF1E5B9A" Offset="0"/>
+                <GradientStop Color="#FF3478B8" Offset="0.46"/>
+                <GradientStop Color="#FFEAF3F8" Offset="1"/>
               </LinearGradientBrush>
             </Border.Background>
             <Grid>
@@ -2944,6 +2943,7 @@ function Start-App {
                   <StackPanel Orientation="Horizontal" Margin="0,0,0,18">
                     <Button Name="SaveMainBtn" Content="保存设置" Style="{StaticResource PrimaryButton}"/>
                     <Button Name="CheckUpdateBtn" Content="检查更新"/>
+                    <Button Name="ShowLogBtn" Content="查看日志"/>
                     <Button Name="OpenConfigFolderBtn" Content="打开配置文件夹"/>
                   </StackPanel>
                 </StackPanel>
@@ -2953,7 +2953,8 @@ function Start-App {
               <StackPanel>
                 <TextBlock Text="设置说明" FontSize="18" FontWeight="SemiBold" Margin="0,0,0,14"/>
                 <TextBlock Text="自动更新只会更新启动器自身，失败不会阻止你继续使用当前版本。" Foreground="{DynamicResource TextSecBrush}" TextWrapping="Wrap" Margin="0,0,0,12"/>
-                <TextBlock Text="代理模式 auto 会读取 Windows 系统代理；manual 使用下方手动地址；off 会清理当前启动器进程中的代理变量。" Foreground="{DynamicResource TextSecBrush}" TextWrapping="Wrap"/>
+                <TextBlock Text="代理模式 auto 会读取 Windows 系统代理；manual 使用下方手动地址；off 会清理当前启动器进程中的代理变量。" Foreground="{DynamicResource TextSecBrush}" TextWrapping="Wrap" Margin="0,0,0,12"/>
+                <TextBlock Text="最近运行记录可通过左侧设置中的“查看日志”打开。" Foreground="{DynamicResource TextSecBrush}" TextWrapping="Wrap"/>
               </StackPanel>
             </Border>
           </Grid>
