@@ -1109,6 +1109,26 @@ function Set-UiBusy {
         $terminateButton.Visibility = $(if ($Busy -and $CanTerminate) { "Visible" } else { "Collapsed" })
         $terminateButton.IsEnabled = $Busy -and $CanTerminate -and ($Message -notmatch "正在终止")
     }
+    $loadingIcon = Get-UiControl $UI "StartLoadingIcon"
+    if ($null -ne $loadingIcon) {
+        if ($Busy -and $CanTerminate) {
+            $loadingIcon.Visibility = "Visible"
+            $rotate = $loadingIcon.RenderTransform
+            if ($null -ne $rotate -and $rotate -is [System.Windows.Media.RotateTransform]) {
+                $animation = New-Object System.Windows.Media.Animation.DoubleAnimation
+                $animation.From = 0
+                $animation.To = 360
+                $animation.Duration = New-Object System.Windows.Duration ([TimeSpan]::FromSeconds(0.9))
+                $animation.RepeatBehavior = [System.Windows.Media.Animation.RepeatBehavior]::Forever
+                $rotate.BeginAnimation([System.Windows.Media.RotateTransform]::AngleProperty, $animation)
+            }
+        } else {
+            if ($loadingIcon.RenderTransform -is [System.Windows.Media.RotateTransform]) {
+                $loadingIcon.RenderTransform.BeginAnimation([System.Windows.Media.RotateTransform]::AngleProperty, $null)
+            }
+            $loadingIcon.Visibility = "Collapsed"
+        }
+    }
     $busyText = Get-UiControl $UI "BusyText"
     if ($null -ne $busyText) { $busyText.Text = $Message }
 }
@@ -1529,26 +1549,50 @@ function Select-RelevantMainTab {
 function Set-NavButtonSelected {
     param($UI, [string]$PageName)
     foreach ($entry in @(
-        @{ Name = "start"; Button = $UI.OneClickNavBtn; Label = $UI.OneClickNavLabel },
-        @{ Name = "advanced"; Button = $UI.AdvancedNavBtn; Label = $UI.AdvancedNavLabel },
-        @{ Name = "software"; Button = $UI.SoftwareNavBtn; Label = $UI.SoftwareNavLabel },
-        @{ Name = "settings"; Button = $UI.SettingsNavBtn; Label = $UI.SettingsNavLabel }
+        @{ Name = "start"; Button = $UI.OneClickNavBtn; Label = $UI.OneClickNavLabel; Icon = $UI.OneClickNavIcon },
+        @{ Name = "advanced"; Button = $UI.AdvancedNavBtn; Label = $UI.AdvancedNavLabel; Icon = $UI.AdvancedNavIcon },
+        @{ Name = "software"; Button = $UI.SoftwareNavBtn; Label = $UI.SoftwareNavLabel; Icon = $UI.SoftwareNavIcon },
+        @{ Name = "settings"; Button = $UI.SettingsNavBtn; Label = $UI.SettingsNavLabel; Icon = $UI.SettingsNavIcon }
     )) {
         $button = $entry["Button"]
         $label = $entry["Label"]
+        $icon = $entry["Icon"]
         if ($null -eq $button) { continue }
         if ($entry["Name"] -eq $PageName) {
             $button.Background = $UI.Window.Resources["HeaderBGBrush"]
             $button.BorderBrush = $UI.Window.Resources["PrimaryBrush"]
             $button.FontWeight = "SemiBold"
             if ($null -ne $label) { $label.Visibility = "Collapsed" }
+            if ($null -ne $icon) { $icon.Foreground = $UI.Window.Resources["PrimaryBrush"] }
         } else {
             $button.Background = [System.Windows.Media.Brushes]::Transparent
             $button.BorderBrush = [System.Windows.Media.Brushes]::Transparent
             $button.FontWeight = "Normal"
             if ($null -ne $label) { $label.Visibility = "Visible" }
+            if ($null -ne $icon) { $icon.Foreground = $UI.Window.Resources["TextMainBrush"] }
         }
     }
+}
+
+function Start-PageTransition {
+    param($Page)
+    if ($null -eq $Page) { return }
+    $duration = New-Object System.Windows.Duration ([TimeSpan]::FromMilliseconds(180))
+    $opacityAnimation = New-Object System.Windows.Media.Animation.DoubleAnimation
+    $opacityAnimation.From = 0.0
+    $opacityAnimation.To = 1.0
+    $opacityAnimation.Duration = $duration
+    $opacityAnimation.EasingFunction = New-Object System.Windows.Media.Animation.CubicEase -Property @{ EasingMode = [System.Windows.Media.Animation.EasingMode]::EaseOut }
+    $translate = New-Object System.Windows.Media.TranslateTransform
+    $Page.RenderTransform = $translate
+    $Page.Opacity = 0.0
+    $yAnimation = New-Object System.Windows.Media.Animation.DoubleAnimation
+    $yAnimation.From = 14.0
+    $yAnimation.To = 0.0
+    $yAnimation.Duration = $duration
+    $yAnimation.EasingFunction = New-Object System.Windows.Media.Animation.CubicEase -Property @{ EasingMode = [System.Windows.Media.Animation.EasingMode]::EaseOut }
+    $Page.BeginAnimation([System.Windows.UIElement]::OpacityProperty, $opacityAnimation)
+    $translate.BeginAnimation([System.Windows.Media.TranslateTransform]::YProperty, $yAnimation)
 }
 
 function Show-AppPage {
@@ -1556,11 +1600,16 @@ function Show-AppPage {
     foreach ($page in @($UI.StartPage, $UI.AdvancedPage, $UI.SoftwarePage, $UI.SettingsPage)) {
         if ($null -ne $page) { $page.Visibility = "Collapsed" }
     }
+    $visiblePage = $UI.StartPage
     switch ($PageName) {
-        "advanced" { if ($null -ne $UI.AdvancedPage) { $UI.AdvancedPage.Visibility = "Visible" } }
-        "software" { if ($null -ne $UI.SoftwarePage) { $UI.SoftwarePage.Visibility = "Visible" } }
-        "settings" { if ($null -ne $UI.SettingsPage) { $UI.SettingsPage.Visibility = "Visible" } }
-        default { if ($null -ne $UI.StartPage) { $UI.StartPage.Visibility = "Visible" }; $PageName = "start" }
+        "advanced" { $visiblePage = $UI.AdvancedPage }
+        "software" { $visiblePage = $UI.SoftwarePage }
+        "settings" { $visiblePage = $UI.SettingsPage }
+        default { $visiblePage = $UI.StartPage; $PageName = "start" }
+    }
+    if ($null -ne $visiblePage) {
+        $visiblePage.Visibility = "Visible"
+        Start-PageTransition $visiblePage
     }
     Set-NavButtonSelected $UI $PageName
 }
@@ -1571,12 +1620,15 @@ function Update-OneClickModeUi {
     $launchScriptList = Get-UiControl $UI "LaunchScriptList"
     $unifiedStartBtn = Get-UiControl $UI "UnifiedStartBtn"
     if ($null -eq $startModeTabs -or $null -eq $launchScriptList) { return }
+    $startLabel = Get-UiControl $UI "UnifiedStartLabel"
     if ($startModeTabs.SelectedIndex -eq 1) {
         $launchScriptList.IsEnabled = $false
-        if ($null -ne $unifiedStartBtn) { $unifiedStartBtn.Content = "▶ 运行安装器" }
+        if ($null -ne $startLabel) { $startLabel.Text = "运行安装器" }
+        elseif ($null -ne $unifiedStartBtn) { $unifiedStartBtn.Content = "▶ 运行安装器" }
     } else {
         $launchScriptList.IsEnabled = $true
-        if ($null -ne $unifiedStartBtn) { $unifiedStartBtn.Content = "▶ 启动所选脚本" }
+        if ($null -ne $startLabel) { $startLabel.Text = "启动所选脚本" }
+        elseif ($null -ne $unifiedStartBtn) { $unifiedStartBtn.Content = "▶ 启动所选脚本" }
     }
 }
 
@@ -2481,7 +2533,11 @@ function Start-App {
               </Grid.ColumnDefinitions>
               <ContentPresenter Grid.Column="0" VerticalAlignment="Center" Margin="0,0,10,0"/>
               <Border Grid.Column="1" x:Name="Track" Width="48" Height="24" CornerRadius="12" Background="{DynamicResource InputBGBrush}" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1" HorizontalAlignment="Right">
-                <Ellipse x:Name="Thumb" Width="16" Height="16" Fill="{DynamicResource TextSecBrush}" HorizontalAlignment="Left" Margin="3,0,0,0"/>
+                <Ellipse x:Name="Thumb" Width="16" Height="16" Fill="{DynamicResource TextSecBrush}" HorizontalAlignment="Left" Margin="3,0,0,0" RenderTransformOrigin="0.5,0.5">
+                  <Ellipse.RenderTransform>
+                    <TranslateTransform x:Name="ThumbMove" X="0"/>
+                  </Ellipse.RenderTransform>
+                </Ellipse>
               </Border>
             </Grid>
             <ControlTemplate.Triggers>
@@ -2489,11 +2545,27 @@ function Start-App {
                 <Setter TargetName="Track" Property="BorderBrush" Value="{DynamicResource PrimaryBrush}"/>
               </Trigger>
               <Trigger Property="IsChecked" Value="True">
+                <Trigger.EnterActions>
+                  <BeginStoryboard>
+                    <Storyboard>
+                      <DoubleAnimation Storyboard.TargetName="ThumbMove" Storyboard.TargetProperty="X" To="24" Duration="0:0:0.16">
+                        <DoubleAnimation.EasingFunction><CubicEase EasingMode="EaseOut"/></DoubleAnimation.EasingFunction>
+                      </DoubleAnimation>
+                    </Storyboard>
+                  </BeginStoryboard>
+                </Trigger.EnterActions>
+                <Trigger.ExitActions>
+                  <BeginStoryboard>
+                    <Storyboard>
+                      <DoubleAnimation Storyboard.TargetName="ThumbMove" Storyboard.TargetProperty="X" To="0" Duration="0:0:0.16">
+                        <DoubleAnimation.EasingFunction><CubicEase EasingMode="EaseOut"/></DoubleAnimation.EasingFunction>
+                      </DoubleAnimation>
+                    </Storyboard>
+                  </BeginStoryboard>
+                </Trigger.ExitActions>
                 <Setter TargetName="Track" Property="Background" Value="{DynamicResource PrimaryBrush}"/>
                 <Setter TargetName="Track" Property="BorderBrush" Value="{DynamicResource PrimaryBrush}"/>
                 <Setter TargetName="Thumb" Property="Fill" Value="White"/>
-                <Setter TargetName="Thumb" Property="HorizontalAlignment" Value="Right"/>
-                <Setter TargetName="Thumb" Property="Margin" Value="0,0,3,0"/>
               </Trigger>
               <Trigger Property="IsEnabled" Value="False">
                 <Setter Property="Opacity" Value="0.55"/>
@@ -2597,19 +2669,19 @@ function Start-App {
             <StackPanel DockPanel.Dock="Top">
               <Button Name="OneClickNavBtn" Width="72" Height="72" Padding="4" Margin="0,0,0,10" BorderThickness="1">
                 <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center">
-                  <TextBlock Text="▶" FontSize="20" HorizontalAlignment="Center" Margin="0,0,0,4"/>
+                  <TextBlock Name="OneClickNavIcon" Text="▶" FontSize="20" HorizontalAlignment="Center" Margin="0,0,0,4"/>
                   <TextBlock Name="OneClickNavLabel" Text="一键启动" FontSize="12" HorizontalAlignment="Center"/>
                 </StackPanel>
               </Button>
               <Button Name="AdvancedNavBtn" Width="72" Height="72" Padding="4" Margin="0,0,0,10" BorderThickness="1">
                 <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center">
-                  <TextBlock Text="☷" FontSize="20" HorizontalAlignment="Center" Margin="0,0,0,4"/>
+                  <TextBlock Name="AdvancedNavIcon" Text="☷" FontSize="20" HorizontalAlignment="Center" Margin="0,0,0,4"/>
                   <TextBlock Name="AdvancedNavLabel" Text="高级选项" FontSize="12" HorizontalAlignment="Center"/>
                 </StackPanel>
               </Button>
               <Button Name="SoftwareNavBtn" Width="72" Height="72" Padding="4" Margin="0,0,0,10" BorderThickness="1">
                 <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center">
-                  <TextBlock Text="▣" FontSize="20" HorizontalAlignment="Center" Margin="0,0,0,4"/>
+                  <TextBlock Name="SoftwareNavIcon" Text="▣" FontSize="20" HorizontalAlignment="Center" Margin="0,0,0,4"/>
                   <TextBlock Name="SoftwareNavLabel" Text="软件选择" FontSize="12" HorizontalAlignment="Center"/>
                 </StackPanel>
               </Button>
@@ -2617,7 +2689,7 @@ function Start-App {
             <StackPanel DockPanel.Dock="Bottom">
               <Button Name="SettingsNavBtn" Width="72" Height="72" Padding="4" BorderThickness="1">
                 <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center">
-                  <TextBlock Text="⚙" FontSize="20" HorizontalAlignment="Center" Margin="0,0,0,4"/>
+                  <TextBlock Name="SettingsNavIcon" Text="⚙" FontSize="20" HorizontalAlignment="Center" Margin="0,0,0,4"/>
                   <TextBlock Name="SettingsNavLabel" Text="设置" FontSize="12" HorizontalAlignment="Center"/>
                 </StackPanel>
               </Button>
@@ -2680,7 +2752,17 @@ function Start-App {
                   <TextBlock Text="PowerShell 脚本会在独立控制台中运行；如果返回非零退出码，窗口会停留以便查看上游日志。" TextWrapping="Wrap" Foreground="{DynamicResource TextSecBrush}"/>
                 </Border>
                 <TextBlock Text="右下角统一启动按钮会根据当前模式运行安装器或所选管理脚本。" TextWrapping="Wrap" Foreground="{DynamicResource TextSecBrush}" Margin="0,0,0,18"/>
-                <Button Name="UnifiedStartBtn" Content="▶ 启动所选脚本" Style="{StaticResource PrimaryButton}" Padding="18,12" FontSize="16" HorizontalAlignment="Stretch"/>
+                <Button Name="UnifiedStartBtn" Style="{StaticResource PrimaryButton}" Padding="18,12" FontSize="16" HorizontalAlignment="Stretch">
+                  <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" VerticalAlignment="Center">
+                    <TextBlock Text="▶" Foreground="White" Margin="0,0,8,0"/>
+                    <TextBlock Name="StartLoadingIcon" Text="◌" Foreground="White" FontSize="16" FontWeight="Bold" Margin="0,0,8,0" Visibility="Collapsed" RenderTransformOrigin="0.5,0.5">
+                      <TextBlock.RenderTransform>
+                        <RotateTransform Angle="0"/>
+                      </TextBlock.RenderTransform>
+                    </TextBlock>
+                    <TextBlock Name="UnifiedStartLabel" Text="启动所选脚本" Foreground="White"/>
+                  </StackPanel>
+                </Button>
                 <Button Name="TerminateOperationBtn" Content="■ 终止当前任务" Background="#FFE53935" Foreground="White" BorderThickness="0" Padding="18,12" FontSize="16" HorizontalAlignment="Stretch" Margin="0,10,0,0" Visibility="Collapsed" IsEnabled="False"/>
               </StackPanel>
             </Border>
@@ -2810,9 +2892,9 @@ function Start-App {
         MainBorder = $window.FindName("MainBorder"); StartPage = $window.FindName("StartPage"); AdvancedPage = $window.FindName("AdvancedPage"); SoftwarePage = $window.FindName("SoftwarePage"); SettingsPage = $window.FindName("SettingsPage"); MainTabs = $window.FindName("MainTabs"); ProjectList = $window.FindName("ProjectList"); ProjectStatusText = $window.FindName("ProjectStatusText"); BusyText = $window.FindName("BusyText")
         PathPanel = $window.FindName("PathPanel"); ConfigPanel = $window.FindName("ConfigPanel")
         ScriptCombo = $window.FindName("ScriptCombo"); ScriptParamPanel = $window.FindName("ScriptParamPanel"); ScriptArgsBox = $window.FindName("ScriptArgsBox")
-        StartModeTabs = $window.FindName("StartModeTabs"); LaunchScriptList = $window.FindName("LaunchScriptList"); UnifiedStartBtn = $window.FindName("UnifiedStartBtn"); TerminateOperationBtn = $window.FindName("TerminateOperationBtn"); StartHintText = $window.FindName("StartHintText"); InstallHintText = $window.FindName("InstallHintText")
+        StartModeTabs = $window.FindName("StartModeTabs"); LaunchScriptList = $window.FindName("LaunchScriptList"); UnifiedStartBtn = $window.FindName("UnifiedStartBtn"); UnifiedStartLabel = $window.FindName("UnifiedStartLabel"); StartLoadingIcon = $window.FindName("StartLoadingIcon"); TerminateOperationBtn = $window.FindName("TerminateOperationBtn"); StartHintText = $window.FindName("StartHintText"); InstallHintText = $window.FindName("InstallHintText")
         AutoUpdateCheck = $window.FindName("AutoUpdateCheck"); WelcomeCheck = $window.FindName("WelcomeCheck"); LogLevelCombo = $window.FindName("LogLevelCombo"); ProxyModeCombo = $window.FindName("ProxyModeCombo"); ManualProxyBox = $window.FindName("ManualProxyBox")
-        SaveMainBtn = $window.FindName("SaveMainBtn"); CheckUpdateBtn = $window.FindName("CheckUpdateBtn"); OpenConfigFolderBtn = $window.FindName("OpenConfigFolderBtn"); UninstallBtn = $window.FindName("UninstallBtn"); OneClickNavBtn = $window.FindName("OneClickNavBtn"); AdvancedNavBtn = $window.FindName("AdvancedNavBtn"); SoftwareNavBtn = $window.FindName("SoftwareNavBtn"); SettingsNavBtn = $window.FindName("SettingsNavBtn"); OneClickNavLabel = $window.FindName("OneClickNavLabel"); AdvancedNavLabel = $window.FindName("AdvancedNavLabel"); SoftwareNavLabel = $window.FindName("SoftwareNavLabel"); SettingsNavLabel = $window.FindName("SettingsNavLabel"); HelpBtn = $window.FindName("HelpBtn"); ShowLogBtn = $window.FindName("ShowLogBtn")
+        SaveMainBtn = $window.FindName("SaveMainBtn"); CheckUpdateBtn = $window.FindName("CheckUpdateBtn"); OpenConfigFolderBtn = $window.FindName("OpenConfigFolderBtn"); UninstallBtn = $window.FindName("UninstallBtn"); OneClickNavBtn = $window.FindName("OneClickNavBtn"); AdvancedNavBtn = $window.FindName("AdvancedNavBtn"); SoftwareNavBtn = $window.FindName("SoftwareNavBtn"); SettingsNavBtn = $window.FindName("SettingsNavBtn"); OneClickNavLabel = $window.FindName("OneClickNavLabel"); AdvancedNavLabel = $window.FindName("AdvancedNavLabel"); SoftwareNavLabel = $window.FindName("SoftwareNavLabel"); SettingsNavLabel = $window.FindName("SettingsNavLabel"); OneClickNavIcon = $window.FindName("OneClickNavIcon"); AdvancedNavIcon = $window.FindName("AdvancedNavIcon"); SoftwareNavIcon = $window.FindName("SoftwareNavIcon"); SettingsNavIcon = $window.FindName("SettingsNavIcon"); HelpBtn = $window.FindName("HelpBtn"); ShowLogBtn = $window.FindName("ShowLogBtn")
         LogBox = $window.FindName("LogBox")
     }
     $State = [PSCustomObject]@{ CurrentOperation = $null; ConfigControls = @{}; ScriptParamControls = @{}; ProjectConfig = @{}; StatusRefreshTimer = $null; LastOneClickStatus = ""; IsRefreshing = $false; AutoSaveProjectConfig = $null }
