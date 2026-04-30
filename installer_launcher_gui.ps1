@@ -1865,7 +1865,7 @@ exit $code
         }
         Remove-Item -LiteralPath $wrapper -Force -ErrorAction SilentlyContinue
         if (-not [string]::IsNullOrWhiteSpace($argsTextPath)) { Remove-Item -LiteralPath $argsTextPath -Force -ErrorAction SilentlyContinue }
-        return [PSCustomObject]@{ Success = ($exitCode -eq 0); Stage = "execute"; ExitCode = $exitCode; Message = "安装器执行完成"; Detail = "下载源: $($download.Url)"; ProcessArgs = $argumentLine; ScriptArgsText = $InstallerArgsText; ProcessId = $Control["ProcessId"]; Terminated = $terminated; TerminationErrors = ($terminationErrors -join "`n") }
+        return [PSCustomObject]@{ Success = ($exitCode -eq 0); Stage = "execute"; ExitCode = $exitCode; Message = "安装器执行完成"; Detail = "下载源: $($download.Url)"; ProcessArgs = $argumentLine; ScriptArgsText = $InstallerArgsText; ProcessId = $Control["ProcessId"]; ScriptPath = $OutputPath; Terminated = $terminated; TerminationErrors = ($terminationErrors -join "`n") }
     }
     Start-GuiOperation -UI $UI -State $State -Name "运行安装器" -ScriptBlock $operation -Arguments @($project, $config, $argsText, $scriptPath) -OnComplete {
         param($result, $streamErrors)
@@ -1873,8 +1873,9 @@ exit $code
         if ($null -eq $item) { Show-Message "安装任务没有返回结果。" "错误" "Error"; return }
         if ([bool](Get-ObjectPropertyValue $item "Terminated" $false)) {
             $processId = Get-ObjectPropertyValue $item "ProcessId" 0
+            $itemScriptPath = [string](Get-ObjectPropertyValue $item "ScriptPath" "")
             $terminationErrors = [string](Get-ObjectPropertyValue $item "TerminationErrors" "")
-            Write-Log INFO "installer process terminated by user pid=$processId script=$scriptPath"
+            Write-Log INFO "installer process terminated by user pid=$processId script=$itemScriptPath"
             Append-UiLog $UI "安装器已被用户终止。pid=$processId"
             if (-not [string]::IsNullOrWhiteSpace($terminationErrors)) {
                 Show-Message "安装器已终止，但部分进程可能需要手动关闭。`n`n$terminationErrors" "已终止" "Warning"
@@ -2075,7 +2076,7 @@ exit $code
         }
         Remove-Item -LiteralPath $wrapper -Force -ErrorAction SilentlyContinue
         if (-not [string]::IsNullOrWhiteSpace($argsTextPath)) { Remove-Item -LiteralPath $argsTextPath -Force -ErrorAction SilentlyContinue }
-        return [PSCustomObject]@{ Success = ($exitCode -eq 0); ExitCode = $exitCode; Message = "管理脚本执行完成"; ProcessArgs = $argumentLine; ScriptArgsText = $ScriptArgsText; ScriptName = $DisplayScriptName; ProcessId = $Control["ProcessId"]; Terminated = $terminated; TerminationErrors = ($terminationErrors -join "`n") }
+        return [PSCustomObject]@{ Success = ($exitCode -eq 0); ExitCode = $exitCode; Message = "管理脚本执行完成"; ProcessArgs = $argumentLine; ScriptArgsText = $ScriptArgsText; ScriptName = $DisplayScriptName; ScriptPath = $ScriptPath; ProcessId = $Control["ProcessId"]; Terminated = $terminated; TerminationErrors = ($terminationErrors -join "`n") }
     }
     Start-GuiOperation -UI $UI -State $State -Name "运行管理脚本" -ScriptBlock $operation -Arguments @($scriptPath, $scriptArgsText, $scriptName) -OnComplete {
         param($result, $streamErrors)
@@ -2084,8 +2085,9 @@ exit $code
         if ([string]::IsNullOrWhiteSpace($displayScriptName)) { $displayScriptName = "管理脚本" }
         if ([bool](Get-ObjectPropertyValue $item "Terminated" $false)) {
             $processId = Get-ObjectPropertyValue $item "ProcessId" 0
+            $itemScriptPath = [string](Get-ObjectPropertyValue $item "ScriptPath" "")
             $terminationErrors = [string](Get-ObjectPropertyValue $item "TerminationErrors" "")
-            Write-Log INFO "management script terminated by user pid=$processId script=$displayScriptName path=$scriptPath"
+            Write-Log INFO "management script terminated by user pid=$processId script=$displayScriptName path=$itemScriptPath"
             Append-UiLog $UI "$displayScriptName 已被用户终止。pid=$processId"
             if (-not [string]::IsNullOrWhiteSpace($terminationErrors)) {
                 Show-Message "$displayScriptName 已终止，但部分进程可能需要手动关闭。`n`n$terminationErrors" "已终止" "Warning"
