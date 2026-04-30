@@ -35,6 +35,11 @@ The dependency bootstrap entry point is `install.sh`. The Bash launcher entry po
 - GUI proxy modes mirror the Bash launcher: `auto`, `manual`, and `off`.
 - GUI execution should open PowerShell scripts in a visible console window so upstream script output and prompts remain visible.
 - GUI self-update only replaces `installer_launcher_gui.ps1`; do not add Bash shell command registration or shell rc cleanup to the GUI.
+- Windows PowerShell 5.1 handles WPF/Dispatcher event scriptblocks with narrower function lookup than PowerShell 7.
+  - Before registering WPF events, call `Export-GuiEventFunctions` to export event-used helpers to `Global:` functions.
+  - Event handlers may call those helpers by normal function name after export.
+  - Do not rely on event closures that capture local scriptblock variables such as `$reportUiError = ${function:Report-UiError}`; PS5.1 can lose or mis-handle those captures in WPF events and `DispatcherTimer` callbacks.
+  - Do not reintroduce `$script:GuiHandler_*` cached scriptblock variables for WPF events; that approach caused startup/runtime crashes in PS5.1.
 
 ## Shell Requirements
 

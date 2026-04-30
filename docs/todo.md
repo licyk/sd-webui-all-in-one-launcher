@@ -307,7 +307,8 @@
 - [x] GUI 一键启动顶部横幅已改为自适应高度，状态文本放入可滚动区域，避免运行脚本时长文本遮挡标题。
 - [x] GUI 运行安装器或管理脚本时会记录当前 PowerShell 控制台 PID，并提供“终止当前任务”按钮；确认后只终止当前启动器创建的进程树。
 - [x] 修复 GUI 终止任务后完成回调引用外层 `$scriptPath` 导致严格模式报错的问题，脚本路径改为随任务结果返回。
-- [x] 修复 GUI 在 Windows PowerShell 5.1 中 WPF 事件回调无法解析 `Report-UiError`、`Update-OneClickModeUi` 等函数的问题；事件处理改为捕获函数脚本块后显式调用。
+- [x] 修复 GUI 在 Windows PowerShell 5.1 中 WPF 事件回调无法解析 `Report-UiError`、`Update-OneClickModeUi` 等函数的问题；事件处理改为启动时导出必要函数到 `Global:` 函数表，避免 DispatcherTimer / WPF 事件闭包丢失 handler。
+- [x] `AGENTS.md` 已记录 Windows PowerShell 5.1 下 WPF 事件处理方式：事件 helper 通过 `Export-GuiEventFunctions` 导出到 `Global:`，不要使用局部脚本块闭包或 `$script:GuiHandler_*` 缓存。
 - [x] `README.md` 已补充日志位置、崩溃记录、脱敏策略和 `show-log` 命令。
 - [x] `README.md` 已补充日志等级设置方法。
 - [x] `README.md` 已润色项目定位，突出可通过启动器安装和管理多个 AI WebUI / 训练工具。
