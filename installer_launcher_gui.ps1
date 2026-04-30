@@ -2892,6 +2892,109 @@ function Start-App {
       <Setter Property="Background" Value="#FFDADDE2"/>
       <Setter Property="BorderThickness" Value="0"/>
     </Style>
+    <Style TargetType="RepeatButton" x:Key="ScrollRepeatButton">
+      <Setter Property="Focusable" Value="False"/>
+      <Setter Property="Template">
+        <Setter.Value>
+          <ControlTemplate TargetType="RepeatButton">
+            <Border Background="Transparent">
+              <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+            </Border>
+          </ControlTemplate>
+        </Setter.Value>
+      </Setter>
+    </Style>
+    <Style TargetType="Thumb" x:Key="ScrollThumb">
+      <Setter Property="Template">
+        <Setter.Value>
+          <ControlTemplate TargetType="Thumb">
+            <Border x:Name="ThumbBorder" Background="#8C8E949B" CornerRadius="5"/>
+            <ControlTemplate.Triggers>
+              <Trigger Property="IsMouseOver" Value="True">
+                <Setter TargetName="ThumbBorder" Property="Background" Value="#B0A8ADB4"/>
+              </Trigger>
+              <Trigger Property="IsDragging" Value="True">
+                <Setter TargetName="ThumbBorder" Property="Background" Value="{DynamicResource PrimaryBrush}"/>
+              </Trigger>
+            </ControlTemplate.Triggers>
+          </ControlTemplate>
+        </Setter.Value>
+      </Setter>
+    </Style>
+    <Style TargetType="ScrollBar">
+      <Setter Property="Width" Value="13"/>
+      <Setter Property="Background" Value="Transparent"/>
+      <Setter Property="Template">
+        <Setter.Value>
+          <ControlTemplate TargetType="ScrollBar">
+            <Grid Background="Transparent" SnapsToDevicePixels="True">
+              <Grid.RowDefinitions>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="*"/>
+                <RowDefinition Height="Auto"/>
+              </Grid.RowDefinitions>
+              <RepeatButton x:Name="LineUpButton" Grid.Row="0" Style="{StaticResource ScrollRepeatButton}" Command="ScrollBar.LineUpCommand" Height="10" Opacity="0">
+                <Path Data="M 0 4 L 4 0 L 8 4 Z" Fill="#9AA0A6" Width="8" Height="4" Stretch="Uniform"/>
+              </RepeatButton>
+              <Track x:Name="PART_Track" Grid.Row="1" Orientation="Vertical" IsDirectionReversed="True"
+                     Minimum="{TemplateBinding Minimum}" Maximum="{TemplateBinding Maximum}" ViewportSize="{TemplateBinding ViewportSize}"
+                     Value="{Binding Path=Value, RelativeSource={RelativeSource TemplatedParent}, Mode=TwoWay}">
+                <Track.DecreaseRepeatButton><RepeatButton Style="{StaticResource ScrollRepeatButton}" Command="ScrollBar.PageUpCommand"/></Track.DecreaseRepeatButton>
+                <Track.Thumb><Thumb Style="{StaticResource ScrollThumb}" Margin="2,1"/></Track.Thumb>
+                <Track.IncreaseRepeatButton><RepeatButton Style="{StaticResource ScrollRepeatButton}" Command="ScrollBar.PageDownCommand"/></Track.IncreaseRepeatButton>
+              </Track>
+              <RepeatButton x:Name="LineDownButton" Grid.Row="2" Style="{StaticResource ScrollRepeatButton}" Command="ScrollBar.LineDownCommand" Height="10" Opacity="0">
+                <Path Data="M 0 0 L 4 4 L 8 0 Z" Fill="#9AA0A6" Width="8" Height="4" Stretch="Uniform"/>
+              </RepeatButton>
+            </Grid>
+            <ControlTemplate.Triggers>
+              <Trigger Property="IsMouseOver" Value="True">
+                <Setter TargetName="LineUpButton" Property="Opacity" Value="1"/>
+                <Setter TargetName="LineDownButton" Property="Opacity" Value="1"/>
+              </Trigger>
+            </ControlTemplate.Triggers>
+          </ControlTemplate>
+        </Setter.Value>
+      </Setter>
+      <Style.Triggers>
+        <Trigger Property="Orientation" Value="Horizontal">
+          <Setter Property="Width" Value="Auto"/>
+          <Setter Property="Height" Value="13"/>
+          <Setter Property="Template">
+            <Setter.Value>
+              <ControlTemplate TargetType="ScrollBar">
+                <Grid Background="Transparent" SnapsToDevicePixels="True">
+                  <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="Auto"/>
+                  </Grid.ColumnDefinitions>
+                  <RepeatButton x:Name="LineLeftButton" Grid.Column="0" Style="{StaticResource ScrollRepeatButton}" Command="ScrollBar.LineLeftCommand" Width="10" Opacity="0">
+                    <Path Data="M 4 0 L 0 4 L 4 8 Z" Fill="#9AA0A6" Width="4" Height="8" Stretch="Uniform"/>
+                  </RepeatButton>
+                  <Track x:Name="PART_Track" Grid.Column="1" Orientation="Horizontal"
+                         Minimum="{TemplateBinding Minimum}" Maximum="{TemplateBinding Maximum}" ViewportSize="{TemplateBinding ViewportSize}"
+                         Value="{Binding Path=Value, RelativeSource={RelativeSource TemplatedParent}, Mode=TwoWay}">
+                    <Track.DecreaseRepeatButton><RepeatButton Style="{StaticResource ScrollRepeatButton}" Command="ScrollBar.PageLeftCommand"/></Track.DecreaseRepeatButton>
+                    <Track.Thumb><Thumb Style="{StaticResource ScrollThumb}" Margin="1,2"/></Track.Thumb>
+                    <Track.IncreaseRepeatButton><RepeatButton Style="{StaticResource ScrollRepeatButton}" Command="ScrollBar.PageRightCommand"/></Track.IncreaseRepeatButton>
+                  </Track>
+                  <RepeatButton x:Name="LineRightButton" Grid.Column="2" Style="{StaticResource ScrollRepeatButton}" Command="ScrollBar.LineRightCommand" Width="10" Opacity="0">
+                    <Path Data="M 0 0 L 4 4 L 0 8 Z" Fill="#9AA0A6" Width="4" Height="8" Stretch="Uniform"/>
+                  </RepeatButton>
+                </Grid>
+                <ControlTemplate.Triggers>
+                  <Trigger Property="IsMouseOver" Value="True">
+                    <Setter TargetName="LineLeftButton" Property="Opacity" Value="1"/>
+                    <Setter TargetName="LineRightButton" Property="Opacity" Value="1"/>
+                  </Trigger>
+                </ControlTemplate.Triggers>
+              </ControlTemplate>
+            </Setter.Value>
+          </Setter>
+        </Trigger>
+      </Style.Triggers>
+    </Style>
   </Window.Resources>
   <Border Name="MainBorder" CornerRadius="12" BorderThickness="1" BorderBrush="{DynamicResource BorderBrush}">
     <Border.Effect>
