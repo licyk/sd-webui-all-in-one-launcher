@@ -358,7 +358,14 @@ dialog 常用操作：
 ./installer_launcher.sh set-project fooocus INSTALL_BRANCH fooocus_mre_main
 ```
 
-给管理脚本保存默认参数：
+给管理脚本保存结构化参数：
+
+```bash
+./installer_launcher.sh set-script-param comfyui launch.ps1 LaunchArg "--listen 0.0.0.0 --port 8188"
+./installer_launcher.sh set-script-param comfyui launch.ps1 DisableUpdate 1
+```
+
+给管理脚本追加额外原始参数：
 
 ```bash
 ./installer_launcher.sh set-script-args comfyui launch.ps1 "--listen 0.0.0.0 --port 8188"
@@ -484,6 +491,8 @@ installer-launcher-YYYYMMDD.log
 - `reinstall_pytorch.ps1`：重装 PyTorch。
 
 `activate.ps1` 不会在启动器中单独显示，因为 `terminal.ps1` 会自动处理环境激活。
+
+管理脚本参数会按 `manager_script_docs.md` 中的脚本文档动态显示和保存。结构化参数会先传给脚本，额外原始参数会追加在后面；如果脚本支持 `-NoPause`，启动器会自动追加并避免重复。
 
 如果管理脚本返回非零退出代码，启动器同样会停留在当前终端，等待用户查看 PowerShell 输出后按 Enter 返回。
 

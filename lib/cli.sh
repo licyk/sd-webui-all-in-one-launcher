@@ -12,6 +12,7 @@ Usage:
   $0 run-script <script.ps1> [args...]
   $0 set-main <key> <value>
   $0 set-project <project> <key> <value>
+  $0 set-script-param <project> <script.ps1> <param> <value>
   $0 set-script-args <project> <script.ps1> <args>
   $0 config [project]
   $0 show-log [lines]
@@ -26,6 +27,8 @@ Examples:
   $0 uninstall comfyui
   $0 set-project sd_webui INSTALL_PATH /data/stable-diffusion-webui
   $0 set-project fooocus INSTALL_BRANCH fooocus_mre_main
+  $0 set-script-param comfyui launch.ps1 LaunchArg "--listen 0.0.0.0 --port 8188"
+  $0 set-script-param comfyui launch.ps1 DisableUpdate 1
   $0 set-script-args comfyui launch.ps1 "--listen 0.0.0.0 --port 8188"
   $0 set-main AUTO_UPDATE_ENABLED 0
   $0 set-main SHOW_WELCOME_SCREEN 0
@@ -137,6 +140,16 @@ main() {
       [[ "$#" -eq 4 ]] || die "用法: $0 set-project <project> <key> <value>"
       log_info "set project config: project=$2 key=$3 value=$(sanitize_config_log_value "$3" "$4")"
       set_project_config_key "$2" "$3" "$4"
+      ;;
+    set-script-param)
+      [[ "$#" -eq 5 ]] || die "用法: $0 set-script-param <project> <script.ps1> <param> <value>"
+      require_project_key "$2"
+      management_script_supports_param "$2" "$3" "$4" || die "$3 不支持管理脚本参数: $4"
+      [[ "$4" != "NoPause" ]] || die "NoPause 会自动追加，不需要配置。"
+      load_project_config "$2"
+      set_script_param_value "$3" "$4" "$5"
+      save_project_config "$2"
+      log_info "set script param: project=$2 script=$3 param=$4 value=$(sanitize_config_log_value "$4" "$5")"
       ;;
     set-script-args)
       [[ "$#" -eq 4 ]] || die "用法: $0 set-script-args <project> <script.ps1> <args>"

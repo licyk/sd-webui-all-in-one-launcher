@@ -309,6 +309,7 @@ function Get-DefaultProjectConfig {
         NO_PRE_DOWNLOAD_NODE = $false
         NO_PRE_DOWNLOAD_MODEL = $false
         NO_CLEAN_CACHE = $false
+        ScriptParams = @{}
         ScriptArgs = @{}
     }
 }
@@ -337,6 +338,16 @@ function Read-JsonConfig {
         }
         if ($merged.Contains("ScriptArgs") -and $null -ne $merged["ScriptArgs"] -and -not ($merged["ScriptArgs"] -is [System.Collections.IDictionary])) {
             $merged["ScriptArgs"] = ConvertTo-PlainHashtable $merged["ScriptArgs"]
+        }
+        if ($merged.Contains("ScriptParams") -and $null -ne $merged["ScriptParams"] -and -not ($merged["ScriptParams"] -is [System.Collections.IDictionary])) {
+            $merged["ScriptParams"] = ConvertTo-PlainHashtable $merged["ScriptParams"]
+        }
+        if ($merged.Contains("ScriptParams") -and $null -ne $merged["ScriptParams"]) {
+            foreach ($scriptName in @($merged["ScriptParams"].Keys)) {
+                if ($null -ne $merged["ScriptParams"][$scriptName] -and -not ($merged["ScriptParams"][$scriptName] -is [System.Collections.IDictionary])) {
+                    $merged["ScriptParams"][$scriptName] = ConvertTo-PlainHashtable $merged["ScriptParams"][$scriptName]
+                }
+            }
         }
         return $merged
     } catch {
@@ -629,6 +640,69 @@ function Test-ProjectParam {
     return @($Project.Params) -contains $ParamName
 }
 
+function Get-ManagementScriptParams {
+    param([string]$ProjectKey, [string]$ScriptName)
+    switch ($ScriptName) {
+        "launch.ps1" { return @("CorePrefix", "BuildMode", "DisablePyPIMirror", "DisableUpdate", "DisableProxy", "UseCustomProxy", "DisableHuggingFaceMirror", "UseCustomHuggingFaceMirror", "DisableGithubMirror", "UseCustomGithubMirror", "DisableUV", "LaunchArg", "EnableShortcut", "DisableCUDAMalloc", "DisableEnvCheck", "NoPause") }
+        "download_models.ps1" { return @("CorePrefix", "BuildMode", "BuildWithModel", "DisableProxy", "UseCustomProxy", "DisableUpdate", "DisableModelMirror", "NoPause") }
+        "reinstall_pytorch.ps1" { return @("CorePrefix", "BuildMode", "BuildWithTorch", "BuildWithTorchReinstall", "DisablePyPIMirror", "DisableUpdate", "DisableUV", "DisableProxy", "UseCustomProxy", "NoPause") }
+        "settings.ps1" { return @("CorePrefix", "DisableProxy", "UseCustomProxy", "NoPause") }
+        "switch_branch.ps1" { return @("CorePrefix", "BuildMode", "BuildWithBranch", "DisableUpdate", "DisableProxy", "UseCustomProxy", "DisableGithubMirror", "UseCustomGithubMirror", "NoPause") }
+        "update.ps1" {
+            if ($ProjectKey -eq "invokeai") { return @("CorePrefix", "BuildMode", "DisableUpdate", "DisableProxy", "UseCustomProxy", "DisablePyPIMirror", "DisableUV", "NoPause") }
+            return @("CorePrefix", "BuildMode", "DisableUpdate", "DisableProxy", "UseCustomProxy", "DisableGithubMirror", "UseCustomGithubMirror", "NoPause")
+        }
+        { $_ -in @("update_node.ps1", "update_extension.ps1") } { return @("CorePrefix", "BuildMode", "DisableUpdate", "DisableProxy", "UseCustomProxy", "DisableGithubMirror", "UseCustomGithubMirror", "NoPause") }
+        default { return @("NoPause") }
+    }
+}
+
+function Test-ManagementScriptParam {
+    param([string]$ProjectKey, [string]$ScriptName, [string]$ParamName)
+    return @((Get-ManagementScriptParams $ProjectKey $ScriptName)) -contains $ParamName
+}
+
+function Test-ScriptParamIsFlag {
+    param([string]$ParamName)
+    return $ParamName -in @("BuildMode", "DisablePyPIMirror", "DisableUpdate", "DisableProxy", "DisableHuggingFaceMirror", "DisableGithubMirror", "DisableUV", "EnableShortcut", "DisableCUDAMalloc", "DisableEnvCheck", "DisableModelMirror", "BuildWithTorchReinstall")
+}
+
+function Get-SelectedScriptName {
+    param($ScriptCombo)
+    if ($null -eq $ScriptCombo -or $null -eq $ScriptCombo.SelectedItem) { return "" }
+    $selected = $ScriptCombo.SelectedItem
+    if ($selected -is [System.Windows.Controls.ComboBoxItem]) { return [string]$selected.Tag }
+    if ($null -ne $selected.PSObject.Properties["Name"]) { return [string]$selected.PSObject.Properties["Name"].Value }
+    return [string]$selected
+}
+
+function Get-ScriptParamLabel {
+    param([string]$ParamName)
+    switch ($ParamName) {
+        "CorePrefix" { "内核路径前缀 -CorePrefix"; break }
+        "BuildMode" { "构建模式 -BuildMode"; break }
+        "BuildWithModel" { "构建后下载模型编号 -BuildWithModel"; break }
+        "BuildWithTorch" { "PyTorch 版本编号 -BuildWithTorch"; break }
+        "BuildWithTorchReinstall" { "强制重装 PyTorch -BuildWithTorchReinstall"; break }
+        "BuildWithBranch" { "构建分支 -BuildWithBranch"; break }
+        "DisablePyPIMirror" { "禁用 PyPI 镜像 -DisablePyPIMirror"; break }
+        "DisableUpdate" { "禁用更新检查 -DisableUpdate"; break }
+        "DisableProxy" { "禁用自动代理 -DisableProxy"; break }
+        "UseCustomProxy" { "自定义代理 -UseCustomProxy"; break }
+        "DisableHuggingFaceMirror" { "禁用 HuggingFace 镜像 -DisableHuggingFaceMirror"; break }
+        "UseCustomHuggingFaceMirror" { "自定义 HuggingFace 镜像 -UseCustomHuggingFaceMirror"; break }
+        "DisableGithubMirror" { "禁用 Github 镜像 -DisableGithubMirror"; break }
+        "UseCustomGithubMirror" { "自定义 Github 镜像 -UseCustomGithubMirror"; break }
+        "DisableUV" { "禁用 uv -DisableUV"; break }
+        "LaunchArg" { "启动参数 -LaunchArg"; break }
+        "EnableShortcut" { "创建快捷方式 -EnableShortcut"; break }
+        "DisableCUDAMalloc" { "禁用 CUDA 内存分配器 -DisableCUDAMalloc"; break }
+        "DisableEnvCheck" { "禁用环境检查 -DisableEnvCheck"; break }
+        "DisableModelMirror" { "禁用模型镜像 -DisableModelMirror"; break }
+        default { $ParamName; break }
+    }
+}
+
 function Get-EffectiveInstallPath {
     param($Project, [System.Collections.IDictionary]$Config)
     if (-not [string]::IsNullOrWhiteSpace($Config["INSTALL_PATH"])) { return $Config["INSTALL_PATH"] }
@@ -669,6 +743,34 @@ function Build-InstallerArgs {
         foreach ($arg in (Split-Shlex $Config["EXTRA_INSTALL_ARGS"])) { $args.Add($arg) }
     }
     if (-not (Test-ArgsContains @($args) "-NoPause")) { $args.Add("-NoPause") }
+    return @($args)
+}
+
+function Build-ManagementScriptArgs {
+    param([string]$ProjectKey, [string]$ScriptName, [System.Collections.IDictionary]$Config)
+    $args = New-Object System.Collections.Generic.List[string]
+    $scriptParams = @{}
+    if ($Config.Contains("ScriptParams") -and $null -ne $Config["ScriptParams"] -and (Test-DictionaryKey $Config["ScriptParams"] $ScriptName)) {
+        $scriptParams = $Config["ScriptParams"][$ScriptName]
+    }
+    foreach ($paramName in (Get-ManagementScriptParams $ProjectKey $ScriptName)) {
+        if ($paramName -eq "NoPause") { continue }
+        $value = ""
+        if ($null -ne $scriptParams -and (Test-DictionaryKey $scriptParams $paramName)) { $value = $scriptParams[$paramName] }
+        if (Test-ScriptParamIsFlag $paramName) {
+            if ([bool]$value) { $args.Add("-$paramName") }
+        } elseif (-not [string]::IsNullOrWhiteSpace([string]$value)) {
+            $args.Add("-$paramName")
+            $args.Add([string]$value)
+        }
+    }
+    if ($Config.Contains("ScriptArgs") -and $null -ne $Config["ScriptArgs"] -and (Test-DictionaryKey $Config["ScriptArgs"] $ScriptName)) {
+        $argsText = [string]$Config["ScriptArgs"][$ScriptName]
+        if (-not [string]::IsNullOrWhiteSpace($argsText)) {
+            foreach ($arg in (Split-Shlex $argsText)) { $args.Add($arg) }
+        }
+    }
+    if ((Test-ManagementScriptParam $ProjectKey $ScriptName "NoPause") -and -not (Test-ArgsContains @($args) "-NoPause")) { $args.Add("-NoPause") }
     return @($args)
 }
 
@@ -855,9 +957,13 @@ function Start-GuiOperation {
 function Append-UiLog {
     param($UI, [string]$Text)
     $line = "[{0}] {1}" -f (Get-Date -Format "HH:mm:ss"), $Text
-    if ($null -ne $UI.LogBox) {
-        $UI.LogBox.AppendText($line + [Environment]::NewLine)
-        $UI.LogBox.ScrollToEnd()
+    $logBox = $null
+    if ($null -ne $UI -and $null -ne $UI.PSObject.Properties["LogBox"]) {
+        $logBox = $UI.PSObject.Properties["LogBox"].Value
+    }
+    if ($null -ne $logBox) {
+        $logBox.AppendText($line + [Environment]::NewLine)
+        $logBox.ScrollToEnd()
     }
     Write-Log INFO $Text
 }
@@ -899,8 +1005,10 @@ function Collect-ProjectConfigFromUi {
         if ($control -is [System.Windows.Controls.CheckBox]) {
             $config[$key] = [bool]$control.IsChecked
         } elseif ($control -is [System.Windows.Controls.ComboBox]) {
-            if ($null -ne $control.SelectedItem -and $null -ne $control.SelectedItem.Key) {
-                $config[$key] = [string]$control.SelectedItem.Key
+            if ($null -ne $control.SelectedItem -and $control.SelectedItem -is [System.Windows.Controls.ComboBoxItem]) {
+                $config[$key] = [string]$control.SelectedItem.Tag
+            } elseif ($null -ne $control.SelectedItem -and $null -ne $control.SelectedItem.PSObject.Properties["Key"]) {
+                $config[$key] = [string]$control.SelectedItem.PSObject.Properties["Key"].Value
             } elseif ($null -ne $control.SelectedValue) {
                 $config[$key] = [string]$control.SelectedValue
             } elseif ($null -ne $control.Text) {
@@ -1002,22 +1110,18 @@ function Add-ConfigComboBox {
     $rowInfo = New-ConfigCardRow $Label
     $combo = New-Object System.Windows.Controls.ComboBox
     $combo.IsEditable = $false
-    $combo.DisplayMemberPath = "Label"
-    $combo.SelectedValuePath = "Key"
-    $items = @()
     if ($null -ne $Options) {
         foreach ($optionKey in $Options.Keys) {
-            $items += [PSCustomObject]@{ Key = [string]$optionKey; Label = "$optionKey - $($Options[$optionKey])" }
+            $item = New-Object System.Windows.Controls.ComboBoxItem
+            $item.Content = "$optionKey - $($Options[$optionKey])"
+            $item.Tag = [string]$optionKey
+            $combo.Items.Add($item) | Out-Null
+            if ([string]$optionKey -eq $Value) {
+                $combo.SelectedItem = $item
+            }
         }
     }
-    $combo.ItemsSource = $items
-    foreach ($item in $items) {
-        if ($item.Key -eq $Value) {
-            $combo.SelectedItem = $item
-            break
-        }
-    }
-    if ($null -eq $combo.SelectedItem -and $items.Count -gt 0) { $combo.SelectedIndex = 0 }
+    if ($null -eq $combo.SelectedItem -and $combo.Items.Count -gt 0) { $combo.SelectedIndex = 0 }
     [System.Windows.Controls.Grid]::SetColumn($combo, 1)
     $rowInfo.Grid.Children.Add($combo) | Out-Null
     $Panel.Children.Add($rowInfo.Card) | Out-Null
@@ -1035,6 +1139,49 @@ function Add-ConfigCheckBox {
     $rowInfo.Grid.Children.Add($box) | Out-Null
     $Panel.Children.Add($rowInfo.Card) | Out-Null
     $State.ConfigControls[$Key] = $box
+}
+
+function Refresh-ScriptParamUi {
+    param($UI, $State)
+    if ($null -eq $UI.ScriptParamPanel) { return }
+    $UI.ScriptParamPanel.Children.Clear()
+    $State.ScriptParamControls = @{}
+    $key = Get-CurrentProjectKey
+    if ([string]::IsNullOrWhiteSpace($key) -or $null -eq $UI.ScriptCombo.SelectedItem) { return }
+    $scriptName = Get-SelectedScriptName $UI.ScriptCombo
+    $config = Get-ProjectConfig $key
+    $scriptParams = @{}
+    if ($config.Contains("ScriptParams") -and $null -ne $config["ScriptParams"] -and (Test-DictionaryKey $config["ScriptParams"] $scriptName)) {
+        $scriptParams = $config["ScriptParams"][$scriptName]
+    }
+    $scriptState = [PSCustomObject]@{ ConfigControls = @{} }
+    foreach ($paramName in (Get-ManagementScriptParams $key $scriptName)) {
+        if ($paramName -eq "NoPause") { continue }
+        $value = ""
+        if ($null -ne $scriptParams -and (Test-DictionaryKey $scriptParams $paramName)) { $value = $scriptParams[$paramName] }
+        if (Test-ScriptParamIsFlag $paramName) {
+            Add-ConfigCheckBox $UI.ScriptParamPanel $scriptState $paramName (Get-ScriptParamLabel $paramName) ([bool]$value)
+        } else {
+            Add-ConfigTextBox $UI.ScriptParamPanel $scriptState $paramName (Get-ScriptParamLabel $paramName) ([string]$value)
+        }
+    }
+    $State.ScriptParamControls = $scriptState.ConfigControls
+}
+
+function Save-ScriptParamUi {
+    param($UI, $State, [System.Collections.IDictionary]$Config)
+    if ($null -eq $Config["ScriptParams"]) { $Config["ScriptParams"] = @{} }
+    $scriptName = Get-SelectedScriptName $UI.ScriptCombo
+    $values = @{}
+    foreach ($paramName in $State.ScriptParamControls.Keys) {
+        $control = $State.ScriptParamControls[$paramName]
+        if ($control -is [System.Windows.Controls.CheckBox]) {
+            $values[$paramName] = [bool]$control.IsChecked
+        } elseif ($control -is [System.Windows.Controls.TextBox]) {
+            $values[$paramName] = $control.Text
+        }
+    }
+    $Config["ScriptParams"][$scriptName] = $values
 }
 
 function Refresh-ProjectConfigUi {
@@ -1105,11 +1252,12 @@ function Refresh-Status {
     $UI.ProjectStatusText.Text = "当前项目: $($project.Name)`n安装状态: $($status.Label)`n$($status.Detail)`n下一步: $nextStep`n代理模式: $proxyMode    自动更新: $autoUpdate"
     $scripts = @()
     foreach ($scriptName in $project.Scripts.Keys) {
-        $scripts += [PSCustomObject]@{ Name = $scriptName; Label = "$scriptName - $($project.Scripts[$scriptName])" }
+        $item = New-Object System.Windows.Controls.ComboBoxItem
+        $item.Content = "$scriptName - $($project.Scripts[$scriptName])"
+        $item.Tag = $scriptName
+        $scripts += $item
     }
     $UI.ScriptCombo.ItemsSource = $scripts
-    $UI.ScriptCombo.DisplayMemberPath = "Label"
-    $UI.ScriptCombo.SelectedValuePath = "Name"
     if ($scripts.Count -gt 0) { $UI.ScriptCombo.SelectedIndex = 0 }
 }
 
@@ -1316,7 +1464,7 @@ function Invoke-RunManagementScript {
     $config = Get-ProjectConfig $key
     $selected = $UI.ScriptCombo.SelectedItem
     if ($null -eq $selected) { Show-Message "请选择要运行的管理脚本。" "未选择脚本" "Warning"; return }
-    $scriptName = $selected.Name
+    $scriptName = Get-SelectedScriptName $UI.ScriptCombo
     $installPath = Get-EffectiveInstallPath $project $config
     $scriptPath = Join-Path $installPath $scriptName
     if (-not (Test-Path $scriptPath -PathType Leaf)) {
@@ -1328,10 +1476,11 @@ function Invoke-RunManagementScript {
     } elseif ($scriptName -eq "terminal.ps1") {
         if (-not (Confirm-Message "即将打开 terminal.ps1 交互终端。`n`n打开后可以输入命令并回车执行；需要退出时输入 exit 并回车。" "继续打开 terminal.ps1")) { return }
     }
-    $argsText = ""
-    if ($null -ne $config["ScriptArgs"] -and (Test-DictionaryKey $config["ScriptArgs"] $scriptName)) { $argsText = [string]$config["ScriptArgs"][$scriptName] }
-    if ([string]::IsNullOrWhiteSpace($argsText)) { $scriptArgs = @() } else { $scriptArgs = @(Split-Shlex $argsText) }
-    if (-not (Test-ArgsContains @($scriptArgs) "-NoPause")) { $scriptArgs += "-NoPause" }
+    if ($null -eq $config["ScriptArgs"]) { $config["ScriptArgs"] = @{} }
+    $config["ScriptArgs"][$scriptName] = $UI.ScriptArgsBox.Text
+    Save-ScriptParamUi $UI $State $config
+    Save-ProjectConfig $key $config
+    $scriptArgs = @(Build-ManagementScriptArgs $key $scriptName $config)
     if ($null -eq $scriptArgs -or $scriptArgs.Count -eq 0) { $scriptArgsText = "" } else { $scriptArgsText = Join-Shlex $scriptArgs }
     Write-Log DEBUG "management script args prepared: project=$key script=$scriptName path=$scriptPath args=$(Format-LogArgs $scriptArgs) args_text=$scriptArgsText"
     $operation = {
@@ -1538,6 +1687,7 @@ Windows GUI 启动器使用说明
 2. 在“安装器配置”中调整安装路径、分支、镜像、代理和开关参数。
 3. 点击“保存配置”，再点击“运行安装器”。GUI 会重新下载安装器并打开 PowerShell 控制台执行。
 4. 安装完成后，在“管理脚本”中选择 launch.ps1、update.ps1、terminal.ps1 等脚本运行。
+5. 管理脚本参数会按当前脚本文档动态显示；结构化参数会排在“额外原始参数”之前，-NoPause 会自动追加。
 
 代理:
 - auto: 自动读取 Windows 系统代理，不覆盖已有环境变量。
@@ -1972,7 +2122,13 @@ function Start-App {
                       <RowDefinition Height="Auto"/>
                     </Grid.RowDefinitions>
                     <ComboBox Name="ScriptCombo" Grid.Row="0" Margin="0,0,0,12"/>
-                    <TextBox Name="ScriptArgsBox" Grid.Row="1" MinHeight="150" AcceptsReturn="True" VerticalScrollBarVisibility="Auto" TextWrapping="Wrap" Margin="0,0,0,14" ToolTip="保存给当前管理脚本的默认参数"/>
+                    <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto" Margin="0,0,0,14">
+                      <StackPanel>
+                        <StackPanel Name="ScriptParamPanel"/>
+                        <TextBlock Text="额外原始参数（追加到结构化参数之后）" FontWeight="SemiBold" Margin="0,4,0,8"/>
+                        <TextBox Name="ScriptArgsBox" MinHeight="96" AcceptsReturn="True" VerticalScrollBarVisibility="Auto" TextWrapping="Wrap" ToolTip="保存给当前管理脚本的额外原始参数"/>
+                      </StackPanel>
+                    </ScrollViewer>
                     <StackPanel Grid.Row="2" Orientation="Horizontal">
                       <Button Name="SaveScriptArgsBtn" Content="保存脚本参数"/>
                       <Button Name="RunScriptBtn" Content="运行脚本" Style="{StaticResource PrimaryButton}"/>
@@ -2059,12 +2215,12 @@ function Start-App {
         Window = $window; TitleBar = $window.FindName("TitleBar"); MinBtn = $window.FindName("MinBtn"); MaxBtn = $window.FindName("MaxBtn"); CloseBtn = $window.FindName("CloseBtn")
         MainBorder = $window.FindName("MainBorder"); HomePage = $window.FindName("HomePage"); SettingsPage = $window.FindName("SettingsPage"); MainTabs = $window.FindName("MainTabs"); ProjectList = $window.FindName("ProjectList"); ProjectStatusText = $window.FindName("ProjectStatusText"); BusyText = $window.FindName("BusyText")
         ConfigPanel = $window.FindName("ConfigPanel"); SaveConfigBtn = $window.FindName("SaveConfigBtn"); RunInstallerBtn = $window.FindName("RunInstallerBtn"); RefreshStatusBtn = $window.FindName("RefreshStatusBtn")
-        ScriptCombo = $window.FindName("ScriptCombo"); ScriptArgsBox = $window.FindName("ScriptArgsBox"); SaveScriptArgsBtn = $window.FindName("SaveScriptArgsBtn"); RunScriptBtn = $window.FindName("RunScriptBtn")
+        ScriptCombo = $window.FindName("ScriptCombo"); ScriptParamPanel = $window.FindName("ScriptParamPanel"); ScriptArgsBox = $window.FindName("ScriptArgsBox"); SaveScriptArgsBtn = $window.FindName("SaveScriptArgsBtn"); RunScriptBtn = $window.FindName("RunScriptBtn")
         AutoUpdateCheck = $window.FindName("AutoUpdateCheck"); WelcomeCheck = $window.FindName("WelcomeCheck"); LogLevelCombo = $window.FindName("LogLevelCombo"); ProxyModeCombo = $window.FindName("ProxyModeCombo"); ManualProxyBox = $window.FindName("ManualProxyBox")
         SaveMainBtn = $window.FindName("SaveMainBtn"); CheckUpdateBtn = $window.FindName("CheckUpdateBtn"); UninstallBtn = $window.FindName("UninstallBtn"); SettingsNavBtn = $window.FindName("SettingsNavBtn"); BackHomeBtn = $window.FindName("BackHomeBtn"); HelpBtn = $window.FindName("HelpBtn"); ShowLogBtn = $window.FindName("ShowLogBtn")
         LogBox = $window.FindName("LogBox")
     }
-    $State = [PSCustomObject]@{ CurrentOperation = $null; ConfigControls = @{}; ProjectConfig = @{} }
+    $State = [PSCustomObject]@{ CurrentOperation = $null; ConfigControls = @{}; ScriptParamControls = @{}; ProjectConfig = @{} }
     $mainConfig = $script:MainConfig
 
     $UI.LogLevelCombo.ItemsSource = @("DEBUG", "INFO", "WARN", "ERROR")
@@ -2117,21 +2273,24 @@ function Start-App {
         $key = Get-CurrentProjectKey
         if ([string]::IsNullOrWhiteSpace($key) -or $null -eq $UI.ScriptCombo.SelectedItem) { return }
         $config = Get-ProjectConfig $key
-        $scriptName = $UI.ScriptCombo.SelectedItem.Name
+        $scriptName = Get-SelectedScriptName $UI.ScriptCombo
         if ($null -ne $config["ScriptArgs"] -and (Test-DictionaryKey $config["ScriptArgs"] $scriptName)) {
             $UI.ScriptArgsBox.Text = [string]$config["ScriptArgs"][$scriptName]
         } else {
             $UI.ScriptArgsBox.Text = ""
         }
+        Refresh-ScriptParamUi $UI $State
     }.GetNewClosure())
     $UI.SaveScriptArgsBtn.Add_Click({
         $key = Get-CurrentProjectKey
         if ([string]::IsNullOrWhiteSpace($key) -or $null -eq $UI.ScriptCombo.SelectedItem) { return }
         $config = Get-ProjectConfig $key
         if ($null -eq $config["ScriptArgs"]) { $config["ScriptArgs"] = @{} }
-        $config["ScriptArgs"][$UI.ScriptCombo.SelectedItem.Name] = $UI.ScriptArgsBox.Text
+        $scriptName = Get-SelectedScriptName $UI.ScriptCombo
+        $config["ScriptArgs"][$scriptName] = $UI.ScriptArgsBox.Text
+        Save-ScriptParamUi $UI $State $config
         Save-ProjectConfig $key $config
-        Append-UiLog $UI "管理脚本参数已保存: $($UI.ScriptCombo.SelectedItem.Name)"
+        Append-UiLog $UI "管理脚本参数已保存: $scriptName"
     }.GetNewClosure())
     $UI.RunScriptBtn.Add_Click({ Invoke-RunManagementScript $UI $State }.GetNewClosure())
     $UI.SaveMainBtn.Add_Click({

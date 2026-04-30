@@ -225,6 +225,13 @@ script_arg_var_name() {
   printf 'SCRIPT_ARGS_%s' "$safe"
 }
 
+script_param_var_name() {
+  local script_safe param_safe
+  script_safe="$(printf '%s' "$1" | tr '[:lower:].-' '[:upper:]__' | tr -c 'A-Z0-9_' '_')"
+  param_safe="$(printf '%s' "$2" | sed -E 's/([a-z0-9])([A-Z])/\1_\2/g' | tr '[:lower:]-' '[:upper:]_')"
+  printf 'SCRIPT_PARAM_%s_%s' "$script_safe" "$param_safe"
+}
+
 split_args() {
   local raw="$1" output_name="$2"
   # shellcheck disable=SC2178

@@ -145,6 +145,13 @@
 ## 管理脚本
 
 - [x] 管理脚本只从有效安装路径查找。
+- [x] 已根据 `manager_script_docs.md` 为管理脚本增加按脚本粒度的参数能力表。
+- [x] TUI 中“调整子脚本默认启动参数”已改为动态结构化配置界面，只显示当前管理脚本支持的参数。
+- [x] CLI 已新增 `set-script-param <project> <script.ps1> <param> <value>`，用于配置管理脚本结构化参数。
+- [x] GUI 管理脚本页已增加动态参数配置面板，并保留额外原始参数作为兜底。
+- [x] 修复 GUI 管理脚本下拉框显示 `@{Name=...; Label=...}` 的问题，改用 `ComboBoxItem.Content/Tag` 分离显示文本和真实脚本名。
+- [x] 修复 GUI 事件处理失败时因日志控件缺失属性再次报错的问题。
+- [x] 运行管理脚本时会先拼接结构化参数，再追加额外原始参数，最后自动追加 `-NoPause` 并避免重复。
 - [x] `terminal.ps1` 会自动处理环境激活，因此已移除 `activate.ps1` 入口。
 - [x] 已从管理脚本入口中移除 `init.ps1` 和 `tensorboard.ps1`。
 - [x] 运行 `launch.ps1` 前显示确认提示，说明确认后继续执行且可按 `Ctrl+C` 终止。
@@ -152,6 +159,7 @@
 - [x] `terminal.ps1` 的界面说明已改为打开交互终端，可在已激活的项目环境中执行命令。
 - [x] 管理脚本返回非零退出代码时，会停留在当前终端提示用户查看 PowerShell 输出日志，按 Enter 后再返回 TUI。
 - [x] 子脚本默认参数可按项目配置保存。
+- [x] 子脚本结构化参数会随项目配置保存，并在 `show-config` 中展示。
 
 ## TUI
 
@@ -217,6 +225,7 @@
 - [x] `README.md` 已补充 `install-launcher` 如何创建命令链接、写入 PATH，以及手动注册 PATH 的方法。
 - [x] `README.md` 已补充已安装软件卸载和双确认说明。
 - [x] `README.md` 已补充自动更新和 dialog 操作说明。
+- [x] `README.md` 已补充管理脚本结构化参数配置、额外原始参数和 `-NoPause` 自动追加说明。
 - [x] `README.md` 已补充自动更新检查/更新过程会输出状态。
 - [x] `todo.md` 已移动到 `docs/todo.md`。
 - [x] `docs/architecture.md` 已记录入口脚本、模块职责、配置数据流、TUI 数据流、安装器运行流程和安装检测逻辑。

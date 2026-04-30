@@ -353,3 +353,45 @@ project_supports_param() {
   done < <(project_param_entries "$key")
   return 1
 }
+
+management_script_param_entries() {
+  local key="$1" script_name="$2"
+  case "$script_name" in
+    launch.ps1)
+      printf '%s\n' CorePrefix BuildMode DisablePyPIMirror DisableUpdate DisableProxy UseCustomProxy DisableHuggingFaceMirror UseCustomHuggingFaceMirror DisableGithubMirror UseCustomGithubMirror DisableUV LaunchArg EnableShortcut DisableCUDAMalloc DisableEnvCheck NoPause
+      ;;
+    download_models.ps1)
+      printf '%s\n' CorePrefix BuildMode BuildWithModel DisableProxy UseCustomProxy DisableUpdate DisableModelMirror NoPause
+      ;;
+    reinstall_pytorch.ps1)
+      printf '%s\n' CorePrefix BuildMode BuildWithTorch BuildWithTorchReinstall DisablePyPIMirror DisableUpdate DisableUV DisableProxy UseCustomProxy NoPause
+      ;;
+    settings.ps1)
+      printf '%s\n' CorePrefix DisableProxy UseCustomProxy NoPause
+      ;;
+    switch_branch.ps1)
+      printf '%s\n' CorePrefix BuildMode BuildWithBranch DisableUpdate DisableProxy UseCustomProxy DisableGithubMirror UseCustomGithubMirror NoPause
+      ;;
+    update.ps1)
+      if [[ "$key" == "invokeai" ]]; then
+        printf '%s\n' CorePrefix BuildMode DisableUpdate DisableProxy UseCustomProxy DisablePyPIMirror DisableUV NoPause
+      else
+        printf '%s\n' CorePrefix BuildMode DisableUpdate DisableProxy UseCustomProxy DisableGithubMirror UseCustomGithubMirror NoPause
+      fi
+      ;;
+    update_node.ps1|update_extension.ps1)
+      printf '%s\n' CorePrefix BuildMode DisableUpdate DisableProxy UseCustomProxy DisableGithubMirror UseCustomGithubMirror NoPause
+      ;;
+    *)
+      printf '%s\n' NoPause
+      ;;
+  esac
+}
+
+management_script_supports_param() {
+  local key="$1" script_name="$2" param="$3" entry
+  while IFS= read -r entry; do
+    [[ "$entry" == "$param" ]] && return 0
+  done < <(management_script_param_entries "$key" "$script_name")
+  return 1
+}

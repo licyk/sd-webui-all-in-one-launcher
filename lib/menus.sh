@@ -57,13 +57,49 @@ select_management_script() {
 }
 
 configure_script_args() {
-  local key="${1:-$CURRENT_PROJECT}" script_name="${2:-}" current new_value
+  local key="${1:-$CURRENT_PROJECT}" script_name="${2:-}" choice current new_value param value
   load_project_config "$key"
   [[ -n "$script_name" ]] || script_name="$(select_management_script "$key")" || return 0
-  current="$(get_script_args "$script_name")"
-  new_value="$(input_box "子脚本参数" "保存给 $script_name 的默认运行参数，留空表示无参数" "$current")" || return 0
-  set_script_args "$script_name" "$new_value"
-  save_project_config "$key"
+  while true; do
+    local menu_args=()
+    while IFS= read -r param; do
+      [[ -n "$param" ]] || continue
+      [[ "$param" == "NoPause" ]] && continue
+      value="$(get_script_param_value "$script_name" "$param")"
+      if script_param_is_flag "$param"; then
+        menu_args+=("$param" "$(script_param_label "$param"): $(flag_state "${value:-0}")")
+      else
+        menu_args+=("$param" "$(script_param_label "$param"): ${value:-未设置}")
+      fi
+    done < <(management_script_param_entries "$key" "$script_name")
+    current="$(get_script_args "$script_name")"
+    menu_args+=("raw" "额外原始参数: ${current:-无}")
+    menu_args+=("back" "返回")
+
+    choice="$(menu_select "$script_name 参数配置" "只显示该管理脚本文档中支持的参数；-NoPause 会自动追加。" "${menu_args[@]}")" || return 0
+    case "$choice" in
+      back) save_project_config "$key"; return 0 ;;
+      raw)
+        new_value="$(input_box "额外原始参数" "追加给 $script_name 的原始参数，结构化参数会排在它之前" "$current")" || true
+        set_script_args "$script_name" "$new_value"
+        ;;
+      *)
+        if script_param_is_flag "$choice"; then
+          value="$(get_script_param_value "$script_name" "$choice")"
+          if [[ "$value" == "1" ]]; then
+            set_script_param_value "$script_name" "$choice" "0"
+          else
+            set_script_param_value "$script_name" "$choice" "1"
+          fi
+        else
+          value="$(get_script_param_value "$script_name" "$choice")"
+          new_value="$(input_box "$(script_param_label "$choice")" "留空表示不传 -$choice" "$value")" || true
+          set_script_param_value "$script_name" "$choice" "$new_value"
+        fi
+        ;;
+    esac
+    save_project_config "$key"
+  done
 }
 
 configure_flags() {
@@ -313,7 +349,9 @@ dialog 操作方式
     如果提示找不到脚本，通常说明项目还没安装成功，或安装路径配置不对。
 
   调整子脚本默认启动参数
-    给某个管理脚本保存默认参数。例如给 launch.ps1 保存监听地址、端口等。
+    给某个管理脚本保存默认参数。例如给 launch.ps1 保存启动参数，或给 update.ps1 禁用更新检查。
+    界面会按 manager_script_docs.md 中的脚本文档动态显示支持项，不支持的参数不会出现。
+    结构化参数会排在额外原始参数之前，-NoPause 会自动追加。
     这些参数只在运行对应子脚本时使用，不会传给主安装器。
 
   当前安装器配置
@@ -387,6 +425,7 @@ dialog 操作方式
     确认改的是正确入口:
       主安装器参数在 "当前安装器配置" 中设置。
       launch.ps1 等子脚本参数在 "调整子脚本默认启动参数" 中设置。
+      子脚本的结构化参数只会对对应脚本生效，例如 launch.ps1 的 -LaunchArg 不会传给 update.ps1。
 
 CLI 辅助命令
   ./installer_launcher.sh list-projects
@@ -403,6 +442,8 @@ CLI 辅助命令
     设置代理模式。可选 auto、manual、off。
   ./installer_launcher.sh set-main MANUAL_PROXY http://127.0.0.1:7890
     设置手动代理地址，仅在 PROXY_MODE=manual 时生效。
+  ./installer_launcher.sh set-script-param comfyui launch.ps1 LaunchArg "--listen 0.0.0.0"
+    设置某个管理脚本的结构化参数；开关参数使用 1/0。
   ./installer_launcher.sh config [project]
     查看项目配置。未传 project 时使用当前项目。
   ./installer_launcher.sh show-log [lines]

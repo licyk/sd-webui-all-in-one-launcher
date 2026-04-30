@@ -130,7 +130,7 @@ load_project_config() {
 }
 
 save_project_config() {
-  local key="$1" file config_key entry script var
+  local key="$1" file config_key entry script var param
   file="$(project_config_file "$key")"
   mkdir -p "$PROJECT_CONFIG_DIR"
   {
@@ -142,6 +142,12 @@ save_project_config() {
       script="${entry%%:*}"
       var="$(script_arg_var_name "$script")"
       printf '%s=%s\n' "$var" "$(quote_config "${!var:-}")"
+      while IFS= read -r param; do
+        [[ -n "$param" ]] || continue
+        [[ "$param" == "NoPause" ]] && continue
+        var="$(script_param_var_name "$script" "$param")"
+        printf '%s=%s\n' "$var" "$(quote_config "${!var:-}")"
+      done < <(management_script_param_entries "$key" "$script")
     done < <(script_entries_for_project "$key")
   } >"$file"
   log_debug "saved project config: project=$key file=$file install_path=${INSTALL_PATH:-<default>} branch=${INSTALL_BRANCH:-<none>} extra_args=$(sanitize_config_log_value EXTRA_INSTALL_ARGS "${EXTRA_INSTALL_ARGS:-}")"
@@ -204,7 +210,7 @@ set_project_config_key() {
 }
 
 show_config() {
-  local key="${1:-$CURRENT_PROJECT}"
+  local key="${1:-$CURRENT_PROJECT}" entry script param value
   load_main_config
   require_project_key "$key"
   load_project_config "$key"
@@ -230,4 +236,17 @@ EOF
   config_key_supported_by_project "$key" GITHUB_MIRROR && printf 'GITHUB_MIRROR=%s\n' "${GITHUB_MIRROR:-}"
   config_key_supported_by_project "$key" HUGGINGFACE_MIRROR && printf 'HUGGINGFACE_MIRROR=%s\n' "${HUGGINGFACE_MIRROR:-}"
   printf 'EXTRA_INSTALL_ARGS=%s\n' "${EXTRA_INSTALL_ARGS:-}"
+  printf '\nManagement script args:\n'
+  while IFS= read -r entry; do
+    [[ -n "$entry" ]] || continue
+    script="${entry%%:*}"
+    printf '[%s]\n' "$script"
+    while IFS= read -r param; do
+      [[ -n "$param" ]] || continue
+      [[ "$param" == "NoPause" ]] && continue
+      value="$(get_script_param_value "$script" "$param")"
+      [[ -n "$value" ]] && printf '  %s=%s\n' "$param" "$value"
+    done < <(management_script_param_entries "$key" "$script")
+    printf '  EXTRA_ARGS=%s\n' "$(get_script_args "$script")"
+  done < <(script_entries_for_project "$key")
 }

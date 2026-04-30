@@ -362,6 +362,69 @@ set_script_args() {
   printf -v "$var" '%s' "$2"
 }
 
+get_script_param_value() {
+  local script_name="$1" param="$2" var
+  var="$(script_param_var_name "$script_name" "$param")"
+  printf '%s' "${!var:-}"
+}
+
+set_script_param_value() {
+  local script_name="$1" param="$2" value="$3" var
+  var="$(script_param_var_name "$script_name" "$param")"
+  printf -v "$var" '%s' "$value"
+}
+
+script_param_is_flag() {
+  case "$1" in
+    BuildMode|DisablePyPIMirror|DisableUpdate|DisableProxy|DisableHuggingFaceMirror|DisableGithubMirror|DisableUV|EnableShortcut|DisableCUDAMalloc|DisableEnvCheck|DisableModelMirror|BuildWithTorchReinstall)
+      return 0
+      ;;
+    *) return 1 ;;
+  esac
+}
+
+script_param_label() {
+  case "$1" in
+    CorePrefix) printf '内核路径前缀 -CorePrefix' ;;
+    BuildMode) printf '构建模式 -BuildMode' ;;
+    BuildWithModel) printf '构建后下载模型编号 -BuildWithModel' ;;
+    BuildWithTorch) printf 'PyTorch 版本编号 -BuildWithTorch' ;;
+    BuildWithTorchReinstall) printf '强制重装 PyTorch -BuildWithTorchReinstall' ;;
+    BuildWithBranch) printf '构建分支 -BuildWithBranch' ;;
+    DisablePyPIMirror) printf '禁用 PyPI 镜像 -DisablePyPIMirror' ;;
+    DisableUpdate) printf '禁用更新检查 -DisableUpdate' ;;
+    DisableProxy) printf '禁用自动代理 -DisableProxy' ;;
+    UseCustomProxy) printf '自定义代理 -UseCustomProxy' ;;
+    DisableHuggingFaceMirror) printf '禁用 HuggingFace 镜像 -DisableHuggingFaceMirror' ;;
+    UseCustomHuggingFaceMirror) printf '自定义 HuggingFace 镜像 -UseCustomHuggingFaceMirror' ;;
+    DisableGithubMirror) printf '禁用 Github 镜像 -DisableGithubMirror' ;;
+    UseCustomGithubMirror) printf '自定义 Github 镜像 -UseCustomGithubMirror' ;;
+    DisableUV) printf '禁用 uv -DisableUV' ;;
+    LaunchArg) printf '启动参数 -LaunchArg' ;;
+    EnableShortcut) printf '创建快捷方式 -EnableShortcut' ;;
+    DisableCUDAMalloc) printf '禁用 CUDA 内存分配器 -DisableCUDAMalloc' ;;
+    DisableEnvCheck) printf '禁用环境检查 -DisableEnvCheck' ;;
+    DisableModelMirror) printf '禁用模型镜像 -DisableModelMirror' ;;
+    *) printf '%s' "$1" ;;
+  esac
+}
+
+append_management_script_args() {
+  local key="$1" script_name="$2" output_name="$3" param value
+  # shellcheck disable=SC2178
+  local -n output_ref="$output_name"
+  while IFS= read -r param; do
+    [[ -n "$param" ]] || continue
+    [[ "$param" == "NoPause" ]] && continue
+    value="$(get_script_param_value "$script_name" "$param")"
+    if script_param_is_flag "$param"; then
+      [[ "$value" == "1" ]] && output_ref+=("-$param")
+    elif [[ -n "$value" ]]; then
+      output_ref+=("-$param" "$value")
+    fi
+  done < <(management_script_param_entries "$key" "$script_name")
+}
+
 show_management_script_hint() {
   case "$1" in
     launch.ps1)
@@ -386,7 +449,7 @@ show_management_script_hint() {
 }
 
 run_management_script() {
-  local key="${1:-$CURRENT_PROJECT}" script_name="${2:-}" args_raw="${3-}" script_path args=() status
+  local key="${1:-$CURRENT_PROJECT}" script_name="${2:-}" args_raw="${3-}" script_path args=() extra_args=() status
   load_project_config "$key"
   [[ -n "$script_name" ]] || script_name="$(select_management_script "$key")" || return 0
   [[ -n "${args_raw:-}" ]] || args_raw="$(get_script_args "$script_name")"
@@ -395,8 +458,12 @@ run_management_script() {
     show_error "未找到 $script_name。请先运行安装器，或检查 INSTALL_PATH。"
     return 1
   fi
-  split_args "$args_raw" args
-  append_no_pause_arg "$key" args
+  append_management_script_args "$key" "$script_name" args
+  split_args "$args_raw" extra_args
+  args+=("${extra_args[@]}")
+  if management_script_supports_param "$key" "$script_name" NoPause || project_supports_param "$key" NoPause; then
+    args_contains_param "-NoPause" "${args[@]}" || args+=("-NoPause")
+  fi
   log_info "management script prepared: project=$key script=$script_name path=$script_path args=$(format_log_args "${args[@]}")"
   if dialog_available; then
     clear || true
