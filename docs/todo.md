@@ -293,6 +293,7 @@
 - [x] GUI 启动器卸载 worker 改为通过 `cmd /c start` 脱离父进程启动，若 GUI 父进程未及时退出则强制终止后再清理安装脚本和 AppData 目录。
 - [x] GUI 启动器卸载确认后父进程改为立即退出，卸载完成/残留路径提示完全由独立卸载脚本显示并根据实际删除结果判断。
 - [x] 修复从 Windows 控制面板调用 `-UninstallLauncher` 时未初始化 `$script:MainConfig` 导致严格模式异常的问题，卸载冷启动入口会先加载主配置再写日志。
+- [x] 修复 GUI 卸载倒计时确认窗口固定高度过低导致长路径内容、倒计时区域和按钮被裁切的问题，改为可调整大小、内容滚动和固定底部按钮区。
 - [x] GUI 启动时注册当前用户级 Windows 卸载项，可从系统应用卸载入口调用 `installer_launcher_gui.ps1 -UninstallLauncher` 执行卸载。
 - [x] 新增 Windows GUI 安装脚本 `install.ps1`，将 GUI 脚本安装到 `%APPDATA%\installer-launcher`，创建桌面/开始菜单快捷方式，并注册当前用户卸载项。
 - [x] `install.ps1` 优先复制同目录 `installer_launcher_gui.ps1`，缺失时按 GitHub/Gitee 多地址下载 GUI 脚本；快捷方式图标继续使用 ModelScope / HuggingFace 下载源。

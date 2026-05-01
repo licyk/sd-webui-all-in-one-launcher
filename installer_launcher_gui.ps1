@@ -16,7 +16,7 @@ param(
     [switch]$UninstallLauncher
 )
 
-$script:INSTALLER_LAUNCHER_GUI_VERSION = "0.1.4"
+$script:INSTALLER_LAUNCHER_GUI_VERSION = "0.1.5"
 $script:APP_NAME = "installer-launcher"
 $script:APP_TITLE = "SD WebUI All In One Installer Launcher GUI"
 $script:SELF_REMOTE_URLS = @(
@@ -634,26 +634,31 @@ function Show-CountdownConfirmDialog {
     if ($Seconds -lt 0) { $Seconds = 0 }
     [xml]$xaml = @"
 <Window xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
-        Title="最终确认" Width="560" Height="280" WindowStartupLocation="CenterScreen" ResizeMode="NoResize">
+        Title="最终确认" Width="640" Height="420" MinWidth="560" MinHeight="380" WindowStartupLocation="CenterScreen" ResizeMode="CanResize">
   <Grid Margin="18">
     <Grid.RowDefinitions>
       <RowDefinition Height="Auto"/>
       <RowDefinition Height="*"/>
       <RowDefinition Height="Auto"/>
+      <RowDefinition Height="Auto"/>
     </Grid.RowDefinitions>
-    <StackPanel Grid.Row="0" Margin="0,0,0,14">
+    <StackPanel Grid.Row="0" Margin="0,0,0,12">
       <TextBlock Text="危险操作确认" FontSize="22" FontWeight="Bold"/>
-      <TextBlock Name="MessageText" Foreground="#444444" TextWrapping="Wrap" Margin="0,8,0,0" LineHeight="22"/>
     </StackPanel>
-    <Border Grid.Row="1" BorderBrush="#F3B5BE" BorderThickness="1" CornerRadius="8" Padding="14" Background="#FFFFF4F5">
+    <Border Grid.Row="1" BorderBrush="#D0D7DE" BorderThickness="1" CornerRadius="8" Padding="12" Background="#FAFBFC" Margin="0,0,0,12">
+      <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+        <TextBlock Name="MessageText" Foreground="#333333" TextWrapping="Wrap" LineHeight="22"/>
+      </ScrollViewer>
+    </Border>
+    <Border Grid.Row="2" BorderBrush="#F3B5BE" BorderThickness="1" CornerRadius="8" Padding="14" Background="#FFFFF4F5">
       <StackPanel VerticalAlignment="Center">
         <TextBlock Name="CountdownText" TextWrapping="Wrap" FontSize="15" FontWeight="SemiBold" Foreground="#9F1239" HorizontalAlignment="Center"/>
         <TextBlock Text="倒计时期间可以直接取消；倒计时结束后才允许执行卸载。" TextWrapping="Wrap" Foreground="#666666" HorizontalAlignment="Center" Margin="0,8,0,0"/>
       </StackPanel>
     </Border>
-    <StackPanel Grid.Row="2" Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,16,0,0">
-      <Button Name="CancelBtn" Width="110" Height="36" Margin="0,0,10,0"/>
-      <Button Name="ConfirmBtn" Width="140" Height="36" Background="#FFE53935" Foreground="White" BorderThickness="0"/>
+    <StackPanel Grid.Row="3" Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,16,0,0">
+      <Button Name="CancelBtn" Width="132" Height="40" Margin="0,0,10,0"/>
+      <Button Name="ConfirmBtn" Width="156" Height="40" Background="#FFE53935" Foreground="White" BorderThickness="0"/>
     </StackPanel>
   </Grid>
 </Window>
