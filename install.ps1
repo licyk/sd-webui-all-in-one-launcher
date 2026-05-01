@@ -1,4 +1,4 @@
-<#
+﻿<#
 .SYNOPSIS
     Install the Windows GUI launcher for the current user.
 
