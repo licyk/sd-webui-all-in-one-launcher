@@ -147,7 +147,7 @@ function Export-GuiEventFunctions {
         "Refresh-ProjectConfigUi", "Refresh-ScriptParamUi", "Refresh-Status", "Report-UiError",
         "Save-CurrentProjectConfigFromUi", "Save-MainConfig", "Save-MainConfigFromUi",
         "Select-FolderPath", "Select-RelevantMainTab", "Set-UiBusy", "Show-AppPage",
-        "Show-HelpWindow", "Show-LogWindow", "Show-Message", "Show-UserAgreementDialog", "Start-HeroImageDownload", "Start-LauncherIconDownload", "Start-TabTransition",
+        "Show-CountdownConfirmDialog", "Show-HelpWindow", "Show-LogWindow", "Show-Message", "Show-UserAgreementDialog", "Start-HeroImageDownload", "Start-LauncherIconDownload", "Start-TabTransition",
         "Test-DictionaryKey", "Toggle-CustomMaximizeWindow", "Update-OneClickModeUi", "Write-Log"
     )
     foreach ($name in $names) {
@@ -620,6 +620,118 @@ function Confirm-Message {
     param([string]$Message, [string]$Title = "确认")
     $result = [System.Windows.MessageBox]::Show($Message, $Title, "YesNo", "Warning")
     return $result -eq [System.Windows.MessageBoxResult]::Yes
+}
+
+function Show-CountdownConfirmDialog {
+    param(
+        [string]$Title = "最终确认",
+        [string]$Message,
+        [string]$ConfirmButtonText = "确认卸载",
+        [string]$CancelButtonText = "取消卸载",
+        [int]$Seconds = 5
+    )
+    if ($Seconds -lt 0) { $Seconds = 0 }
+    [xml]$xaml = @"
+<Window xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        Title="最终确认" Width="560" Height="280" WindowStartupLocation="CenterScreen" ResizeMode="NoResize">
+  <Grid Margin="18">
+    <Grid.RowDefinitions>
+      <RowDefinition Height="Auto"/>
+      <RowDefinition Height="*"/>
+      <RowDefinition Height="Auto"/>
+    </Grid.RowDefinitions>
+    <StackPanel Grid.Row="0" Margin="0,0,0,14">
+      <TextBlock Text="危险操作确认" FontSize="22" FontWeight="Bold"/>
+      <TextBlock Name="MessageText" Foreground="#444444" TextWrapping="Wrap" Margin="0,8,0,0" LineHeight="22"/>
+    </StackPanel>
+    <Border Grid.Row="1" BorderBrush="#F3B5BE" BorderThickness="1" CornerRadius="8" Padding="14" Background="#FFFFF4F5">
+      <StackPanel VerticalAlignment="Center">
+        <TextBlock Name="CountdownText" TextWrapping="Wrap" FontSize="15" FontWeight="SemiBold" Foreground="#9F1239" HorizontalAlignment="Center"/>
+        <TextBlock Text="倒计时期间可以直接取消；倒计时结束后才允许执行卸载。" TextWrapping="Wrap" Foreground="#666666" HorizontalAlignment="Center" Margin="0,8,0,0"/>
+      </StackPanel>
+    </Border>
+    <StackPanel Grid.Row="2" Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,16,0,0">
+      <Button Name="CancelBtn" Width="110" Height="36" Margin="0,0,10,0"/>
+      <Button Name="ConfirmBtn" Width="140" Height="36" Background="#FFE53935" Foreground="White" BorderThickness="0"/>
+    </StackPanel>
+  </Grid>
+</Window>
+"@
+    $reader = New-Object System.Xml.XmlNodeReader $xaml
+    $window = [Windows.Markup.XamlReader]::Load($reader)
+    $window.Title = $Title
+    $messageText = $window.FindName("MessageText")
+    $countdownText = $window.FindName("CountdownText")
+    $confirmBtn = $window.FindName("ConfirmBtn")
+    $cancelBtn = $window.FindName("CancelBtn")
+    $messageText.Text = $Message
+    $cancelBtn.Content = $CancelButtonText
+    $state = [PSCustomObject]@{
+        Remaining = $Seconds
+        Result = $false
+        ConfirmText = $ConfirmButtonText
+        ConfirmButton = $confirmBtn
+        CountdownText = $countdownText
+        Timer = $null
+    }
+
+    $updateCountdown = {
+        param($CountdownState)
+        if ($CountdownState.Remaining -gt 0) {
+            $CountdownState.ConfirmButton.IsEnabled = $false
+            $CountdownState.ConfirmButton.Content = "$($CountdownState.ConfirmText) ($($CountdownState.Remaining))"
+            $CountdownState.CountdownText.Text = "请等待 $($CountdownState.Remaining) 秒后确认卸载。"
+        } else {
+            $CountdownState.ConfirmButton.IsEnabled = $true
+            $CountdownState.ConfirmButton.Content = $CountdownState.ConfirmText
+            $CountdownState.CountdownText.Text = "倒计时结束，可以确认卸载。"
+        }
+    }.GetNewClosure()
+
+    $timer = New-Object System.Windows.Threading.DispatcherTimer
+    $timer.Interval = [TimeSpan]::FromSeconds(1)
+    $state.Timer = $timer
+    $timer | Add-Member -NotePropertyName CountdownState -NotePropertyValue $state -Force
+    $timer | Add-Member -NotePropertyName UpdateCountdown -NotePropertyValue $updateCountdown -Force
+    $timer.Add_Tick({
+        param($sender, $eventArgs)
+        $timerState = $sender.CountdownState
+        $timerState.Remaining = [Math]::Max(0, ([int]$timerState.Remaining - 1))
+        & $sender.UpdateCountdown $timerState
+        if ($timerState.Remaining -le 0) { $sender.Stop() }
+    })
+
+    & $updateCountdown $state
+    $confirmBtn.Tag = $state
+    $cancelBtn.Tag = $state
+    $confirmBtn.Add_Click({
+        param($sender, $eventArgs)
+        $dialogState = $sender.Tag
+        if (-not $dialogState.ConfirmButton.IsEnabled) { return }
+        $dialogState.Result = $true
+        $dialogWindow = [System.Windows.Window]::GetWindow($sender)
+        $dialogWindow.DialogResult = $true
+        $dialogWindow.Close()
+    })
+    $cancelBtn.Add_Click({
+        param($sender, $eventArgs)
+        $dialogState = $sender.Tag
+        $dialogState.Result = $false
+        $dialogWindow = [System.Windows.Window]::GetWindow($sender)
+        $dialogWindow.DialogResult = $false
+        $dialogWindow.Close()
+    })
+    $window.Tag = $state
+    $window.Add_Closed({
+        param($sender, $eventArgs)
+        $dialogState = $sender.Tag
+        if ($null -ne $dialogState -and $null -ne $dialogState.Timer -and $dialogState.Timer.IsEnabled) {
+            $dialogState.Timer.Stop()
+        }
+    })
+    if ($Seconds -gt 0) { $timer.Start() }
+    $null = $window.ShowDialog()
+    return [bool]$state.Result
 }
 
 function Get-UserAgreementText {
@@ -1514,11 +1626,11 @@ function Refresh-ProjectConfigUi {
     $key = Get-CurrentProjectKey
     if ([string]::IsNullOrWhiteSpace($key)) {
         $hint = New-Object System.Windows.Controls.TextBlock
-        $hint.Text = "请先在左侧选择要安装或管理的 WebUI / 工具。"
+        $hint.Text = "请先在左侧「软件选择」中选择要安装或管理的 WebUI / 工具。"
         $hint.TextWrapping = "Wrap"
         $UI.PathPanel.Children.Add($hint) | Out-Null
         $hint = New-Object System.Windows.Controls.TextBlock
-        $hint.Text = "请先在左侧选择要安装或管理的 WebUI / 工具。"
+        $hint.Text = "请先在左侧「软件选择」中选择要安装或管理的 WebUI / 工具。"
         $hint.TextWrapping = "Wrap"
         $UI.ConfigPanel.Children.Add($hint) | Out-Null
         return
@@ -1577,12 +1689,12 @@ function Refresh-Status {
     $installHintText = Get-UiControl $UI "InstallHintText"
     $key = Get-CurrentProjectKey
     if ([string]::IsNullOrWhiteSpace($key)) {
-        if ($null -ne $projectStatusText) { $projectStatusText.Text = "当前项目: 未选择`n安装状态: 未检测`n请先在左侧选择要安装或管理的 WebUI / 工具。" }
+        if ($null -ne $projectStatusText) { $projectStatusText.Text = "当前项目: 未选择`n安装状态: 未检测`n请先在左侧「软件选择」中选择要安装或管理的 WebUI / 工具。" }
         if ($null -ne $selectedProjectHintText) { $selectedProjectHintText.Text = "当前未选择软件" }
         if ($null -ne $scriptCombo) { $scriptCombo.ItemsSource = $null }
         if ($null -ne $launchScriptList) { $launchScriptList.ItemsSource = $null }
         if ($null -ne $startHintText) { $startHintText.Text = "请先进入「软件选择」选择要安装或管理的 WebUI / 工具。" }
-        if ($null -ne $installHintText) { $installHintText.Text = "请先选择项目，再确认安装路径和安装器参数。" }
+        if ($null -ne $installHintText) { $installHintText.Text = "请先在「软件选择」中选择项目，再确认安装路径和安装器参数。" }
         Set-OneClickModeFromStatus $UI $State "none"
         return
     }
@@ -2213,10 +2325,10 @@ function Invoke-UninstallLauncher {
     }
     $warning = "即将卸载 SD WebUI All In One Launcher。`n`n将删除:`n- 桌面和开始菜单快捷方式`n- 当前 GUI 脚本: $selfPath`n- 配置目录: $script:ConfigHome`n- 日志/缓存目录: $script:LocalHome`n- 控制面板卸载注册项`n`n此操作不可撤销。"
     if (-not (Confirm-Message $warning "卸载启动器")) { return }
-    $confirmText = "UNINSTALL LAUNCHER"
-    $typed = Show-InputDialog -Title "最终确认" -Message "请输入以下内容确认卸载:`n$confirmText" -DefaultText ""
-    if ($typed -ne $confirmText) {
-        if ($null -ne $UI) { Append-UiLog $UI "启动器卸载最终确认失败，已取消。" }
+    $countdownMessage = "即将卸载启动器并删除配置、日志、缓存、快捷方式和卸载注册项。`n`n目标脚本: $selfPath`n配置目录: $script:ConfigHome`n日志/缓存目录: $script:LocalHome"
+    if (-not (Show-CountdownConfirmDialog -Title "最终确认" -Message $countdownMessage -Seconds 5)) {
+        if ($null -ne $UI) { Append-UiLog $UI "启动器卸载最终确认取消。" }
+        Write-Log INFO "launcher uninstall canceled at countdown confirmation"
         return
     }
     Write-Log INFO "launcher uninstall requested self=$selfPath config=$script:ConfigHome local=$script:LocalHome"
@@ -2822,11 +2934,11 @@ function Invoke-UninstallProject {
         Show-Message "未找到安装目录: $path" "无法卸载" "Warning"
         return
     }
-    $confirmText = "DELETE $key"
-    if (-not (Confirm-Message "警告：即将删除安装目录及其内部所有文件。`n`n项目: $($project.Name)`n安装目录: $path`n`n此操作不可撤销。下一步还需要输入确认文本。" "卸载 $($project.Name)")) { return }
-    $typed = Show-InputDialog -Title "最终确认" -Message "请输入以下内容确认卸载:`n$confirmText" -DefaultText ""
-    if ($typed -ne $confirmText) {
-        Append-UiLog $UI "卸载最终确认失败，已取消。"
+    if (-not (Confirm-Message "警告：即将删除安装目录及其内部所有文件。`n`n项目: $($project.Name)`n安装目录: $path`n`n此操作不可撤销。下一步需要等待倒计时结束后再次确认。" "卸载 $($project.Name)")) { return }
+    $countdownMessage = "即将删除当前项目的安装目录及其内部所有文件。`n`n项目: $($project.Name)`n安装目录: $path"
+    if (-not (Show-CountdownConfirmDialog -Title "最终确认" -Message $countdownMessage -Seconds 5)) {
+        Append-UiLog $UI "卸载最终确认取消。"
+        Write-Log INFO "project uninstall canceled at countdown confirmation project=$key path=$path"
         return
     }
     try {

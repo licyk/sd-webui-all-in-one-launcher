@@ -253,7 +253,7 @@
 - [x] GUI 版执行 PowerShell 脚本时优先使用 `pwsh`，找不到时回退到 `powershell`。
 - [x] GUI 版执行安装器和管理脚本时打开独立 PowerShell 控制台，并在非零退出时保留窗口提示用户查看输出。
 - [x] GUI 版支持 `launch.ps1` 和 `terminal.ps1` 的运行前提示。
-- [x] GUI 版支持项目卸载，卸载前使用警告确认和输入 `DELETE <project>` 的最终确认。
+- [x] GUI 版支持项目卸载，卸载前使用警告确认和倒计时最终确认，倒计时结束后才可执行删除。
 - [x] GUI 版支持 `auto` / `manual` / `off` 三种代理模式。
 - [x] GUI 版支持按日志等级写入 `%LOCALAPPDATA%\installer-launcher\logs\`。
 - [x] GUI 版支持自动检查并尝试更新 `installer_launcher_gui.ps1` 自身。
@@ -287,7 +287,8 @@
 - [x] GUI 一键启动页右侧“快速操作”卡片改为按钮固定在底部、说明内容区域独立滚动，避免窗口变小时启动/终止按钮被挤出界面。
 - [x] GUI 运行 `launch.ps1` 和 `terminal.ps1` 前不再弹出额外确认提示，直接打开 PowerShell 控制台执行。
 - [x] GUI 设置页新增“创建快捷方式”：图标缓存到配置目录，按 ModelScope / HuggingFace 顺序下载，成功后创建桌面和开始菜单快捷方式。
-- [x] GUI 设置页新增“卸载启动器”：二次确认后通过临时脚本删除快捷方式、GUI 脚本本体、配置目录、日志/缓存目录和卸载注册表项。
+- [x] GUI 设置页新增“卸载启动器”：警告确认和倒计时最终确认后，通过临时脚本删除快捷方式、GUI 脚本本体、配置目录、日志/缓存目录和卸载注册表项。
+- [x] 修复 GUI 卸载倒计时确认在 Windows PowerShell 5.1 下计时不刷新、确认按钮一直不可用的问题，改为从计时器/控件对象读取倒计时状态。
 - [x] GUI 启动时注册当前用户级 Windows 卸载项，可从系统应用卸载入口调用 `installer_launcher_gui.ps1 -UninstallLauncher` 执行卸载。
 - [x] 新增 Windows GUI 安装脚本 `install.ps1`，将 GUI 脚本安装到 `%APPDATA%\installer-launcher`，创建桌面/开始菜单快捷方式，并注册当前用户卸载项。
 - [x] `install.ps1` 优先复制同目录 `installer_launcher_gui.ps1`，缺失时按 GitHub/Gitee 多地址下载 GUI 脚本；快捷方式图标继续使用 ModelScope / HuggingFace 下载源。
