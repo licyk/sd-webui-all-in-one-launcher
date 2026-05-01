@@ -148,7 +148,7 @@ function Export-GuiEventFunctions {
         "Save-CurrentProjectConfigFromUi", "Save-MainConfig", "Save-MainConfigFromUi",
         "Select-FolderPath", "Select-RelevantMainTab", "Set-UiBusy", "Show-AppPage",
         "Show-HelpWindow", "Show-LogWindow", "Show-Message", "Show-UserAgreementDialog", "Start-HeroImageDownload", "Start-LauncherIconDownload", "Start-TabTransition",
-        "Test-DictionaryKey", "Update-OneClickModeUi", "Write-Log"
+        "Test-DictionaryKey", "Toggle-CustomMaximizeWindow", "Update-OneClickModeUi", "Write-Log"
     )
     foreach ($name in $names) {
         $command = Get-Command -Name $name -CommandType Function -ErrorAction Stop
@@ -1989,6 +1989,71 @@ function Show-AppPage {
     & $setNavButtonSelected $UI $PageName
 }
 
+function Convert-ScreenRectToWpfRect {
+    param($Window, [System.Drawing.Rectangle]$ScreenRect)
+    $source = [System.Windows.PresentationSource]::FromVisual($Window)
+    if ($null -eq $source -or $null -eq $source.CompositionTarget) {
+        return [PSCustomObject]@{
+            Left = [double]$ScreenRect.Left
+            Top = [double]$ScreenRect.Top
+            Width = [double]$ScreenRect.Width
+            Height = [double]$ScreenRect.Height
+        }
+    }
+
+    $transform = $source.CompositionTarget.TransformFromDevice
+    $topLeft = $transform.Transform((New-Object System.Windows.Point([double]$ScreenRect.Left, [double]$ScreenRect.Top)))
+    $bottomRight = $transform.Transform((New-Object System.Windows.Point([double]$ScreenRect.Right, [double]$ScreenRect.Bottom)))
+    return [PSCustomObject]@{
+        Left = $topLeft.X
+        Top = $topLeft.Y
+        Width = $bottomRight.X - $topLeft.X
+        Height = $bottomRight.Y - $topLeft.Y
+    }
+}
+
+function Toggle-CustomMaximizeWindow {
+    param($UI)
+    if ($null -eq $UI -or $null -eq $UI.Window) { return }
+    $window = $UI.Window
+
+    if ([bool](Get-ObjectPropertyValue $script:WindowChromeState "IsMaximized" $false)) {
+        $bounds = Get-ObjectPropertyValue $script:WindowChromeState "RestoreBounds" $null
+        $script:WindowChromeState.IsMaximized = $false
+        if ($null -ne $bounds) {
+            $window.Left = [double]$bounds.Left
+            $window.Top = [double]$bounds.Top
+            $window.Width = [double]$bounds.Width
+            $window.Height = [double]$bounds.Height
+        } else {
+            $window.WindowState = "Normal"
+        }
+        if ($null -ne $UI.MaxBtn) { $UI.MaxBtn.Content = "⬜" }
+        if ($null -ne $UI.MainBorder) { $UI.MainBorder.CornerRadius = 12 }
+        return
+    }
+
+    if ($window.WindowState -eq "Minimized") { $window.WindowState = "Normal" }
+    $script:WindowChromeState.RestoreBounds = [PSCustomObject]@{
+        Left = $window.Left
+        Top = $window.Top
+        Width = $window.Width
+        Height = $window.Height
+    }
+
+    $handle = (New-Object System.Windows.Interop.WindowInteropHelper($window)).Handle
+    $screen = [System.Windows.Forms.Screen]::FromHandle($handle)
+    $workArea = Convert-ScreenRectToWpfRect -Window $window -ScreenRect $screen.WorkingArea
+    $window.WindowState = "Normal"
+    $window.Left = $workArea.Left
+    $window.Top = $workArea.Top
+    $window.Width = $workArea.Width
+    $window.Height = $workArea.Height
+    $script:WindowChromeState.IsMaximized = $true
+    if ($null -ne $UI.MaxBtn) { $UI.MaxBtn.Content = "❐" }
+    if ($null -ne $UI.MainBorder) { $UI.MainBorder.CornerRadius = 0 }
+}
+
 function Update-OneClickModeUi {
     param($UI)
     $startModeTabs = Get-UiControl $UI "StartModeTabs"
@@ -2906,11 +2971,11 @@ function Get-ThemeColors {
     } catch {}
     if ($dark) {
         return @{
-            IsDark = $true; WinBG1 = "#A81E1E1E"; WinBG2 = "#94121212"; PanelBG = "#461F1F1F"; TextMain = "#FFFFFF"; TextSec = "#B8BFC7"; Border = "#58FFFFFF"; InputBG = "#662B2B2B"; BtnNormal = "#553A3A3A"; BtnHover = "#744A4A4A"; ItemHover = "#2EFFFFFF"; HeaderBG = "#18FFFFFF"
+            IsDark = $true; WinBG1 = "#A81E1E1E"; WinBG2 = "#94121212"; PanelBG = "#461F1F1F"; TextMain = "#FFFFFF"; TextSec = "#B8BFC7"; Border = "#58FFFFFF"; InputBG = "#662B2B2B"; DropDownBG = "#FF242424"; BtnNormal = "#553A3A3A"; BtnHover = "#744A4A4A"; ItemHover = "#2EFFFFFF"; HeaderBG = "#18FFFFFF"
         }
     }
     return @{
-        IsDark = $false; WinBG1 = "#B8F9FAFC"; WinBG2 = "#A6F3F7FB"; PanelBG = "#A8FFFFFF"; TextMain = "#242424"; TextSec = "#5A636D"; Border = "#C8D7DCE2"; InputBG = "#B8FCFCFD"; BtnNormal = "#A8FFFFFF"; BtnHover = "#C8F3F8FF"; ItemHover = "#C8EAF4FF"; HeaderBG = "#8CF5F9FF"
+        IsDark = $false; WinBG1 = "#B8F9FAFC"; WinBG2 = "#A6F3F7FB"; PanelBG = "#A8FFFFFF"; TextMain = "#242424"; TextSec = "#5A636D"; Border = "#C8D7DCE2"; InputBG = "#B8FCFCFD"; DropDownBG = "#FFFCFCFD"; BtnNormal = "#A8FFFFFF"; BtnHover = "#C8F3F8FF"; ItemHover = "#C8EAF4FF"; HeaderBG = "#8CF5F9FF"
     }
 }
 
@@ -2951,6 +3016,7 @@ function Start-App {
     <SolidColorBrush x:Key="TextSecBrush" Color="$($colors.TextSec)"/>
     <SolidColorBrush x:Key="BorderBrush" Color="$($colors.Border)"/>
     <SolidColorBrush x:Key="InputBGBrush" Color="$($colors.InputBG)"/>
+    <SolidColorBrush x:Key="DropDownBGBrush" Color="$($colors.DropDownBG)"/>
     <SolidColorBrush x:Key="BtnNormalBrush" Color="$($colors.BtnNormal)"/>
     <SolidColorBrush x:Key="BtnHoverBrush" Color="$($colors.BtnHover)"/>
     <SolidColorBrush x:Key="ItemHoverBrush" Color="$($colors.ItemHover)"/>
@@ -3079,8 +3145,11 @@ function Start-App {
                 </ToggleButton.Template>
               </ToggleButton>
               <Popup x:Name="Popup" Placement="Bottom" PlacementTarget="{Binding ElementName=ToggleButton}" IsOpen="{TemplateBinding IsDropDownOpen}" AllowsTransparency="True" Focusable="False" PopupAnimation="Slide">
-                <Border Background="{DynamicResource InputBGBrush}" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1" CornerRadius="7" MinWidth="{TemplateBinding ActualWidth}" MaxHeight="{TemplateBinding MaxDropDownHeight}">
-                  <ScrollViewer Margin="4" SnapsToDevicePixels="True">
+                <Border Background="{DynamicResource DropDownBGBrush}" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1" CornerRadius="7" MinWidth="{TemplateBinding ActualWidth}" MaxHeight="{TemplateBinding MaxDropDownHeight}">
+                  <Border.Effect>
+                    <DropShadowEffect BlurRadius="18" ShadowDepth="2" Opacity="0.18"/>
+                  </Border.Effect>
+                  <ScrollViewer Margin="4" Background="{DynamicResource DropDownBGBrush}" SnapsToDevicePixels="True">
                     <ItemsPresenter KeyboardNavigation.DirectionalNavigation="Contained"/>
                   </ScrollViewer>
                 </Border>
@@ -3425,8 +3494,8 @@ function Start-App {
         <StackPanel Grid.Column="1" Orientation="Horizontal" HorizontalAlignment="Right" VerticalAlignment="Center">
           <Button Name="HelpBtn" Content="?" Width="34" Height="32" Padding="0" Margin="0,0,2,0" BorderThickness="0" Background="Transparent"/>
           <Button Name="MinBtn" Content="—" Width="44" Height="32" Padding="0" Margin="0" BorderThickness="0" Background="Transparent"/>
-          <Button Name="MaxBtn" Content="□" Width="44" Height="32" Padding="0" Margin="0" BorderThickness="0" Background="Transparent"/>
-          <Button Name="CloseBtn" Content="×" Width="44" Height="32" Padding="0" Margin="0" BorderThickness="0" Background="Transparent"/>
+          <Button Name="MaxBtn" Content="⬜" Width="44" Height="32" Padding="0" Margin="0" BorderThickness="0" Background="Transparent"/>
+          <Button Name="CloseBtn" Content="✕" Width="44" Height="32" Padding="0" Margin="0" BorderThickness="0" Background="Transparent"/>
         </StackPanel>
       </Grid>
       <Grid Grid.Row="1">
@@ -3830,14 +3899,15 @@ function Start-App {
     $UI.HelpBtn.Add_Click({ Show-HelpWindow }.GetNewClosure())
     $UI.ShowLogBtn.Add_Click({ Show-LogWindow }.GetNewClosure())
 
-    $script:RestoreBounds = $null
+    $script:WindowChromeState = [PSCustomObject]@{ IsMaximized = $false; RestoreBounds = $null }
     $UI.TitleBar.Add_MouseLeftButtonDown({
         if ($_.ClickCount -eq 2) { $UI.MaxBtn.RaiseEvent((New-Object System.Windows.RoutedEventArgs([System.Windows.Controls.Button]::ClickEvent))); return }
+        if ([bool](Get-ObjectPropertyValue $script:WindowChromeState "IsMaximized" $false)) { return }
         $window.DragMove()
     })
     $UI.MinBtn.Add_Click({ $window.WindowState = "Minimized" })
     $UI.MaxBtn.Add_Click({
-        if ($window.WindowState -eq "Maximized") { $window.WindowState = "Normal"; $UI.MaxBtn.Content = "□"; $UI.MainBorder.CornerRadius = 12 } else { $window.WindowState = "Maximized"; $UI.MaxBtn.Content = "❐"; $UI.MainBorder.CornerRadius = 0 }
+        Toggle-CustomMaximizeWindow $UI
     })
     $UI.CloseBtn.Add_Click({ $window.Close() })
     $window.Add_Loaded({

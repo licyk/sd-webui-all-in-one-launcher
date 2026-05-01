@@ -294,6 +294,8 @@
 - [x] GUI 关于页顶部复用启动横幅头图逻辑，缓存头图可同时应用到首页横幅、关于页横幅和标题栏左上角图标。
 - [x] GUI 左侧导航按钮强制居中布局，修正图标和文字在侧栏中的偏移。
 - [x] GUI 标题栏左上角图标改为复用快捷方式 `.ico` 文件，启动时优先使用缓存图标，缺失或无效时后台下载，首页和关于页头图逻辑保持不变。
+- [x] GUI ComboBox 展开层改为独立不透明背景并添加轻量阴影，避免下拉内容被后方设置项文字透出影响。
+- [x] GUI 无边框窗口最大化改为基于当前屏幕 `WorkingArea` 的自定义最大化，避免覆盖 Windows 任务栏。
 - [x] GUI 版已记录安装器和管理脚本的最终启动参数摘要，便于定位参数拼接问题。
 - [x] GUI 版执行 PowerShell 时不再把目标脚本参数直接拼进 `Start-Process -ArgumentList`，改为提前处理成已引用的参数字符串并写入临时文本文件，由 wrapper 读取后通过 `powershell/pwsh -File <script> <args>` 传入目标脚本，避免空格路径和复杂参数被二次拆分。
 - [x] GUI/TUI 在参数传递修复后恢复管理脚本自动追加 `-NoPause`。
@@ -414,6 +416,14 @@
 - [x] GUI 标题栏图标改用快捷方式 `.ico` 后运行 `shellcheck install.sh installer_launcher.sh lib/*.sh`，通过。
 - [x] GUI 标题栏图标改用快捷方式 `.ico` 后运行 `pwsh -NoProfile -Command '$null = [scriptblock]::Create((Get-Content -LiteralPath ./installer_launcher_gui.ps1 -Raw))'`，通过。
 - [x] GUI 标题栏图标改用快捷方式 `.ico` 后运行 `git diff --check`，通过。
+- [x] GUI ComboBox 下拉背景修复后运行 `bash -n install.sh installer_launcher.sh lib/*.sh`，通过。
+- [x] GUI ComboBox 下拉背景修复后运行 `shellcheck install.sh installer_launcher.sh lib/*.sh`，通过。
+- [x] GUI ComboBox 下拉背景修复后运行 `pwsh -NoProfile -Command '$null = [scriptblock]::Create((Get-Content -LiteralPath ./installer_launcher_gui.ps1 -Raw))'`，通过。
+- [x] GUI ComboBox 下拉背景修复后运行 `git diff --check`，通过。
+- [x] GUI 自定义最大化修复后运行 `bash -n install.sh installer_launcher.sh lib/*.sh`，通过。
+- [x] GUI 自定义最大化修复后运行 `shellcheck install.sh installer_launcher.sh lib/*.sh`，通过。
+- [x] GUI 自定义最大化修复后运行 `pwsh -NoProfile -Command '$null = [scriptblock]::Create((Get-Content -LiteralPath ./installer_launcher_gui.ps1 -Raw))'`，通过。
+- [x] GUI 自定义最大化修复后运行 `git diff --check`，通过。
 - [ ] 在 Windows PowerShell 5.1 中运行 `installer_launcher_gui.ps1`，验证 WPF 界面可正常启动。
 - [ ] 在 Windows 中验证 GUI 首次启动会创建 AppData / LocalAppData 配置、缓存和日志目录。
 - [ ] 在 Windows 中验证 GUI 安装器下载重试、PowerShell 执行、安装检测、管理脚本运行和项目卸载流程。
