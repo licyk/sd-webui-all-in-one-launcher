@@ -16,7 +16,7 @@ param(
     [switch]$UninstallLauncher
 )
 
-$script:INSTALLER_LAUNCHER_GUI_VERSION = "0.1.3"
+$script:INSTALLER_LAUNCHER_GUI_VERSION = "0.1.4"
 $script:APP_NAME = "installer-launcher"
 $script:APP_TITLE = "SD WebUI All In One Installer Launcher GUI"
 $script:SELF_REMOTE_URLS = @(
@@ -1591,11 +1591,11 @@ function Refresh-Status {
     $status = Get-InstallationStatus $project $config
     $proxyMode = $script:MainConfig["PROXY_MODE"]
     $autoUpdate = $script:MainConfig["AUTO_UPDATE_ENABLED"]
-    $nextStep = "先在安装路径确认目标目录，再到高级选项确认分支和镜像，然后运行安装器完成首次安装。"
+    $nextStep = "先在安装路径确认目标目录，再到高级选项确认分支和镜像，然后进入安装模式运行安装器完成首次安装。"
     if ($status.Code -eq "installed") {
-        $nextStep = "已安装完成。请进入管理脚本运行 launch.ps1 启动软件，或运行 update.ps1 / terminal.ps1 做维护。"
+        $nextStep = "已安装完成。请进入启动模式运行 launch.ps1 启动软件，或运行 update.ps1 / terminal.ps1 做维护。"
     } elseif ($status.Code -eq "incomplete") {
-        $nextStep = "检测到安装目录但缺少管理脚本。请重新运行安装器修复完整安装。"
+        $nextStep = "检测到安装目录但缺少管理脚本。请进入安装模式重新运行安装器修复完整安装。"
     }
     if ($null -ne $projectStatusText) { $projectStatusText.Text = "当前项目: $($project.Name)`n安装状态: $($status.Label)`n$($status.Detail)`n下一步: $nextStep`n代理模式: $proxyMode    自动更新: $autoUpdate" }
     if ($null -ne $selectedProjectHintText) { $selectedProjectHintText.Text = "当前选择：$($project.Name)    安装状态：$($status.Label)" }

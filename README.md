@@ -52,10 +52,25 @@ Windows GUI 版只适配 Windows，入口为：
 powershell -NoProfile -ExecutionPolicy Bypass -File .\installer_launcher_gui.ps1
 ```
 
+也可以安装到当前用户环境中。安装脚本默认会显示一个简易图形安装窗口，并把 GUI 脚本安装到 `%APPDATA%\installer-launcher\installer_launcher_gui.ps1`，下载快捷方式图标，创建桌面/开始菜单快捷方式，并写入当前用户级卸载信息：
+
+```powershell
+powershell -NoProfile -ExecutionPolicy Bypass -File .\install.ps1
+```
+
+需要纯命令行安装时可以加 `-NoGui`：
+
+```powershell
+powershell -NoProfile -ExecutionPolicy Bypass -File .\install.ps1 -NoGui
+```
+
+如果单独下载 `install.ps1` 运行，同目录没有 `installer_launcher_gui.ps1`，安装脚本会自动从 GitHub/Gitee 下载 GUI 脚本。
+
 GUI 版会使用 Windows 原生目录保存数据：
 
 ```text
 主配置: %APPDATA%\installer-launcher\main.json
+GUI 脚本: %APPDATA%\installer-launcher\installer_launcher_gui.ps1
 项目配置: %APPDATA%\installer-launcher\projects\<project>.json
 缓存目录: %LOCALAPPDATA%\installer-launcher\cache\installers\<project>\
 日志目录: %LOCALAPPDATA%\installer-launcher\logs\
@@ -204,6 +219,12 @@ installer-launcher install-launcher
 
 ```powershell
 powershell -NoProfile -ExecutionPolicy Bypass -File .\installer_launcher_gui.ps1
+```
+
+推荐先安装 GUI 到当前用户环境，安装后可从桌面或开始菜单启动：
+
+```powershell
+powershell -NoProfile -ExecutionPolicy Bypass -File .\install.ps1
 ```
 
 推荐流程：

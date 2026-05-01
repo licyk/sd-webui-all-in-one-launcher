@@ -289,6 +289,9 @@
 - [x] GUI 设置页新增“创建快捷方式”：图标缓存到配置目录，按 ModelScope / HuggingFace 顺序下载，成功后创建桌面和开始菜单快捷方式。
 - [x] GUI 设置页新增“卸载启动器”：二次确认后通过临时脚本删除快捷方式、GUI 脚本本体、配置目录、日志/缓存目录和卸载注册表项。
 - [x] GUI 启动时注册当前用户级 Windows 卸载项，可从系统应用卸载入口调用 `installer_launcher_gui.ps1 -UninstallLauncher` 执行卸载。
+- [x] 新增 Windows GUI 安装脚本 `install.ps1`，将 GUI 脚本安装到 `%APPDATA%\installer-launcher`，创建桌面/开始菜单快捷方式，并注册当前用户卸载项。
+- [x] `install.ps1` 优先复制同目录 `installer_launcher_gui.ps1`，缺失时按 GitHub/Gitee 多地址下载 GUI 脚本；快捷方式图标继续使用 ModelScope / HuggingFace 下载源。
+- [x] `install.ps1` 默认提供简易 WinForms 安装界面，显示安装目录、实时日志和进度，完成后可直接启动 GUI；`-NoGui` 保留纯命令行安装模式。
 - [x] GUI 左侧栏新增“关于”页，展示启动器版本、项目说明、配置位置和用户协议全文。
 - [x] GUI 首次启动会弹出用户协议确认窗口；用户同意后写入 `USER_AGREEMENT_ACCEPTED`，再次启动不再提示，不同意则直接退出。
 - [x] GUI 关于页顶部复用启动横幅头图逻辑，缓存头图可同时应用到首页横幅、关于页横幅和标题栏左上角图标。
@@ -424,6 +427,10 @@
 - [x] GUI 自定义最大化修复后运行 `shellcheck install.sh installer_launcher.sh lib/*.sh`，通过。
 - [x] GUI 自定义最大化修复后运行 `pwsh -NoProfile -Command '$null = [scriptblock]::Create((Get-Content -LiteralPath ./installer_launcher_gui.ps1 -Raw))'`，通过。
 - [x] GUI 自定义最大化修复后运行 `git diff --check`，通过。
+- [x] 新增 `install.ps1` 简易 GUI 后运行 `bash -n install.sh installer_launcher.sh lib/*.sh`，通过。
+- [x] 新增 `install.ps1` 简易 GUI 后运行 `shellcheck install.sh installer_launcher.sh lib/*.sh`，通过。
+- [x] 新增 `install.ps1` 简易 GUI 后运行 `pwsh -NoProfile -Command '$null = [scriptblock]::Create((Get-Content -LiteralPath ./installer_launcher_gui.ps1 -Raw)); $null = [scriptblock]::Create((Get-Content -LiteralPath ./install.ps1 -Raw))'`，通过。
+- [x] 新增 `install.ps1` 简易 GUI 后运行 `git diff --check`，通过。
 - [ ] 在 Windows PowerShell 5.1 中运行 `installer_launcher_gui.ps1`，验证 WPF 界面可正常启动。
 - [ ] 在 Windows 中验证 GUI 首次启动会创建 AppData / LocalAppData 配置、缓存和日志目录。
 - [ ] 在 Windows 中验证 GUI 安装器下载重试、PowerShell 执行、安装检测、管理脚本运行和项目卸载流程。
