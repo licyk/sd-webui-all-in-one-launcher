@@ -139,6 +139,7 @@ $script:LogFile = Join-Path $script:LogHome ("installer-launcher-gui-{0}.log" -f
 $script:UninstallRegistryKey = "HKCU:\Software\Microsoft\Windows\CurrentVersion\Uninstall\SDWebUIAllInOneLauncherGUI"
 $script:AutoUpdateIntervalSeconds = 3600
 $script:RunspacePool = $null
+$script:MainConfig = $null
 function Export-GuiEventFunctions {
     $names = @(
         "Append-UiLog", "Apply-HeroImage", "AutoSave-MainConfigFromUi", "Ensure-GuiState", "Get-CurrentProjectKey", "Get-ObjectPropertyValue", "Get-ProjectConfig",
@@ -4121,6 +4122,10 @@ function Start-App {
 try {
     if ($UninstallLauncher) {
         Initialize-Directories
+        $script:MainConfig = Read-JsonConfig -Path $script:MainConfigFile -Default (Get-DefaultMainConfig)
+        $script:MainConfig["LOG_LEVEL"] = Normalize-LogLevel $script:MainConfig["LOG_LEVEL"]
+        $script:MainConfig["PROXY_MODE"] = Normalize-ProxyMode $script:MainConfig["PROXY_MODE"]
+        if ($null -eq $script:MainConfig["MANUAL_PROXY"]) { $script:MainConfig["MANUAL_PROXY"] = "" }
         Write-Log INFO "launcher uninstall mode starting version=$script:INSTALLER_LAUNCHER_GUI_VERSION"
         Invoke-UninstallLauncher
     } else {
