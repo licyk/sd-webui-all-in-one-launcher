@@ -42,7 +42,7 @@
 
 ## 配置与项目选择
 
-- [x] 主配置包含 `CURRENT_PROJECT`、`AUTO_UPDATE_ENABLED`、`SHOW_WELCOME_SCREEN`、`LOG_LEVEL`、`PROXY_MODE`、`MANUAL_PROXY`、`AUTO_UPDATE_LAST_CHECK`。
+- [x] 主配置包含 `CURRENT_PROJECT`、`AUTO_UPDATE_ENABLED`、`USER_AGREEMENT_ACCEPTED`、`SHOW_WELCOME_SCREEN`、`LOG_LEVEL`、`PROXY_MODE`、`MANUAL_PROXY`、`AUTO_UPDATE_LAST_CHECK`。
 - [x] `CURRENT_PROJECT` 默认为空，不再隐式回填 `sd_webui`。
 - [x] `AUTO_UPDATE_ENABLED` 默认为 `1`。
 - [x] `SHOW_WELCOME_SCREEN` 默认为 `1`。
@@ -289,6 +289,8 @@
 - [x] GUI 设置页新增“创建快捷方式”：图标缓存到配置目录，按 ModelScope / HuggingFace 顺序下载，成功后创建桌面和开始菜单快捷方式。
 - [x] GUI 设置页新增“卸载启动器”：二次确认后通过临时脚本删除快捷方式、GUI 脚本本体、配置目录、日志/缓存目录和卸载注册表项。
 - [x] GUI 启动时注册当前用户级 Windows 卸载项，可从系统应用卸载入口调用 `installer_launcher_gui.ps1 -UninstallLauncher` 执行卸载。
+- [x] GUI 左侧栏新增“关于”页，展示启动器版本、项目说明、配置位置和用户协议全文。
+- [x] GUI 首次启动会弹出用户协议确认窗口；用户同意后写入 `USER_AGREEMENT_ACCEPTED`，再次启动不再提示，不同意则直接退出。
 - [x] GUI 版已记录安装器和管理脚本的最终启动参数摘要，便于定位参数拼接问题。
 - [x] GUI 版执行 PowerShell 时不再把目标脚本参数直接拼进 `Start-Process -ArgumentList`，改为提前处理成已引用的参数字符串并写入临时文本文件，由 wrapper 读取后通过 `powershell/pwsh -File <script> <args>` 传入目标脚本，避免空格路径和复杂参数被二次拆分。
 - [x] GUI/TUI 在参数传递修复后恢复管理脚本自动追加 `-NoPause`。
@@ -358,7 +360,7 @@
 - [x] 运行 `shellcheck install.sh installer_launcher.sh lib/*.sh`，通过。
 - [x] 新增 Windows GUI 后再次运行 `bash -n install.sh installer_launcher.sh lib/*.sh`，通过。
 - [x] 新增 Windows GUI 后再次运行 `shellcheck install.sh installer_launcher.sh lib/*.sh`，通过。
-- [x] 当前 Linux 环境未安装 `pwsh` / `powershell`，无法在本机解析或启动 WPF GUI，Windows 验证待补跑。
+- [x] 当前 Linux 环境可使用 `pwsh` 做 PowerShell 语法解析，但无法启动 Windows WPF GUI，Windows 运行验证待补跑。
 - [x] 验证 `install.sh` dry-run 在 `pwsh/dialog/git` 已存在时会跳过依赖安装并调用 `install-launcher --yes`。
 - [x] 验证只有 `powershell` mock、没有 `pwsh` 时，运行器会回退到 `powershell`。
 - [x] 验证 `install.sh` dry-run 在仅存在 `powershell` 时会视为 PowerShell 已安装。
@@ -397,6 +399,10 @@
 - [x] 验证 bootstrap 前找不到模块时会写入 early log，并对 token 类参数脱敏。
 - [x] 验证代理配置和 token/password 类参数在日志中已脱敏。
 - [x] 验证 PowerShell 非零退出提示会显示脚本路径、退出代码，并等待 Enter 后返回。
+- [x] 新增 GUI 关于页和首次用户协议确认后运行 `bash -n install.sh installer_launcher.sh lib/*.sh`，通过。
+- [x] 新增 GUI 关于页和首次用户协议确认后运行 `shellcheck install.sh installer_launcher.sh lib/*.sh`，通过。
+- [x] 新增 GUI 关于页和首次用户协议确认后运行 `pwsh -NoProfile -Command '$null = [scriptblock]::Create((Get-Content -LiteralPath ./installer_launcher_gui.ps1 -Raw))'`，通过。
+- [x] 新增 GUI 关于页和首次用户协议确认后运行 `git diff --check`，通过。
 - [ ] 在 Windows PowerShell 5.1 中运行 `installer_launcher_gui.ps1`，验证 WPF 界面可正常启动。
 - [ ] 在 Windows 中验证 GUI 首次启动会创建 AppData / LocalAppData 配置、缓存和日志目录。
 - [ ] 在 Windows 中验证 GUI 安装器下载重试、PowerShell 执行、安装检测、管理脚本运行和项目卸载流程。

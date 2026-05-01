@@ -147,7 +147,7 @@ function Export-GuiEventFunctions {
         "Refresh-ProjectConfigUi", "Refresh-ScriptParamUi", "Refresh-Status", "Report-UiError",
         "Save-CurrentProjectConfigFromUi", "Save-MainConfig", "Save-MainConfigFromUi",
         "Select-FolderPath", "Select-RelevantMainTab", "Set-UiBusy", "Show-AppPage",
-        "Show-HelpWindow", "Show-LogWindow", "Show-Message", "Start-HeroImageDownload", "Start-TabTransition",
+        "Show-HelpWindow", "Show-LogWindow", "Show-Message", "Show-UserAgreementDialog", "Start-HeroImageDownload", "Start-TabTransition",
         "Test-DictionaryKey", "Update-OneClickModeUi", "Write-Log"
     )
     foreach ($name in $names) {
@@ -361,6 +361,7 @@ function Get-DefaultMainConfig {
     [ordered]@{
         CURRENT_PROJECT = ""
         AUTO_UPDATE_ENABLED = $true
+        USER_AGREEMENT_ACCEPTED = $false
         LOG_LEVEL = "DEBUG"
         PROXY_MODE = "auto"
         MANUAL_PROXY = ""
@@ -619,6 +620,59 @@ function Confirm-Message {
     param([string]$Message, [string]$Title = "确认")
     $result = [System.Windows.MessageBox]::Show($Message, $Title, "YesNo", "Warning")
     return $result -eq [System.Windows.MessageBoxResult]::Yes
+}
+
+function Get-UserAgreementText {
+@"
+使用该软件代表您已阅读并同意以下用户协议：
+您不得实施包括但不限于以下行为，也不得为任何违反法律法规的行为提供便利：
+    反对宪法所规定的基本原则的。
+    危害国家安全，泄露国家秘密，颠覆国家政权，破坏国家统一的。
+    损害国家荣誉和利益的。
+    煽动民族仇恨、民族歧视，破坏民族团结的。
+    破坏国家宗教政策，宣扬邪教和封建迷信的。
+    散布谣言，扰乱社会秩序，破坏社会稳定的。
+    散布淫秽、色情、赌博、暴力、凶杀、恐怖或教唆犯罪的。
+    侮辱或诽谤他人，侵害他人合法权益的。
+    实施任何违背“七条底线”的行为。
+    含有法律、行政法规禁止的其他内容的。
+因您的数据的产生、收集、处理、使用等任何相关事项存在违反法律法规等情况而造成的全部结果及责任均由您自行承担。
+"@
+}
+
+function Show-UserAgreementDialog {
+    [xml]$xaml = @"
+<Window xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        Title="用户协议" Width="720" Height="560" WindowStartupLocation="CenterScreen" ResizeMode="NoResize">
+  <Grid Margin="18">
+    <Grid.RowDefinitions>
+      <RowDefinition Height="Auto"/>
+      <RowDefinition Height="*"/>
+      <RowDefinition Height="Auto"/>
+    </Grid.RowDefinitions>
+    <StackPanel Grid.Row="0" Margin="0,0,0,14">
+      <TextBlock Text="用户协议" FontSize="24" FontWeight="Bold"/>
+      <TextBlock Text="首次使用前需要阅读并同意以下内容。同意后会写入配置文件，下次启动不再提示。" Foreground="#666666" TextWrapping="Wrap" Margin="0,6,0,0"/>
+    </StackPanel>
+    <Border Grid.Row="1" BorderBrush="#D0D7DE" BorderThickness="1" CornerRadius="8" Padding="12" Background="#FAFBFC">
+      <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+        <TextBlock Name="AgreementText" TextWrapping="Wrap" FontSize="14" LineHeight="24"/>
+      </ScrollViewer>
+    </Border>
+    <StackPanel Grid.Row="2" Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,16,0,0">
+      <Button Name="DeclineBtn" Content="不同意并退出" Width="128" Height="36" Margin="0,0,10,0"/>
+      <Button Name="AgreeBtn" Content="同意并继续" Width="128" Height="36" Background="#0078D4" Foreground="White" BorderThickness="0"/>
+    </StackPanel>
+  </Grid>
+</Window>
+"@
+    $reader = New-Object System.Xml.XmlNodeReader $xaml
+    $window = [Windows.Markup.XamlReader]::Load($reader)
+    $window.FindName("AgreementText").Text = Get-UserAgreementText
+    $window.FindName("AgreeBtn").Add_Click({ $window.DialogResult = $true; $window.Close() }.GetNewClosure())
+    $window.FindName("DeclineBtn").Add_Click({ $window.DialogResult = $false; $window.Close() }.GetNewClosure())
+    $result = $window.ShowDialog()
+    return $result -eq $true
 }
 
 function Show-InputDialog {
@@ -1604,7 +1658,8 @@ function Set-NavButtonSelected {
         @{ Name = "start"; Button = $UI.OneClickNavBtn; Label = $UI.OneClickNavLabel; Icon = $UI.OneClickNavIcon },
         @{ Name = "advanced"; Button = $UI.AdvancedNavBtn; Label = $UI.AdvancedNavLabel; Icon = $UI.AdvancedNavIcon },
         @{ Name = "software"; Button = $UI.SoftwareNavBtn; Label = $UI.SoftwareNavLabel; Icon = $UI.SoftwareNavIcon },
-        @{ Name = "settings"; Button = $UI.SettingsNavBtn; Label = $UI.SettingsNavLabel; Icon = $UI.SettingsNavIcon }
+        @{ Name = "settings"; Button = $UI.SettingsNavBtn; Label = $UI.SettingsNavLabel; Icon = $UI.SettingsNavIcon },
+        @{ Name = "about"; Button = $UI.AboutNavBtn; Label = $UI.AboutNavLabel; Icon = $UI.AboutNavIcon }
     )) {
         $button = $entry["Button"]
         $label = $entry["Label"]
@@ -1782,7 +1837,7 @@ function Show-AppPage {
     param($UI, [string]$PageName)
     $startPageTransition = ${function:Start-PageTransition}
     $setNavButtonSelected = ${function:Set-NavButtonSelected}
-    foreach ($page in @($UI.StartPage, $UI.AdvancedPage, $UI.SoftwarePage, $UI.SettingsPage)) {
+    foreach ($page in @($UI.StartPage, $UI.AdvancedPage, $UI.SoftwarePage, $UI.SettingsPage, $UI.AboutPage)) {
         if ($null -ne $page) { $page.Visibility = "Collapsed" }
     }
     $visiblePage = $UI.StartPage
@@ -1790,6 +1845,7 @@ function Show-AppPage {
         "advanced" { $visiblePage = $UI.AdvancedPage }
         "software" { $visiblePage = $UI.SoftwarePage }
         "settings" { $visiblePage = $UI.SettingsPage }
+        "about" { $visiblePage = $UI.AboutPage }
         default { $visiblePage = $UI.StartPage; $PageName = "start" }
     }
     if ($null -ne $visiblePage) {
@@ -2730,6 +2786,15 @@ function Start-App {
     Write-Log INFO "gui launcher starting version=$script:INSTALLER_LAUNCHER_GUI_VERSION"
     Register-LauncherUninstallEntry
     Load-AllConfig
+    if (-not [bool]$script:MainConfig["USER_AGREEMENT_ACCEPTED"]) {
+        if (-not (Show-UserAgreementDialog)) {
+            Write-Log INFO "user agreement declined, gui launcher exiting"
+            return
+        }
+        $script:MainConfig["USER_AGREEMENT_ACCEPTED"] = $true
+        Save-MainConfig
+        Write-Log INFO "user agreement accepted"
+    }
     Configure-ProxyFromMainConfig
     $script:RunspacePool = [runspacefactory]::CreateRunspacePool(1, 3)
     $script:RunspacePool.ApartmentState = "STA"
@@ -3252,10 +3317,16 @@ function Start-App {
               </Button>
             </StackPanel>
             <StackPanel DockPanel.Dock="Bottom">
-              <Button Name="SettingsNavBtn" Width="72" Height="72" Padding="4" BorderThickness="1">
+              <Button Name="SettingsNavBtn" Width="72" Height="72" Padding="4" Margin="0,0,0,10" BorderThickness="1">
                 <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center">
                   <TextBlock Name="SettingsNavIcon" Text="⚙" FontSize="20" HorizontalAlignment="Center" Margin="0,0,0,4"/>
                   <TextBlock Name="SettingsNavLabel" Text="设置" FontSize="12" HorizontalAlignment="Center"/>
+                </StackPanel>
+              </Button>
+              <Button Name="AboutNavBtn" Width="72" Height="72" Padding="4" BorderThickness="1">
+                <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center">
+                  <TextBlock Name="AboutNavIcon" Text="ⓘ" FontSize="20" HorizontalAlignment="Center" Margin="0,0,0,4"/>
+                  <TextBlock Name="AboutNavLabel" Text="关于" FontSize="12" HorizontalAlignment="Center"/>
                 </StackPanel>
               </Button>
             </StackPanel>
@@ -3453,6 +3524,56 @@ function Start-App {
             </Border>
           </Grid>
           </Grid>
+          <Grid Name="AboutPage" Visibility="Collapsed">
+            <Grid.RowDefinitions>
+              <RowDefinition Height="Auto"/>
+              <RowDefinition Height="*"/>
+            </Grid.RowDefinitions>
+            <StackPanel Grid.Row="0" Margin="0,0,0,18">
+              <TextBlock Text="关于" FontSize="28" FontWeight="Bold"/>
+              <TextBlock Text="SD WebUI All In One Launcher GUI 版本信息、项目链接和用户协议。" Foreground="{DynamicResource TextSecBrush}" Margin="0,4,0,0"/>
+            </StackPanel>
+            <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+              <StackPanel>
+                <Border Background="{DynamicResource PanelBGBrush}" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1" CornerRadius="12" Padding="26" Margin="0,0,0,18">
+                  <StackPanel HorizontalAlignment="Center">
+                    <Border Width="58" Height="58" CornerRadius="16" Background="{DynamicResource PrimaryBrush}" Margin="0,0,0,14">
+                      <TextBlock Text="AI" Foreground="White" FontSize="20" FontWeight="SemiBold" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                    </Border>
+                    <TextBlock Text="SD WebUI All In One Launcher" FontSize="24" FontWeight="Bold" HorizontalAlignment="Center"/>
+                    <TextBlock Text="v$script:INSTALLER_LAUNCHER_GUI_VERSION" FontSize="16" Foreground="{DynamicResource TextSecBrush}" HorizontalAlignment="Center" Margin="0,8,0,0"/>
+                    <TextBlock Text="用于在 Windows 上安装和管理 Stable Diffusion WebUI、ComfyUI、Fooocus、InvokeAI 等 WebUI / 工具。" Foreground="{DynamicResource TextSecBrush}" TextWrapping="Wrap" TextAlignment="Center" MaxWidth="760" Margin="0,16,0,0"/>
+                  </StackPanel>
+                </Border>
+                <UniformGrid Columns="3" Margin="0,0,0,18">
+                  <Border Background="{DynamicResource PanelBGBrush}" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1" CornerRadius="9" Padding="16" Margin="0,0,10,0">
+                    <StackPanel>
+                      <TextBlock Text="项目仓库" FontWeight="SemiBold"/>
+                      <TextBlock Text="licyk/sd-webui-all-in-one-launcher" Foreground="{DynamicResource TextSecBrush}" TextWrapping="Wrap" Margin="0,6,0,0"/>
+                    </StackPanel>
+                  </Border>
+                  <Border Background="{DynamicResource PanelBGBrush}" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1" CornerRadius="9" Padding="16" Margin="0,0,10,0">
+                    <StackPanel>
+                      <TextBlock Text="安装器来源" FontWeight="SemiBold"/>
+                      <TextBlock Text="sd-webui-all-in-one PowerShell installer" Foreground="{DynamicResource TextSecBrush}" TextWrapping="Wrap" Margin="0,6,0,0"/>
+                    </StackPanel>
+                  </Border>
+                  <Border Background="{DynamicResource PanelBGBrush}" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1" CornerRadius="9" Padding="16">
+                    <StackPanel>
+                      <TextBlock Text="配置与日志" FontWeight="SemiBold"/>
+                      <TextBlock Text="$displayConfigHome" Foreground="{DynamicResource TextSecBrush}" TextWrapping="Wrap" Margin="0,6,0,0"/>
+                    </StackPanel>
+                  </Border>
+                </UniformGrid>
+                <Border Background="{DynamicResource PanelBGBrush}" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1" CornerRadius="12" Padding="22">
+                  <StackPanel>
+                    <TextBlock Text="用户协议" FontSize="20" FontWeight="SemiBold" Margin="0,0,0,14"/>
+                    <TextBox Name="AboutAgreementText" IsReadOnly="True" AcceptsReturn="True" TextWrapping="Wrap" VerticalScrollBarVisibility="Auto" BorderThickness="0" Background="Transparent" MinHeight="320" VerticalContentAlignment="Top"/>
+                  </StackPanel>
+                </Border>
+              </StackPanel>
+            </ScrollViewer>
+          </Grid>
         </Grid>
       </Grid>
     </Grid>
@@ -3469,18 +3590,21 @@ function Start-App {
     }.GetNewClosure())
     $UI = [PSCustomObject]@{
         Window = $window; TitleBar = $window.FindName("TitleBar"); MinBtn = $window.FindName("MinBtn"); MaxBtn = $window.FindName("MaxBtn"); CloseBtn = $window.FindName("CloseBtn")
-        MainBorder = $window.FindName("MainBorder"); StartPage = $window.FindName("StartPage"); AdvancedPage = $window.FindName("AdvancedPage"); SoftwarePage = $window.FindName("SoftwarePage"); SettingsPage = $window.FindName("SettingsPage"); MainTabs = $window.FindName("MainTabs"); ProjectList = $window.FindName("ProjectList"); ProjectStatusText = $window.FindName("ProjectStatusText"); BusyText = $window.FindName("BusyText"); HeroImage = $window.FindName("HeroImage"); HeroImageOverlay = $window.FindName("HeroImageOverlay")
+        MainBorder = $window.FindName("MainBorder"); StartPage = $window.FindName("StartPage"); AdvancedPage = $window.FindName("AdvancedPage"); SoftwarePage = $window.FindName("SoftwarePage"); SettingsPage = $window.FindName("SettingsPage"); AboutPage = $window.FindName("AboutPage"); MainTabs = $window.FindName("MainTabs"); ProjectList = $window.FindName("ProjectList"); ProjectStatusText = $window.FindName("ProjectStatusText"); BusyText = $window.FindName("BusyText"); HeroImage = $window.FindName("HeroImage"); HeroImageOverlay = $window.FindName("HeroImageOverlay")
         SelectedProjectHintText = $window.FindName("SelectedProjectHintText")
         PathPanel = $window.FindName("PathPanel"); ConfigPanel = $window.FindName("ConfigPanel")
         ScriptCombo = $window.FindName("ScriptCombo"); ScriptParamPanel = $window.FindName("ScriptParamPanel"); ScriptArgsBox = $window.FindName("ScriptArgsBox")
         StartModeTabs = $window.FindName("StartModeTabs"); LaunchScriptList = $window.FindName("LaunchScriptList"); UnifiedStartBtn = $window.FindName("UnifiedStartBtn"); UnifiedStartLabel = $window.FindName("UnifiedStartLabel"); StartProgressBar = $window.FindName("StartProgressBar"); TerminateOperationBtn = $window.FindName("TerminateOperationBtn"); StartHintText = $window.FindName("StartHintText"); InstallHintText = $window.FindName("InstallHintText")
         AutoUpdateCheck = $window.FindName("AutoUpdateCheck"); LogLevelCombo = $window.FindName("LogLevelCombo"); ProxyModeCombo = $window.FindName("ProxyModeCombo"); ManualProxyBox = $window.FindName("ManualProxyBox")
-        CheckUpdateBtn = $window.FindName("CheckUpdateBtn"); OpenConfigFolderBtn = $window.FindName("OpenConfigFolderBtn"); CreateShortcutBtn = $window.FindName("CreateShortcutBtn"); UninstallLauncherBtn = $window.FindName("UninstallLauncherBtn"); UninstallBtn = $window.FindName("UninstallBtn"); OneClickNavBtn = $window.FindName("OneClickNavBtn"); AdvancedNavBtn = $window.FindName("AdvancedNavBtn"); SoftwareNavBtn = $window.FindName("SoftwareNavBtn"); SettingsNavBtn = $window.FindName("SettingsNavBtn"); OneClickNavLabel = $window.FindName("OneClickNavLabel"); AdvancedNavLabel = $window.FindName("AdvancedNavLabel"); SoftwareNavLabel = $window.FindName("SoftwareNavLabel"); SettingsNavLabel = $window.FindName("SettingsNavLabel"); OneClickNavIcon = $window.FindName("OneClickNavIcon"); AdvancedNavIcon = $window.FindName("AdvancedNavIcon"); SoftwareNavIcon = $window.FindName("SoftwareNavIcon"); SettingsNavIcon = $window.FindName("SettingsNavIcon"); HelpBtn = $window.FindName("HelpBtn"); ShowLogBtn = $window.FindName("ShowLogBtn")
+        CheckUpdateBtn = $window.FindName("CheckUpdateBtn"); OpenConfigFolderBtn = $window.FindName("OpenConfigFolderBtn"); CreateShortcutBtn = $window.FindName("CreateShortcutBtn"); UninstallLauncherBtn = $window.FindName("UninstallLauncherBtn"); UninstallBtn = $window.FindName("UninstallBtn"); OneClickNavBtn = $window.FindName("OneClickNavBtn"); AdvancedNavBtn = $window.FindName("AdvancedNavBtn"); SoftwareNavBtn = $window.FindName("SoftwareNavBtn"); SettingsNavBtn = $window.FindName("SettingsNavBtn"); AboutNavBtn = $window.FindName("AboutNavBtn"); OneClickNavLabel = $window.FindName("OneClickNavLabel"); AdvancedNavLabel = $window.FindName("AdvancedNavLabel"); SoftwareNavLabel = $window.FindName("SoftwareNavLabel"); SettingsNavLabel = $window.FindName("SettingsNavLabel"); AboutNavLabel = $window.FindName("AboutNavLabel"); OneClickNavIcon = $window.FindName("OneClickNavIcon"); AdvancedNavIcon = $window.FindName("AdvancedNavIcon"); SoftwareNavIcon = $window.FindName("SoftwareNavIcon"); SettingsNavIcon = $window.FindName("SettingsNavIcon"); AboutNavIcon = $window.FindName("AboutNavIcon"); HelpBtn = $window.FindName("HelpBtn"); ShowLogBtn = $window.FindName("ShowLogBtn"); AboutAgreementText = $window.FindName("AboutAgreementText")
         LogBox = $window.FindName("LogBox")
     }
     $State = [PSCustomObject]@{ CurrentOperation = $null; ConfigControls = @{}; ScriptParamControls = @{}; ProjectConfig = @{}; StatusRefreshTimer = $null; LastOneClickStatus = ""; IsRefreshing = $false; AutoSaveProjectConfig = $null; IsAutoSavingMainConfig = $false }
     $mainConfig = $script:MainConfig
     $State.AutoSaveProjectConfig = { Save-CurrentProjectConfigFromUi $UI $State $false }.GetNewClosure()
+    if ($null -ne $UI.AboutAgreementText) {
+        $UI.AboutAgreementText.Text = Get-UserAgreementText
+    }
 
     $UI.LogLevelCombo.ItemsSource = @("DEBUG", "INFO", "WARN", "ERROR")
     $UI.ProxyModeCombo.ItemsSource = @("auto", "manual", "off")
@@ -3556,6 +3680,7 @@ function Start-App {
     $UI.AdvancedNavBtn.Add_Click({ Show-AppPage $UI "advanced"; Select-RelevantMainTab $UI }.GetNewClosure())
     $UI.SoftwareNavBtn.Add_Click({ Show-AppPage $UI "software" }.GetNewClosure())
     $UI.SettingsNavBtn.Add_Click({ Show-AppPage $UI "settings" }.GetNewClosure())
+    $UI.AboutNavBtn.Add_Click({ Show-AppPage $UI "about" }.GetNewClosure())
     $UI.UninstallBtn.Add_Click({ Invoke-UninstallProject $UI $State }.GetNewClosure())
     $UI.HelpBtn.Add_Click({ Show-HelpWindow }.GetNewClosure())
     $UI.ShowLogBtn.Add_Click({ Show-LogWindow }.GetNewClosure())
