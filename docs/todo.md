@@ -287,6 +287,8 @@
 - [x] GUI 一键启动页右侧“快速操作”卡片改为按钮固定在底部、说明内容区域独立滚动，避免窗口变小时启动/终止按钮被挤出界面。
 - [x] GUI 运行 `launch.ps1` 和 `terminal.ps1` 前不再弹出额外确认提示，直接打开 PowerShell 控制台执行。
 - [x] GUI 设置页新增“创建快捷方式”：图标缓存到配置目录，按 ModelScope / HuggingFace 顺序下载，成功后创建桌面和开始菜单快捷方式。
+- [x] GUI 设置页新增“卸载启动器”：二次确认后通过临时脚本删除快捷方式、GUI 脚本本体、配置目录、日志/缓存目录和卸载注册表项。
+- [x] GUI 启动时注册当前用户级 Windows 卸载项，可从系统应用卸载入口调用 `installer_launcher_gui.ps1 -UninstallLauncher` 执行卸载。
 - [x] GUI 版已记录安装器和管理脚本的最终启动参数摘要，便于定位参数拼接问题。
 - [x] GUI 版执行 PowerShell 时不再把目标脚本参数直接拼进 `Start-Process -ArgumentList`，改为提前处理成已引用的参数字符串并写入临时文本文件，由 wrapper 读取后通过 `powershell/pwsh -File <script> <args>` 传入目标脚本，避免空格路径和复杂参数被二次拆分。
 - [x] GUI/TUI 在参数传递修复后恢复管理脚本自动追加 `-NoPause`。

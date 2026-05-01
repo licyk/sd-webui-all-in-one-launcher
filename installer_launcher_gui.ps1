@@ -12,7 +12,9 @@
     - .NET/WPF support
 #>
 
-param()
+param(
+    [switch]$UninstallLauncher
+)
 
 $script:INSTALLER_LAUNCHER_GUI_VERSION = "0.1.3"
 $script:APP_NAME = "installer-launcher"
@@ -134,12 +136,13 @@ $script:MainConfigFile = Join-Path $script:ConfigHome "main.json"
 $script:HeroImageFile = Join-Path $script:ConfigHome "head_image.jpg"
 $script:ShortcutIconFile = Join-Path $script:ConfigHome "sd_webui_all_in_one_launcher.ico"
 $script:LogFile = Join-Path $script:LogHome ("installer-launcher-gui-{0}.log" -f (Get-Date -Format "yyyyMMdd"))
+$script:UninstallRegistryKey = "HKCU:\Software\Microsoft\Windows\CurrentVersion\Uninstall\SDWebUIAllInOneLauncherGUI"
 $script:AutoUpdateIntervalSeconds = 3600
 $script:RunspacePool = $null
 function Export-GuiEventFunctions {
     $names = @(
         "Append-UiLog", "Apply-HeroImage", "AutoSave-MainConfigFromUi", "Ensure-GuiState", "Get-CurrentProjectKey", "Get-ObjectPropertyValue", "Get-ProjectConfig",
-        "Get-SelectedScriptName", "Invoke-CreateLauncherShortcut", "Invoke-OneClickAction", "Invoke-TerminateCurrentOperation",
+        "Get-SelectedScriptName", "Invoke-CreateLauncherShortcut", "Invoke-OneClickAction", "Invoke-TerminateCurrentOperation", "Invoke-UninstallLauncher",
         "Invoke-UninstallProject", "Invoke-UpdateCheck", "Open-ConfigFolder", "Refresh-MainConfigUi",
         "Refresh-ProjectConfigUi", "Refresh-ScriptParamUi", "Refresh-Status", "Report-UiError",
         "Save-CurrentProjectConfigFromUi", "Save-MainConfig", "Save-MainConfigFromUi",
@@ -1162,7 +1165,7 @@ function Append-UiLog {
 function Set-UiBusy {
     param($UI, [bool]$Busy, [string]$Message, [bool]$CanTerminate = $true)
     $enabled = -not $Busy
-    foreach ($name in @("UninstallBtn", "CheckUpdateBtn", "UnifiedStartBtn", "OpenConfigFolderBtn", "ShowLogBtn", "CreateShortcutBtn")) {
+    foreach ($name in @("UninstallBtn", "CheckUpdateBtn", "UnifiedStartBtn", "OpenConfigFolderBtn", "ShowLogBtn", "CreateShortcutBtn", "UninstallLauncherBtn")) {
         $button = Get-UiControl $UI $name
         if ($null -ne $button) { $button.IsEnabled = $enabled }
     }
@@ -1879,6 +1882,96 @@ function Open-ConfigFolder {
     $path = $script:ConfigHome
     if (-not (Test-Path -LiteralPath $path)) { New-Item -ItemType Directory -Force -Path $path | Out-Null }
     Start-Process -FilePath "explorer.exe" -ArgumentList @($path) | Out-Null
+}
+
+function ConvertTo-SingleQuotedLiteral {
+    param([string]$Value)
+    return "'{0}'" -f (($Value -replace "'", "''"))
+}
+
+function Register-LauncherUninstallEntry {
+    try {
+        $selfPath = $PSCommandPath
+        if ([string]::IsNullOrWhiteSpace($selfPath) -or -not (Test-Path -LiteralPath $selfPath -PathType Leaf)) { return }
+        $launcherPath = (Get-Process -Id $PID).Path
+        $uninstallCommand = '"{0}" -NoProfile -ExecutionPolicy Bypass -File "{1}" -UninstallLauncher' -f $launcherPath, $selfPath
+        New-Item -Path $script:UninstallRegistryKey -Force | Out-Null
+        New-ItemProperty -Path $script:UninstallRegistryKey -Name "DisplayName" -Value "SD WebUI All In One Launcher" -PropertyType String -Force | Out-Null
+        New-ItemProperty -Path $script:UninstallRegistryKey -Name "DisplayVersion" -Value $script:INSTALLER_LAUNCHER_GUI_VERSION -PropertyType String -Force | Out-Null
+        New-ItemProperty -Path $script:UninstallRegistryKey -Name "Publisher" -Value "licyk" -PropertyType String -Force | Out-Null
+        New-ItemProperty -Path $script:UninstallRegistryKey -Name "InstallLocation" -Value (Split-Path -Parent $selfPath) -PropertyType String -Force | Out-Null
+        New-ItemProperty -Path $script:UninstallRegistryKey -Name "DisplayIcon" -Value $script:ShortcutIconFile -PropertyType String -Force | Out-Null
+        New-ItemProperty -Path $script:UninstallRegistryKey -Name "UninstallString" -Value $uninstallCommand -PropertyType String -Force | Out-Null
+        New-ItemProperty -Path $script:UninstallRegistryKey -Name "NoModify" -Value 1 -PropertyType DWord -Force | Out-Null
+        New-ItemProperty -Path $script:UninstallRegistryKey -Name "NoRepair" -Value 1 -PropertyType DWord -Force | Out-Null
+        Write-Log DEBUG "registered launcher uninstall entry: $script:UninstallRegistryKey"
+    } catch {
+        Write-Log WARN "failed to register launcher uninstall entry: $($_.Exception.Message)"
+    }
+}
+
+function Start-LauncherUninstallWorker {
+    param([string]$SelfPath, [int]$ParentPid)
+    $tempScript = Join-Path $env:TEMP ("installer-launcher-uninstall-{0}.ps1" -f ([guid]::NewGuid().ToString("N")))
+    $shortcutName = "SD WebUI All In One Launcher.lnk"
+    $scriptContent = @"
+`$ErrorActionPreference = 'SilentlyContinue'
+Start-Sleep -Milliseconds 500
+`$parentPid = $ParentPid
+if (`$parentPid -gt 0) {
+    try {
+        `$parent = Get-Process -Id `$parentPid -ErrorAction SilentlyContinue
+        if (`$null -ne `$parent) { `$parent.WaitForExit(15000) | Out-Null }
+    } catch {}
+}
+`$selfPath = $(ConvertTo-SingleQuotedLiteral $SelfPath)
+`$configHome = $(ConvertTo-SingleQuotedLiteral $script:ConfigHome)
+`$localHome = $(ConvertTo-SingleQuotedLiteral $script:LocalHome)
+`$registryKey = $(ConvertTo-SingleQuotedLiteral $script:UninstallRegistryKey)
+`$shortcutName = $(ConvertTo-SingleQuotedLiteral $shortcutName)
+`$desktop = [System.Environment]::GetFolderPath('Desktop')
+`$programs = Join-Path ([System.Environment]::GetFolderPath('ApplicationData')) 'Microsoft\Windows\Start Menu\Programs'
+foreach (`$shortcutPath in @((Join-Path `$desktop `$shortcutName), (Join-Path `$programs `$shortcutName))) {
+    Remove-Item -LiteralPath `$shortcutPath -Force
+}
+Remove-Item -LiteralPath `$configHome -Recurse -Force
+Remove-Item -LiteralPath `$localHome -Recurse -Force
+Remove-Item -Path `$registryKey -Recurse -Force
+Remove-Item -LiteralPath `$selfPath -Force
+try {
+    Add-Type -AssemblyName PresentationFramework
+    [System.Windows.MessageBox]::Show('SD WebUI All In One Launcher 已卸载。', '卸载完成', 'OK', 'Information') | Out-Null
+} catch {}
+Remove-Item -LiteralPath `$PSCommandPath -Force
+"@
+    Set-Content -LiteralPath $tempScript -Encoding UTF8 -Value $scriptContent
+    $launcherPath = (Get-Process -Id $PID).Path
+    Start-Process -FilePath $launcherPath -ArgumentList @("-NoProfile", "-ExecutionPolicy", "Bypass", "-File", $tempScript) -WindowStyle Hidden | Out-Null
+}
+
+function Invoke-UninstallLauncher {
+    param($UI = $null)
+    $selfPath = $PSCommandPath
+    if ([string]::IsNullOrWhiteSpace($selfPath) -or -not (Test-Path -LiteralPath $selfPath -PathType Leaf)) {
+        Show-Message "无法确定当前 GUI 脚本路径，不能卸载启动器。" "卸载启动器" "Error"
+        return
+    }
+    $warning = "即将卸载 SD WebUI All In One Launcher。`n`n将删除:`n- 桌面和开始菜单快捷方式`n- 当前 GUI 脚本: $selfPath`n- 配置目录: $script:ConfigHome`n- 日志/缓存目录: $script:LocalHome`n- 控制面板卸载注册项`n`n此操作不可撤销。"
+    if (-not (Confirm-Message $warning "卸载启动器")) { return }
+    $confirmText = "UNINSTALL LAUNCHER"
+    $typed = Show-InputDialog -Title "最终确认" -Message "请输入以下内容确认卸载:`n$confirmText" -DefaultText ""
+    if ($typed -ne $confirmText) {
+        if ($null -ne $UI) { Append-UiLog $UI "启动器卸载最终确认失败，已取消。" }
+        return
+    }
+    Write-Log INFO "launcher uninstall requested self=$selfPath config=$script:ConfigHome local=$script:LocalHome"
+    if ($null -ne $UI) { Append-UiLog $UI "启动器卸载已确认，正在退出并执行删除。" }
+    Start-LauncherUninstallWorker -SelfPath $selfPath -ParentPid $PID
+    if ($null -ne $UI -and $null -ne $UI.Window) {
+        $UI.Window.Close()
+    } else {
+        exit 0
+    }
 }
 
 function Invoke-CreateLauncherShortcut {
@@ -2635,6 +2728,7 @@ function Start-App {
     Initialize-Directories
     $script:MainConfig = Get-DefaultMainConfig
     Write-Log INFO "gui launcher starting version=$script:INSTALLER_LAUNCHER_GUI_VERSION"
+    Register-LauncherUninstallEntry
     Load-AllConfig
     Configure-ProxyFromMainConfig
     $script:RunspacePool = [runspacefactory]::CreateRunspacePool(1, 3)
@@ -3344,6 +3438,7 @@ function Start-App {
                     <Button Name="ShowLogBtn" Content="查看日志"/>
                     <Button Name="OpenConfigFolderBtn" Content="打开配置文件夹"/>
                     <Button Name="CreateShortcutBtn" Content="创建快捷方式"/>
+                    <Button Name="UninstallLauncherBtn" Content="卸载启动器" Background="#FFE53935" Foreground="White" BorderThickness="0"/>
                   </StackPanel>
                 </StackPanel>
               </ScrollViewer>
@@ -3380,7 +3475,7 @@ function Start-App {
         ScriptCombo = $window.FindName("ScriptCombo"); ScriptParamPanel = $window.FindName("ScriptParamPanel"); ScriptArgsBox = $window.FindName("ScriptArgsBox")
         StartModeTabs = $window.FindName("StartModeTabs"); LaunchScriptList = $window.FindName("LaunchScriptList"); UnifiedStartBtn = $window.FindName("UnifiedStartBtn"); UnifiedStartLabel = $window.FindName("UnifiedStartLabel"); StartProgressBar = $window.FindName("StartProgressBar"); TerminateOperationBtn = $window.FindName("TerminateOperationBtn"); StartHintText = $window.FindName("StartHintText"); InstallHintText = $window.FindName("InstallHintText")
         AutoUpdateCheck = $window.FindName("AutoUpdateCheck"); LogLevelCombo = $window.FindName("LogLevelCombo"); ProxyModeCombo = $window.FindName("ProxyModeCombo"); ManualProxyBox = $window.FindName("ManualProxyBox")
-        CheckUpdateBtn = $window.FindName("CheckUpdateBtn"); OpenConfigFolderBtn = $window.FindName("OpenConfigFolderBtn"); CreateShortcutBtn = $window.FindName("CreateShortcutBtn"); UninstallBtn = $window.FindName("UninstallBtn"); OneClickNavBtn = $window.FindName("OneClickNavBtn"); AdvancedNavBtn = $window.FindName("AdvancedNavBtn"); SoftwareNavBtn = $window.FindName("SoftwareNavBtn"); SettingsNavBtn = $window.FindName("SettingsNavBtn"); OneClickNavLabel = $window.FindName("OneClickNavLabel"); AdvancedNavLabel = $window.FindName("AdvancedNavLabel"); SoftwareNavLabel = $window.FindName("SoftwareNavLabel"); SettingsNavLabel = $window.FindName("SettingsNavLabel"); OneClickNavIcon = $window.FindName("OneClickNavIcon"); AdvancedNavIcon = $window.FindName("AdvancedNavIcon"); SoftwareNavIcon = $window.FindName("SoftwareNavIcon"); SettingsNavIcon = $window.FindName("SettingsNavIcon"); HelpBtn = $window.FindName("HelpBtn"); ShowLogBtn = $window.FindName("ShowLogBtn")
+        CheckUpdateBtn = $window.FindName("CheckUpdateBtn"); OpenConfigFolderBtn = $window.FindName("OpenConfigFolderBtn"); CreateShortcutBtn = $window.FindName("CreateShortcutBtn"); UninstallLauncherBtn = $window.FindName("UninstallLauncherBtn"); UninstallBtn = $window.FindName("UninstallBtn"); OneClickNavBtn = $window.FindName("OneClickNavBtn"); AdvancedNavBtn = $window.FindName("AdvancedNavBtn"); SoftwareNavBtn = $window.FindName("SoftwareNavBtn"); SettingsNavBtn = $window.FindName("SettingsNavBtn"); OneClickNavLabel = $window.FindName("OneClickNavLabel"); AdvancedNavLabel = $window.FindName("AdvancedNavLabel"); SoftwareNavLabel = $window.FindName("SoftwareNavLabel"); SettingsNavLabel = $window.FindName("SettingsNavLabel"); OneClickNavIcon = $window.FindName("OneClickNavIcon"); AdvancedNavIcon = $window.FindName("AdvancedNavIcon"); SoftwareNavIcon = $window.FindName("SoftwareNavIcon"); SettingsNavIcon = $window.FindName("SettingsNavIcon"); HelpBtn = $window.FindName("HelpBtn"); ShowLogBtn = $window.FindName("ShowLogBtn")
         LogBox = $window.FindName("LogBox")
     }
     $State = [PSCustomObject]@{ CurrentOperation = $null; ConfigControls = @{}; ScriptParamControls = @{}; ProjectConfig = @{}; StatusRefreshTimer = $null; LastOneClickStatus = ""; IsRefreshing = $false; AutoSaveProjectConfig = $null; IsAutoSavingMainConfig = $false }
@@ -3456,6 +3551,7 @@ function Start-App {
     $UI.CheckUpdateBtn.Add_Click({ Invoke-UpdateCheck $UI $State $true }.GetNewClosure())
     $UI.OpenConfigFolderBtn.Add_Click({ Open-ConfigFolder }.GetNewClosure())
     $UI.CreateShortcutBtn.Add_Click({ Invoke-CreateLauncherShortcut $UI $State }.GetNewClosure())
+    $UI.UninstallLauncherBtn.Add_Click({ Invoke-UninstallLauncher $UI }.GetNewClosure())
     $UI.OneClickNavBtn.Add_Click({ Show-AppPage $UI "start" }.GetNewClosure())
     $UI.AdvancedNavBtn.Add_Click({ Show-AppPage $UI "advanced"; Select-RelevantMainTab $UI }.GetNewClosure())
     $UI.SoftwareNavBtn.Add_Click({ Show-AppPage $UI "software" }.GetNewClosure())
@@ -3533,7 +3629,13 @@ function Start-App {
 }
 
 try {
-    Start-App
+    if ($UninstallLauncher) {
+        Initialize-Directories
+        Write-Log INFO "launcher uninstall mode starting version=$script:INSTALLER_LAUNCHER_GUI_VERSION"
+        Invoke-UninstallLauncher
+    } else {
+        Start-App
+    }
 } catch {
     try { Write-Log ERROR "fatal gui error: $($_.Exception.Message)" } catch {}
     [System.Windows.MessageBox]::Show("启动器异常退出:`n$($_.Exception.Message)`n`n日志: $($script:LogFile)", "启动器错误", "OK", "Error") | Out-Null
