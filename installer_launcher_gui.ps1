@@ -2288,7 +2288,17 @@ Start-Sleep -Milliseconds 500
 if (`$parentPid -gt 0) {
     try {
         `$parent = Get-Process -Id `$parentPid -ErrorAction SilentlyContinue
-        if (`$null -ne `$parent) { `$parent.WaitForExit(15000) | Out-Null }
+        if (`$null -ne `$parent) {
+            `$parent.WaitForExit(3000) | Out-Null
+            `$parent = Get-Process -Id `$parentPid -ErrorAction SilentlyContinue
+            if (`$null -ne `$parent) {
+                Stop-Process -Id `$parentPid -Force -ErrorAction SilentlyContinue
+                for (`$wait = 0; `$wait -lt 20; `$wait++) {
+                    if (`$null -eq (Get-Process -Id `$parentPid -ErrorAction SilentlyContinue)) { break }
+                    Start-Sleep -Milliseconds 250
+                }
+            }
+        }
     } catch {}
 }
 `$selfPath = $(ConvertTo-SingleQuotedLiteral $SelfPath)
@@ -2298,22 +2308,53 @@ if (`$parentPid -gt 0) {
 `$shortcutName = $(ConvertTo-SingleQuotedLiteral $shortcutName)
 `$desktop = [System.Environment]::GetFolderPath('Desktop')
 `$programs = Join-Path ([System.Environment]::GetFolderPath('ApplicationData')) 'Microsoft\Windows\Start Menu\Programs'
-foreach (`$shortcutPath in @((Join-Path `$desktop `$shortcutName), (Join-Path `$programs `$shortcutName))) {
-    Remove-Item -LiteralPath `$shortcutPath -Force
+function Remove-LauncherPath {
+    param([string]`$Path, [switch]`$Recurse)
+    if ([string]::IsNullOrWhiteSpace(`$Path) -or -not (Test-Path -LiteralPath `$Path)) { return `$true }
+    try {
+        if (`$Recurse) {
+            Remove-Item -LiteralPath `$Path -Recurse -Force -ErrorAction Stop
+        } else {
+            Remove-Item -LiteralPath `$Path -Force -ErrorAction Stop
+        }
+        return -not (Test-Path -LiteralPath `$Path)
+    } catch {
+        return `$false
+    }
 }
-Remove-Item -LiteralPath `$configHome -Recurse -Force
-Remove-Item -LiteralPath `$localHome -Recurse -Force
-Remove-Item -Path `$registryKey -Recurse -Force
-Remove-Item -LiteralPath `$selfPath -Force
+for (`$i = 0; `$i -lt 30; `$i++) {
+    foreach (`$shortcutPath in @((Join-Path `$desktop `$shortcutName), (Join-Path `$programs `$shortcutName))) {
+        Remove-LauncherPath -Path `$shortcutPath | Out-Null
+    }
+    Remove-LauncherPath -Path `$registryKey -Recurse | Out-Null
+    Remove-LauncherPath -Path `$selfPath | Out-Null
+    Remove-LauncherPath -Path `$localHome -Recurse | Out-Null
+    Remove-LauncherPath -Path `$configHome -Recurse | Out-Null
+    if ((-not (Test-Path -LiteralPath `$configHome)) -and (-not (Test-Path -LiteralPath `$localHome)) -and (-not (Test-Path -LiteralPath `$selfPath))) {
+        break
+    }
+    Start-Sleep -Milliseconds 500
+}
 try {
     Add-Type -AssemblyName PresentationFramework
-    [System.Windows.MessageBox]::Show('SD WebUI All In One Launcher 已卸载。', '卸载完成', 'OK', 'Information') | Out-Null
+    `$remainingPaths = New-Object System.Collections.Generic.List[string]
+    foreach (`$checkPath in @(`$selfPath, `$configHome, `$localHome)) {
+        if (-not [string]::IsNullOrWhiteSpace(`$checkPath) -and (Test-Path -LiteralPath `$checkPath)) {
+            `$remainingPaths.Add(`$checkPath) | Out-Null
+        }
+    }
+    if (`$remainingPaths.Count -eq 0) {
+        [System.Windows.MessageBox]::Show('SD WebUI All In One Launcher 已卸载。', '卸载完成', 'OK', 'Information') | Out-Null
+    } else {
+        [System.Windows.MessageBox]::Show(("卸载已执行，但以下路径仍未能删除:`n`n{0}`n`n请确认没有启动器进程仍在运行后手动删除。" -f (`$remainingPaths -join "`n")), '卸载未完全完成', 'OK', 'Warning') | Out-Null
+    }
 } catch {}
 Remove-Item -LiteralPath `$PSCommandPath -Force
 "@
     Set-Content -LiteralPath $tempScript -Encoding UTF8 -Value $scriptContent
     $launcherPath = (Get-Process -Id $PID).Path
-    Start-Process -FilePath $launcherPath -ArgumentList @("-NoProfile", "-ExecutionPolicy", "Bypass", "-File", $tempScript) -WindowStyle Hidden | Out-Null
+    $cmdArgs = "/d /c start `"`" /min `"$launcherPath`" -NoProfile -ExecutionPolicy Bypass -File `"$tempScript`""
+    Start-Process -FilePath "cmd.exe" -ArgumentList $cmdArgs -WindowStyle Hidden | Out-Null
 }
 
 function Invoke-UninstallLauncher {
@@ -2334,11 +2375,7 @@ function Invoke-UninstallLauncher {
     Write-Log INFO "launcher uninstall requested self=$selfPath config=$script:ConfigHome local=$script:LocalHome"
     if ($null -ne $UI) { Append-UiLog $UI "启动器卸载已确认，正在退出并执行删除。" }
     Start-LauncherUninstallWorker -SelfPath $selfPath -ParentPid $PID
-    if ($null -ne $UI -and $null -ne $UI.Window) {
-        $UI.Window.Close()
-    } else {
-        exit 0
-    }
+    [System.Environment]::Exit(0)
 }
 
 function Invoke-CreateLauncherShortcut {

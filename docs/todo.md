@@ -289,6 +289,9 @@
 - [x] GUI 设置页新增“创建快捷方式”：图标缓存到配置目录，按 ModelScope / HuggingFace 顺序下载，成功后创建桌面和开始菜单快捷方式。
 - [x] GUI 设置页新增“卸载启动器”：警告确认和倒计时最终确认后，通过临时脚本删除快捷方式、GUI 脚本本体、配置目录、日志/缓存目录和卸载注册表项。
 - [x] 修复 GUI 卸载倒计时确认在 Windows PowerShell 5.1 下计时不刷新、确认按钮一直不可用的问题，改为从计时器/控件对象读取倒计时状态。
+- [x] 修复 GUI 启动器自身卸载时 `%APPDATA%\installer-launcher` 可能残留的问题，卸载 worker 改为等待主进程退出后按脚本本体、日志缓存和配置目录顺序多轮重试删除。
+- [x] GUI 启动器卸载 worker 改为通过 `cmd /c start` 脱离父进程启动，若 GUI 父进程未及时退出则强制终止后再清理安装脚本和 AppData 目录。
+- [x] GUI 启动器卸载确认后父进程改为立即退出，卸载完成/残留路径提示完全由独立卸载脚本显示并根据实际删除结果判断。
 - [x] GUI 启动时注册当前用户级 Windows 卸载项，可从系统应用卸载入口调用 `installer_launcher_gui.ps1 -UninstallLauncher` 执行卸载。
 - [x] 新增 Windows GUI 安装脚本 `install.ps1`，将 GUI 脚本安装到 `%APPDATA%\installer-launcher`，创建桌面/开始菜单快捷方式，并注册当前用户卸载项。
 - [x] `install.ps1` 优先复制同目录 `installer_launcher_gui.ps1`，缺失时按 GitHub/Gitee 多地址下载 GUI 脚本；快捷方式图标继续使用 ModelScope / HuggingFace 下载源。
