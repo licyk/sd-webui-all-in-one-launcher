@@ -147,7 +147,7 @@ function Export-GuiEventFunctions {
         "Refresh-ProjectConfigUi", "Refresh-ScriptParamUi", "Refresh-Status", "Report-UiError",
         "Save-CurrentProjectConfigFromUi", "Save-MainConfig", "Save-MainConfigFromUi",
         "Select-FolderPath", "Select-RelevantMainTab", "Set-UiBusy", "Show-AppPage",
-        "Show-HelpWindow", "Show-LogWindow", "Show-Message", "Show-UserAgreementDialog", "Start-HeroImageDownload", "Start-TabTransition",
+        "Show-HelpWindow", "Show-LogWindow", "Show-Message", "Show-UserAgreementDialog", "Start-HeroImageDownload", "Start-LauncherIconDownload", "Start-TabTransition",
         "Test-DictionaryKey", "Update-OneClickModeUi", "Write-Log"
     )
     foreach ($name in $names) {
@@ -1729,6 +1729,128 @@ function Start-TabTransition {
     $translate.BeginAnimation([System.Windows.Media.TranslateTransform]::YProperty, $yAnimation)
 }
 
+function Test-IconFile {
+    param([string]$Path)
+    if ([string]::IsNullOrWhiteSpace($Path) -or -not (Test-Path -LiteralPath $Path -PathType Leaf)) { return $false }
+    try {
+        Add-Type -AssemblyName System.Drawing -ErrorAction SilentlyContinue
+        $stream = [System.IO.File]::OpenRead($Path)
+        try {
+            $icon = New-Object System.Drawing.Icon($stream)
+            $icon.Dispose()
+            return $true
+        } finally {
+            $stream.Dispose()
+        }
+    } catch {
+        return $false
+    }
+}
+
+function Apply-LauncherIcon {
+    param($UI, [string]$IconPath)
+    if (-not (Test-IconFile $IconPath)) { return $false }
+    $titleLogoImage = Get-UiControl $UI "TitleLogoImage"
+    $titleLogoText = Get-UiControl $UI "TitleLogoText"
+    try {
+        $iconUri = New-Object System.Uri($IconPath, [System.UriKind]::Absolute)
+        $frame = [System.Windows.Media.Imaging.BitmapFrame]::Create($iconUri)
+        if ($null -ne $UI -and $null -ne $UI.Window) {
+            $UI.Window.Icon = $frame
+        }
+        if ($null -ne $titleLogoImage) {
+            $titleLogoImage.Source = $frame
+            $titleLogoImage.Visibility = "Visible"
+        }
+        if ($null -ne $titleLogoText) { $titleLogoText.Visibility = "Collapsed" }
+        Write-Log INFO "launcher icon applied: $IconPath"
+        return $true
+    } catch {
+        Write-Log WARN "failed to apply launcher icon: $($_.Exception.Message)"
+        return $false
+    }
+}
+
+function Start-LauncherIconDownload {
+    param($UI)
+    if (Apply-LauncherIcon $UI $script:ShortcutIconFile) {
+        Write-Log DEBUG "using cached launcher icon: $script:ShortcutIconFile"
+        return
+    }
+    if ($null -eq $script:RunspacePool) { return }
+    Write-Log DEBUG "cached launcher icon missing or invalid, starting download"
+    $operation = {
+        param([string[]]$Urls, [string]$OutputPath)
+        function Test-IconFile {
+            param([string]$Path)
+            if ([string]::IsNullOrWhiteSpace($Path) -or -not (Test-Path -LiteralPath $Path -PathType Leaf)) { return $false }
+            try {
+                Add-Type -AssemblyName System.Drawing -ErrorAction SilentlyContinue
+                $stream = [System.IO.File]::OpenRead($Path)
+                try {
+                    $icon = New-Object System.Drawing.Icon($stream)
+                    $icon.Dispose()
+                    return $true
+                } finally {
+                    $stream.Dispose()
+                }
+            } catch {
+                return $false
+            }
+        }
+
+        New-Item -ItemType Directory -Force -Path (Split-Path -Parent $OutputPath) | Out-Null
+        $lastError = ""
+        foreach ($url in $Urls) {
+            $temp = "$OutputPath.tmp"
+            try {
+                $headers = @{ "User-Agent" = "installer-launcher-gui" }
+                Invoke-WebRequest -UseBasicParsing -Uri $url -Headers $headers -OutFile $temp -TimeoutSec 30 -ErrorAction Stop
+                if (-not (Test-IconFile $temp)) { throw "下载的文件不是有效 icon" }
+                Move-Item -LiteralPath $temp -Destination $OutputPath -Force
+                return [PSCustomObject]@{ Success = $true; Path = $OutputPath; Url = $url; Message = "" }
+            } catch {
+                Remove-Item -LiteralPath $temp -Force -ErrorAction SilentlyContinue
+                $lastError = $_.Exception.Message
+            }
+        }
+        return [PSCustomObject]@{ Success = $false; Path = ""; Url = ""; Message = $lastError }
+    }
+
+    try {
+        $ps = [powershell]::Create()
+        $ps.RunspacePool = $script:RunspacePool
+        [void]$ps.AddScript($operation.ToString())
+        [void]$ps.AddArgument([string[]]$script:SHORTCUT_ICON_URLS)
+        [void]$ps.AddArgument($script:ShortcutIconFile)
+        $async = $ps.BeginInvoke()
+        $timer = New-Object System.Windows.Threading.DispatcherTimer
+        $timer.Interval = [TimeSpan]::FromMilliseconds(300)
+        $timer.Add_Tick({
+            if (-not $async.IsCompleted) { return }
+            $timer.Stop()
+            try {
+                $result = $ps.EndInvoke($async) | Select-Object -First 1
+                if ($null -ne $result -and $result.Success) {
+                    Write-Log INFO "launcher icon downloaded: $($result.Url)"
+                    Apply-LauncherIcon $UI ([string]$result.Path)
+                } else {
+                    $message = ""
+                    if ($null -ne $result) { $message = [string]$result.Message }
+                    Write-Log WARN "launcher icon download failed: $message"
+                }
+            } catch {
+                Write-Log WARN "launcher icon download task failed: $($_.Exception.Message)"
+            } finally {
+                $ps.Dispose()
+            }
+        }.GetNewClosure())
+        $timer.Start()
+    } catch {
+        Write-Log WARN "failed to start launcher icon download: $($_.Exception.Message)"
+    }
+}
+
 function Apply-HeroImage {
     param($UI, [string]$ImagePath)
     if ([string]::IsNullOrWhiteSpace($ImagePath) -or -not (Test-Path -LiteralPath $ImagePath -PathType Leaf)) { return $false }
@@ -1736,9 +1858,7 @@ function Apply-HeroImage {
     $heroOverlay = Get-UiControl $UI "HeroImageOverlay"
     $aboutHeroImage = Get-UiControl $UI "AboutHeroImage"
     $aboutHeroOverlay = Get-UiControl $UI "AboutHeroOverlay"
-    $titleLogoBorder = Get-UiControl $UI "TitleLogoBorder"
-    $titleLogoText = Get-UiControl $UI "TitleLogoText"
-    if ($null -eq $heroImage -and $null -eq $aboutHeroImage -and $null -eq $titleLogoBorder) { return $false }
+    if ($null -eq $heroImage -and $null -eq $aboutHeroImage) { return $false }
 
     try {
         $bitmap = New-Object System.Windows.Media.Imaging.BitmapImage
@@ -1779,15 +1899,6 @@ function Apply-HeroImage {
             }
         }
 
-        if ($null -ne $titleLogoBorder) {
-            $brush = New-Object System.Windows.Media.ImageBrush
-            $brush.ImageSource = $bitmap
-            $brush.Stretch = [System.Windows.Media.Stretch]::UniformToFill
-            $brush.AlignmentX = [System.Windows.Media.AlignmentX]::Center
-            $brush.AlignmentY = [System.Windows.Media.AlignmentY]::Center
-            $titleLogoBorder.Background = $brush
-            if ($null -ne $titleLogoText) { $titleLogoText.Visibility = "Collapsed" }
-        }
         Write-Log INFO "hero image applied: $ImagePath"
         return $true
     } catch {
@@ -3303,7 +3414,10 @@ function Start-App {
         <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
         <StackPanel Orientation="Horizontal" Margin="18,0,0,0" VerticalAlignment="Center">
           <Border Name="TitleLogoBorder" Width="24" Height="24" CornerRadius="7" Background="{DynamicResource PrimaryBrush}" Margin="0,0,10,0" ClipToBounds="True">
-            <TextBlock Name="TitleLogoText" Text="AI" Foreground="White" FontSize="10" FontWeight="SemiBold" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+            <Grid>
+              <Image Name="TitleLogoImage" Stretch="Uniform" Margin="2" Visibility="Collapsed"/>
+              <TextBlock Name="TitleLogoText" Text="AI" Foreground="White" FontSize="10" FontWeight="SemiBold" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+            </Grid>
           </Border>
           <TextBlock Text="SD WebUI All In One Launcher" FontSize="15" FontWeight="SemiBold"/>
           <TextBlock Text="  v$script:INSTALLER_LAUNCHER_GUI_VERSION" FontSize="13" Foreground="{DynamicResource TextSecBrush}" VerticalAlignment="Center"/>
@@ -3342,11 +3456,11 @@ function Start-App {
             <StackPanel DockPanel.Dock="Bottom">
               <Button Name="SettingsNavBtn" Width="72" Height="72" Padding="4" Margin="0,0,0,10" BorderThickness="1" HorizontalAlignment="Center">
                 <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center">
-                  <TextBlock Name="SettingsNavIcon" Text="⚙" FontSize="20" HorizontalAlignment="Center" Margin="0,0,0,4"/>
+                  <TextBlock Name="SettingsNavIcon" Text="⛭" FontSize="20" HorizontalAlignment="Center" Margin="0,0,0,4"/>
                   <TextBlock Name="SettingsNavLabel" Text="设置" FontSize="12" HorizontalAlignment="Center"/>
                 </StackPanel>
               </Button>
-              <Button Name="AboutNavBtn" Width="72" Height="72" Padding="4" BorderThickness="1" HorizontalAlignment="Center">
+              <Button Name="AboutNavBtn" Width="72" Height="72" Padding="4" Margin="0,0,0,10" BorderThickness="1" HorizontalAlignment="Center">
                 <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center">
                   <TextBlock Name="AboutNavIcon" Text="ⓘ" FontSize="20" HorizontalAlignment="Center" Margin="0,0,0,4"/>
                   <TextBlock Name="AboutNavLabel" Text="关于" FontSize="12" HorizontalAlignment="Center"/>
@@ -3621,7 +3735,7 @@ function Start-App {
     }.GetNewClosure())
     $UI = [PSCustomObject]@{
         Window = $window; TitleBar = $window.FindName("TitleBar"); MinBtn = $window.FindName("MinBtn"); MaxBtn = $window.FindName("MaxBtn"); CloseBtn = $window.FindName("CloseBtn")
-        MainBorder = $window.FindName("MainBorder"); StartPage = $window.FindName("StartPage"); AdvancedPage = $window.FindName("AdvancedPage"); SoftwarePage = $window.FindName("SoftwarePage"); SettingsPage = $window.FindName("SettingsPage"); AboutPage = $window.FindName("AboutPage"); MainTabs = $window.FindName("MainTabs"); ProjectList = $window.FindName("ProjectList"); ProjectStatusText = $window.FindName("ProjectStatusText"); BusyText = $window.FindName("BusyText"); HeroImage = $window.FindName("HeroImage"); HeroImageOverlay = $window.FindName("HeroImageOverlay"); AboutHeroImage = $window.FindName("AboutHeroImage"); AboutHeroOverlay = $window.FindName("AboutHeroOverlay"); TitleLogoBorder = $window.FindName("TitleLogoBorder"); TitleLogoText = $window.FindName("TitleLogoText")
+        MainBorder = $window.FindName("MainBorder"); StartPage = $window.FindName("StartPage"); AdvancedPage = $window.FindName("AdvancedPage"); SoftwarePage = $window.FindName("SoftwarePage"); SettingsPage = $window.FindName("SettingsPage"); AboutPage = $window.FindName("AboutPage"); MainTabs = $window.FindName("MainTabs"); ProjectList = $window.FindName("ProjectList"); ProjectStatusText = $window.FindName("ProjectStatusText"); BusyText = $window.FindName("BusyText"); HeroImage = $window.FindName("HeroImage"); HeroImageOverlay = $window.FindName("HeroImageOverlay"); AboutHeroImage = $window.FindName("AboutHeroImage"); AboutHeroOverlay = $window.FindName("AboutHeroOverlay"); TitleLogoBorder = $window.FindName("TitleLogoBorder"); TitleLogoImage = $window.FindName("TitleLogoImage"); TitleLogoText = $window.FindName("TitleLogoText")
         SelectedProjectHintText = $window.FindName("SelectedProjectHintText")
         PathPanel = $window.FindName("PathPanel"); ConfigPanel = $window.FindName("ConfigPanel")
         ScriptCombo = $window.FindName("ScriptCombo"); ScriptParamPanel = $window.FindName("ScriptParamPanel"); ScriptArgsBox = $window.FindName("ScriptArgsBox")
@@ -3747,6 +3861,7 @@ function Start-App {
             Show-AppPage $UI "start"
             Append-UiLog $UI "GUI 启动完成。配置: $displayConfigHome 日志: $displayLogFile"
             Append-UiLog $UI "选择项目，调整配置，然后运行安装器。"
+            Start-LauncherIconDownload $UI
             Start-HeroImageDownload $UI
 
             $statusRefreshTimer = New-Object System.Windows.Threading.DispatcherTimer
