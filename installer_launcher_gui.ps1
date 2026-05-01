@@ -1734,7 +1734,11 @@ function Apply-HeroImage {
     if ([string]::IsNullOrWhiteSpace($ImagePath) -or -not (Test-Path -LiteralPath $ImagePath -PathType Leaf)) { return $false }
     $heroImage = Get-UiControl $UI "HeroImage"
     $heroOverlay = Get-UiControl $UI "HeroImageOverlay"
-    if ($null -eq $heroImage -or $null -eq $heroOverlay) { return $false }
+    $aboutHeroImage = Get-UiControl $UI "AboutHeroImage"
+    $aboutHeroOverlay = Get-UiControl $UI "AboutHeroOverlay"
+    $titleLogoBorder = Get-UiControl $UI "TitleLogoBorder"
+    $titleLogoText = Get-UiControl $UI "TitleLogoText"
+    if ($null -eq $heroImage -and $null -eq $aboutHeroImage -and $null -eq $titleLogoBorder) { return $false }
 
     try {
         $bitmap = New-Object System.Windows.Media.Imaging.BitmapImage
@@ -1743,12 +1747,6 @@ function Apply-HeroImage {
         $bitmap.UriSource = New-Object System.Uri($ImagePath, [System.UriKind]::Absolute)
         $bitmap.EndInit()
         $bitmap.Freeze()
-
-        $heroImage.Source = $bitmap
-        $heroImage.Visibility = "Visible"
-        $heroOverlay.Visibility = "Visible"
-        $heroImage.Opacity = 0.0
-        $heroOverlay.Opacity = 0.0
 
         $duration = New-Object System.Windows.Duration ([TimeSpan]::FromMilliseconds(420))
         $imageAnimation = New-Object System.Windows.Media.Animation.DoubleAnimation
@@ -1763,8 +1761,33 @@ function Apply-HeroImage {
         $overlayAnimation.Duration = $duration
         $overlayAnimation.EasingFunction = New-Object System.Windows.Media.Animation.CubicEase -Property @{ EasingMode = [System.Windows.Media.Animation.EasingMode]::EaseOut }
 
-        $heroImage.BeginAnimation([System.Windows.UIElement]::OpacityProperty, $imageAnimation)
-        $heroOverlay.BeginAnimation([System.Windows.UIElement]::OpacityProperty, $overlayAnimation)
+        foreach ($target in @(
+            @{ Image = $heroImage; Overlay = $heroOverlay },
+            @{ Image = $aboutHeroImage; Overlay = $aboutHeroOverlay }
+        )) {
+            $image = $target["Image"]
+            $overlay = $target["Overlay"]
+            if ($null -eq $image) { continue }
+            $image.Source = $bitmap
+            $image.Visibility = "Visible"
+            $image.Opacity = 0.0
+            $image.BeginAnimation([System.Windows.UIElement]::OpacityProperty, $imageAnimation)
+            if ($null -ne $overlay) {
+                $overlay.Visibility = "Visible"
+                $overlay.Opacity = 0.0
+                $overlay.BeginAnimation([System.Windows.UIElement]::OpacityProperty, $overlayAnimation)
+            }
+        }
+
+        if ($null -ne $titleLogoBorder) {
+            $brush = New-Object System.Windows.Media.ImageBrush
+            $brush.ImageSource = $bitmap
+            $brush.Stretch = [System.Windows.Media.Stretch]::UniformToFill
+            $brush.AlignmentX = [System.Windows.Media.AlignmentX]::Center
+            $brush.AlignmentY = [System.Windows.Media.AlignmentY]::Center
+            $titleLogoBorder.Background = $brush
+            if ($null -ne $titleLogoText) { $titleLogoText.Visibility = "Collapsed" }
+        }
         Write-Log INFO "hero image applied: $ImagePath"
         return $true
     } catch {
@@ -3279,8 +3302,8 @@ function Start-App {
       <Grid Name="TitleBar" Grid.Row="0" Background="{DynamicResource HeaderBGBrush}">
         <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
         <StackPanel Orientation="Horizontal" Margin="18,0,0,0" VerticalAlignment="Center">
-          <Border Width="24" Height="24" CornerRadius="7" Background="{DynamicResource PrimaryBrush}" Margin="0,0,10,0">
-            <TextBlock Text="AI" Foreground="White" FontSize="10" FontWeight="SemiBold" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+          <Border Name="TitleLogoBorder" Width="24" Height="24" CornerRadius="7" Background="{DynamicResource PrimaryBrush}" Margin="0,0,10,0" ClipToBounds="True">
+            <TextBlock Name="TitleLogoText" Text="AI" Foreground="White" FontSize="10" FontWeight="SemiBold" HorizontalAlignment="Center" VerticalAlignment="Center"/>
           </Border>
           <TextBlock Text="SD WebUI All In One Launcher" FontSize="15" FontWeight="SemiBold"/>
           <TextBlock Text="  v$script:INSTALLER_LAUNCHER_GUI_VERSION" FontSize="13" Foreground="{DynamicResource TextSecBrush}" VerticalAlignment="Center"/>
@@ -3297,19 +3320,19 @@ function Start-App {
         <Border Grid.Column="0" Background="#22FFFFFF" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="0,1,1,0">
           <DockPanel Margin="8,14,8,14">
             <StackPanel DockPanel.Dock="Top">
-              <Button Name="OneClickNavBtn" Width="72" Height="72" Padding="4" Margin="0,0,0,10" BorderThickness="1">
+              <Button Name="OneClickNavBtn" Width="72" Height="72" Padding="4" Margin="0,0,0,10" BorderThickness="1" HorizontalAlignment="Center">
                 <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center">
                   <TextBlock Name="OneClickNavIcon" Text="▶" FontSize="20" HorizontalAlignment="Center" Margin="0,0,0,4"/>
                   <TextBlock Name="OneClickNavLabel" Text="一键启动" FontSize="12" HorizontalAlignment="Center"/>
                 </StackPanel>
               </Button>
-              <Button Name="AdvancedNavBtn" Width="72" Height="72" Padding="4" Margin="0,0,0,10" BorderThickness="1">
+              <Button Name="AdvancedNavBtn" Width="72" Height="72" Padding="4" Margin="0,0,0,10" BorderThickness="1" HorizontalAlignment="Center">
                 <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center">
                   <TextBlock Name="AdvancedNavIcon" Text="☷" FontSize="20" HorizontalAlignment="Center" Margin="0,0,0,4"/>
                   <TextBlock Name="AdvancedNavLabel" Text="高级选项" FontSize="12" HorizontalAlignment="Center"/>
                 </StackPanel>
               </Button>
-              <Button Name="SoftwareNavBtn" Width="72" Height="72" Padding="4" Margin="0,0,0,10" BorderThickness="1">
+              <Button Name="SoftwareNavBtn" Width="72" Height="72" Padding="4" Margin="0,0,0,10" BorderThickness="1" HorizontalAlignment="Center">
                 <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center">
                   <TextBlock Name="SoftwareNavIcon" Text="▣" FontSize="20" HorizontalAlignment="Center" Margin="0,0,0,4"/>
                   <TextBlock Name="SoftwareNavLabel" Text="软件选择" FontSize="12" HorizontalAlignment="Center"/>
@@ -3317,13 +3340,13 @@ function Start-App {
               </Button>
             </StackPanel>
             <StackPanel DockPanel.Dock="Bottom">
-              <Button Name="SettingsNavBtn" Width="72" Height="72" Padding="4" Margin="0,0,0,10" BorderThickness="1">
+              <Button Name="SettingsNavBtn" Width="72" Height="72" Padding="4" Margin="0,0,0,10" BorderThickness="1" HorizontalAlignment="Center">
                 <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center">
                   <TextBlock Name="SettingsNavIcon" Text="⚙" FontSize="20" HorizontalAlignment="Center" Margin="0,0,0,4"/>
                   <TextBlock Name="SettingsNavLabel" Text="设置" FontSize="12" HorizontalAlignment="Center"/>
                 </StackPanel>
               </Button>
-              <Button Name="AboutNavBtn" Width="72" Height="72" Padding="4" BorderThickness="1">
+              <Button Name="AboutNavBtn" Width="72" Height="72" Padding="4" BorderThickness="1" HorizontalAlignment="Center">
                 <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center">
                   <TextBlock Name="AboutNavIcon" Text="ⓘ" FontSize="20" HorizontalAlignment="Center" Margin="0,0,0,4"/>
                   <TextBlock Name="AboutNavLabel" Text="关于" FontSize="12" HorizontalAlignment="Center"/>
@@ -3535,15 +3558,23 @@ function Start-App {
             </StackPanel>
             <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
               <StackPanel>
-                <Border Background="{DynamicResource PanelBGBrush}" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1" CornerRadius="12" Padding="26" Margin="0,0,0,18">
-                  <StackPanel HorizontalAlignment="Center">
-                    <Border Width="58" Height="58" CornerRadius="16" Background="{DynamicResource PrimaryBrush}" Margin="0,0,0,14">
-                      <TextBlock Text="AI" Foreground="White" FontSize="20" FontWeight="SemiBold" HorizontalAlignment="Center" VerticalAlignment="Center"/>
-                    </Border>
-                    <TextBlock Text="SD WebUI All In One Launcher" FontSize="24" FontWeight="Bold" HorizontalAlignment="Center"/>
-                    <TextBlock Text="v$script:INSTALLER_LAUNCHER_GUI_VERSION" FontSize="16" Foreground="{DynamicResource TextSecBrush}" HorizontalAlignment="Center" Margin="0,8,0,0"/>
-                    <TextBlock Text="用于在 Windows 上安装和管理 Stable Diffusion WebUI、ComfyUI、Fooocus、InvokeAI 等 WebUI / 工具。" Foreground="{DynamicResource TextSecBrush}" TextWrapping="Wrap" TextAlignment="Center" MaxWidth="760" Margin="0,16,0,0"/>
-                  </StackPanel>
+                <Border MinHeight="220" CornerRadius="12" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1" Margin="0,0,0,18" ClipToBounds="True">
+                  <Border.Background>
+                    <LinearGradientBrush StartPoint="0,0" EndPoint="1,1">
+                      <GradientStop Color="#FF1E5B9A" Offset="0"/>
+                      <GradientStop Color="#FF3478B8" Offset="0.46"/>
+                      <GradientStop Color="#FFEAF3F8" Offset="1"/>
+                    </LinearGradientBrush>
+                  </Border.Background>
+                  <Grid>
+                    <Image Name="AboutHeroImage" Stretch="UniformToFill" HorizontalAlignment="Center" VerticalAlignment="Center" Visibility="Collapsed" Opacity="0"/>
+                    <Border Name="AboutHeroOverlay" Background="#CC000000" Visibility="Collapsed" Opacity="0"/>
+                    <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center" Margin="24">
+                      <TextBlock Text="SD WebUI All In One Launcher" FontSize="28" FontWeight="Bold" Foreground="White" HorizontalAlignment="Center"/>
+                      <TextBlock Text="v$script:INSTALLER_LAUNCHER_GUI_VERSION" FontSize="18" Foreground="White" Opacity="0.9" HorizontalAlignment="Center" Margin="0,10,0,0"/>
+                      <TextBlock Text="用于在 Windows 上安装和管理 Stable Diffusion WebUI、ComfyUI、Fooocus、InvokeAI 等 WebUI / 工具。" Foreground="White" Opacity="0.9" TextWrapping="Wrap" TextAlignment="Center" MaxWidth="760" Margin="0,16,0,0"/>
+                    </StackPanel>
+                  </Grid>
                 </Border>
                 <UniformGrid Columns="3" Margin="0,0,0,18">
                   <Border Background="{DynamicResource PanelBGBrush}" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1" CornerRadius="9" Padding="16" Margin="0,0,10,0">
@@ -3590,7 +3621,7 @@ function Start-App {
     }.GetNewClosure())
     $UI = [PSCustomObject]@{
         Window = $window; TitleBar = $window.FindName("TitleBar"); MinBtn = $window.FindName("MinBtn"); MaxBtn = $window.FindName("MaxBtn"); CloseBtn = $window.FindName("CloseBtn")
-        MainBorder = $window.FindName("MainBorder"); StartPage = $window.FindName("StartPage"); AdvancedPage = $window.FindName("AdvancedPage"); SoftwarePage = $window.FindName("SoftwarePage"); SettingsPage = $window.FindName("SettingsPage"); AboutPage = $window.FindName("AboutPage"); MainTabs = $window.FindName("MainTabs"); ProjectList = $window.FindName("ProjectList"); ProjectStatusText = $window.FindName("ProjectStatusText"); BusyText = $window.FindName("BusyText"); HeroImage = $window.FindName("HeroImage"); HeroImageOverlay = $window.FindName("HeroImageOverlay")
+        MainBorder = $window.FindName("MainBorder"); StartPage = $window.FindName("StartPage"); AdvancedPage = $window.FindName("AdvancedPage"); SoftwarePage = $window.FindName("SoftwarePage"); SettingsPage = $window.FindName("SettingsPage"); AboutPage = $window.FindName("AboutPage"); MainTabs = $window.FindName("MainTabs"); ProjectList = $window.FindName("ProjectList"); ProjectStatusText = $window.FindName("ProjectStatusText"); BusyText = $window.FindName("BusyText"); HeroImage = $window.FindName("HeroImage"); HeroImageOverlay = $window.FindName("HeroImageOverlay"); AboutHeroImage = $window.FindName("AboutHeroImage"); AboutHeroOverlay = $window.FindName("AboutHeroOverlay"); TitleLogoBorder = $window.FindName("TitleLogoBorder"); TitleLogoText = $window.FindName("TitleLogoText")
         SelectedProjectHintText = $window.FindName("SelectedProjectHintText")
         PathPanel = $window.FindName("PathPanel"); ConfigPanel = $window.FindName("ConfigPanel")
         ScriptCombo = $window.FindName("ScriptCombo"); ScriptParamPanel = $window.FindName("ScriptParamPanel"); ScriptArgsBox = $window.FindName("ScriptArgsBox")
