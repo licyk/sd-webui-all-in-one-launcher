@@ -29,6 +29,10 @@ $script:HERO_IMAGE_URLS = @(
     "https://raw.githubusercontent.com/licyk/sd-webui-all-in-one/main/.github/head_image.jpg",
     "https://gitee.com/licyk/sd-webui-all-in-one/raw/main/.github/head_image.jpg"
 )
+$script:SHORTCUT_ICON_URLS = @(
+    "https://modelscope.cn/models/licyks/sd-webui-all-in-one/resolve/master/icon/sd_webui_all_in_one_launcher.ico",
+    "https://huggingface.co/licyk/sd-webui-all-in-one/resolve/main/icon/sd_webui_all_in_one_launcher.ico"
+)
 
 if ([Environment]::OSVersion.Platform -ne [PlatformID]::Win32NT) {
     Write-Error "installer_launcher_gui.ps1 only supports Windows."
@@ -128,13 +132,14 @@ $script:CacheHome = Join-Path $script:LocalHome "cache"
 $script:LogHome = Join-Path $script:LocalHome "logs"
 $script:MainConfigFile = Join-Path $script:ConfigHome "main.json"
 $script:HeroImageFile = Join-Path $script:ConfigHome "head_image.jpg"
+$script:ShortcutIconFile = Join-Path $script:ConfigHome "sd_webui_all_in_one_launcher.ico"
 $script:LogFile = Join-Path $script:LogHome ("installer-launcher-gui-{0}.log" -f (Get-Date -Format "yyyyMMdd"))
 $script:AutoUpdateIntervalSeconds = 3600
 $script:RunspacePool = $null
 function Export-GuiEventFunctions {
     $names = @(
         "Append-UiLog", "Apply-HeroImage", "AutoSave-MainConfigFromUi", "Ensure-GuiState", "Get-CurrentProjectKey", "Get-ObjectPropertyValue", "Get-ProjectConfig",
-        "Get-SelectedScriptName", "Invoke-OneClickAction", "Invoke-TerminateCurrentOperation",
+        "Get-SelectedScriptName", "Invoke-CreateLauncherShortcut", "Invoke-OneClickAction", "Invoke-TerminateCurrentOperation",
         "Invoke-UninstallProject", "Invoke-UpdateCheck", "Open-ConfigFolder", "Refresh-MainConfigUi",
         "Refresh-ProjectConfigUi", "Refresh-ScriptParamUi", "Refresh-Status", "Report-UiError",
         "Save-CurrentProjectConfigFromUi", "Save-MainConfig", "Save-MainConfigFromUi",
@@ -1157,7 +1162,7 @@ function Append-UiLog {
 function Set-UiBusy {
     param($UI, [bool]$Busy, [string]$Message, [bool]$CanTerminate = $true)
     $enabled = -not $Busy
-    foreach ($name in @("UninstallBtn", "CheckUpdateBtn", "UnifiedStartBtn", "OpenConfigFolderBtn", "ShowLogBtn")) {
+    foreach ($name in @("UninstallBtn", "CheckUpdateBtn", "UnifiedStartBtn", "OpenConfigFolderBtn", "ShowLogBtn", "CreateShortcutBtn")) {
         $button = Get-UiControl $UI $name
         if ($null -ne $button) { $button.IsEnabled = $enabled }
     }
@@ -1874,6 +1879,115 @@ function Open-ConfigFolder {
     $path = $script:ConfigHome
     if (-not (Test-Path -LiteralPath $path)) { New-Item -ItemType Directory -Force -Path $path | Out-Null }
     Start-Process -FilePath "explorer.exe" -ArgumentList @($path) | Out-Null
+}
+
+function Invoke-CreateLauncherShortcut {
+    param($UI, $State)
+    $selfPath = $PSCommandPath
+    if ([string]::IsNullOrWhiteSpace($selfPath) -or -not (Test-Path -LiteralPath $selfPath -PathType Leaf)) {
+        Show-Message "无法确定当前 GUI 脚本路径，不能创建快捷方式。" "创建快捷方式" "Error"
+        return
+    }
+    $launcherPath = (Get-Process -Id $PID).Path
+    $iconUrlPayload = ConvertTo-Json -Compress -InputObject ([string[]]$script:SHORTCUT_ICON_URLS)
+    $operation = {
+        param([string]$IconUrlPayload, [string]$IconPath, [string]$SelfPath, [string]$LauncherPath, [string]$ShortcutName, $Control)
+        function Test-IconFile {
+            param([string]$Path)
+            if ([string]::IsNullOrWhiteSpace($Path) -or -not (Test-Path -LiteralPath $Path -PathType Leaf)) { return $false }
+            try {
+                Add-Type -AssemblyName System.Drawing -ErrorAction SilentlyContinue
+                $stream = [System.IO.File]::OpenRead($Path)
+                try {
+                    $icon = New-Object System.Drawing.Icon($stream)
+                    $icon.Dispose()
+                    return $true
+                } finally {
+                    $stream.Dispose()
+                }
+            } catch {
+                return $false
+            }
+        }
+
+        function Add-WindowsShortcut {
+            param([string]$Name, [string]$IconPath, [string]$TargetPath, [string]$ScriptPath)
+            $shell = New-Object -ComObject WScript.Shell
+            $desktop = [System.Environment]::GetFolderPath("Desktop")
+            $programs = Join-Path ([System.Environment]::GetFolderPath("ApplicationData")) "Microsoft\Windows\Start Menu\Programs"
+            New-Item -ItemType Directory -Force -Path $desktop, $programs | Out-Null
+            $desktopShortcut = Join-Path $desktop "$Name.lnk"
+            $programsShortcut = Join-Path $programs "$Name.lnk"
+            foreach ($shortcutPath in @($desktopShortcut, $programsShortcut)) {
+                $shortcut = $shell.CreateShortcut($shortcutPath)
+                $shortcut.TargetPath = $TargetPath
+                $shortcut.Arguments = "-NoProfile -ExecutionPolicy Bypass -File `"$ScriptPath`""
+                $shortcut.WorkingDirectory = Split-Path -Parent $ScriptPath
+                $shortcut.IconLocation = $IconPath
+                $shortcut.Save()
+            }
+            return @($desktopShortcut, $programsShortcut)
+        }
+
+        $attempts = New-Object System.Collections.ArrayList
+        if (-not (Test-IconFile $IconPath)) {
+            $urls = @()
+            try {
+                $parsedUrls = ConvertFrom-Json -InputObject $IconUrlPayload -ErrorAction Stop
+                $urls = @($parsedUrls | ForEach-Object { [string]$_ } | Where-Object { -not [string]::IsNullOrWhiteSpace($_) })
+            } catch {
+                return [PSCustomObject]@{ Success = $false; Message = "图标下载源解析失败: $($_.Exception.Message)"; Attempts = @($attempts.ToArray()); Paths = @() }
+            }
+            New-Item -ItemType Directory -Force -Path (Split-Path -Parent $IconPath) | Out-Null
+            foreach ($url in $urls) {
+                $temp = "$IconPath.tmp"
+                try {
+                    $headers = @{ "User-Agent" = "installer-launcher-gui" }
+                    Invoke-WebRequest -UseBasicParsing -Uri $url -Headers $headers -OutFile $temp -TimeoutSec 30 -ErrorAction Stop
+                    if (-not (Test-IconFile $temp)) { throw "下载的文件不是有效 icon" }
+                    Move-Item -LiteralPath $temp -Destination $IconPath -Force
+                    [void]$attempts.Add("OK $url")
+                    break
+                } catch {
+                    Remove-Item -LiteralPath $temp -Force -ErrorAction SilentlyContinue
+                    [void]$attempts.Add("FAIL $url $($_.Exception.Message)")
+                }
+            }
+        } else {
+            [void]$attempts.Add("OK cached icon $IconPath")
+        }
+
+        if (-not (Test-IconFile $IconPath)) {
+            return [PSCustomObject]@{ Success = $false; Message = "快捷方式图标下载失败，未创建快捷方式。"; Attempts = @($attempts.ToArray()); Paths = @() }
+        }
+
+        try {
+            $paths = Add-WindowsShortcut -Name $ShortcutName -IconPath $IconPath -TargetPath $LauncherPath -ScriptPath $SelfPath
+            return [PSCustomObject]@{ Success = $true; Message = "快捷方式已创建。"; Attempts = @($attempts.ToArray()); Paths = @($paths) }
+        } catch {
+            return [PSCustomObject]@{ Success = $false; Message = "创建快捷方式失败: $($_.Exception.Message)"; Attempts = @($attempts.ToArray()); Paths = @() }
+        }
+    }
+    Start-GuiOperation -UI $UI -State $State -Name "创建快捷方式" -ScriptBlock $operation -Arguments @($iconUrlPayload, $script:ShortcutIconFile, $selfPath, $launcherPath, "SD WebUI All In One Launcher") -CanTerminate $false -OnComplete {
+        param($result, $streamErrors)
+        $item = $result | Select-Object -First 1
+        if ($null -eq $item) {
+            Append-UiLog $UI "创建快捷方式没有返回结果。"
+            Show-Message "创建快捷方式没有返回结果。" "创建快捷方式" "Warning"
+            return
+        }
+        foreach ($attempt in @($item.Attempts)) {
+            Write-Log DEBUG "shortcut icon attempt: $attempt"
+        }
+        if ($item.Success) {
+            $paths = @($item.Paths) -join [Environment]::NewLine
+            Append-UiLog $UI "快捷方式已创建: $paths"
+            Show-Message "$($item.Message)`n`n$paths" "创建快捷方式"
+        } else {
+            Append-UiLog $UI $item.Message
+            Show-Message $item.Message "创建快捷方式" "Error"
+        }
+    }.GetNewClosure()
 }
 
 function Refresh-MainConfigUi {
@@ -3229,6 +3343,7 @@ function Start-App {
                     <Button Name="CheckUpdateBtn" Content="检查更新"/>
                     <Button Name="ShowLogBtn" Content="查看日志"/>
                     <Button Name="OpenConfigFolderBtn" Content="打开配置文件夹"/>
+                    <Button Name="CreateShortcutBtn" Content="创建快捷方式"/>
                   </StackPanel>
                 </StackPanel>
               </ScrollViewer>
@@ -3265,7 +3380,7 @@ function Start-App {
         ScriptCombo = $window.FindName("ScriptCombo"); ScriptParamPanel = $window.FindName("ScriptParamPanel"); ScriptArgsBox = $window.FindName("ScriptArgsBox")
         StartModeTabs = $window.FindName("StartModeTabs"); LaunchScriptList = $window.FindName("LaunchScriptList"); UnifiedStartBtn = $window.FindName("UnifiedStartBtn"); UnifiedStartLabel = $window.FindName("UnifiedStartLabel"); StartProgressBar = $window.FindName("StartProgressBar"); TerminateOperationBtn = $window.FindName("TerminateOperationBtn"); StartHintText = $window.FindName("StartHintText"); InstallHintText = $window.FindName("InstallHintText")
         AutoUpdateCheck = $window.FindName("AutoUpdateCheck"); LogLevelCombo = $window.FindName("LogLevelCombo"); ProxyModeCombo = $window.FindName("ProxyModeCombo"); ManualProxyBox = $window.FindName("ManualProxyBox")
-        CheckUpdateBtn = $window.FindName("CheckUpdateBtn"); OpenConfigFolderBtn = $window.FindName("OpenConfigFolderBtn"); UninstallBtn = $window.FindName("UninstallBtn"); OneClickNavBtn = $window.FindName("OneClickNavBtn"); AdvancedNavBtn = $window.FindName("AdvancedNavBtn"); SoftwareNavBtn = $window.FindName("SoftwareNavBtn"); SettingsNavBtn = $window.FindName("SettingsNavBtn"); OneClickNavLabel = $window.FindName("OneClickNavLabel"); AdvancedNavLabel = $window.FindName("AdvancedNavLabel"); SoftwareNavLabel = $window.FindName("SoftwareNavLabel"); SettingsNavLabel = $window.FindName("SettingsNavLabel"); OneClickNavIcon = $window.FindName("OneClickNavIcon"); AdvancedNavIcon = $window.FindName("AdvancedNavIcon"); SoftwareNavIcon = $window.FindName("SoftwareNavIcon"); SettingsNavIcon = $window.FindName("SettingsNavIcon"); HelpBtn = $window.FindName("HelpBtn"); ShowLogBtn = $window.FindName("ShowLogBtn")
+        CheckUpdateBtn = $window.FindName("CheckUpdateBtn"); OpenConfigFolderBtn = $window.FindName("OpenConfigFolderBtn"); CreateShortcutBtn = $window.FindName("CreateShortcutBtn"); UninstallBtn = $window.FindName("UninstallBtn"); OneClickNavBtn = $window.FindName("OneClickNavBtn"); AdvancedNavBtn = $window.FindName("AdvancedNavBtn"); SoftwareNavBtn = $window.FindName("SoftwareNavBtn"); SettingsNavBtn = $window.FindName("SettingsNavBtn"); OneClickNavLabel = $window.FindName("OneClickNavLabel"); AdvancedNavLabel = $window.FindName("AdvancedNavLabel"); SoftwareNavLabel = $window.FindName("SoftwareNavLabel"); SettingsNavLabel = $window.FindName("SettingsNavLabel"); OneClickNavIcon = $window.FindName("OneClickNavIcon"); AdvancedNavIcon = $window.FindName("AdvancedNavIcon"); SoftwareNavIcon = $window.FindName("SoftwareNavIcon"); SettingsNavIcon = $window.FindName("SettingsNavIcon"); HelpBtn = $window.FindName("HelpBtn"); ShowLogBtn = $window.FindName("ShowLogBtn")
         LogBox = $window.FindName("LogBox")
     }
     $State = [PSCustomObject]@{ CurrentOperation = $null; ConfigControls = @{}; ScriptParamControls = @{}; ProjectConfig = @{}; StatusRefreshTimer = $null; LastOneClickStatus = ""; IsRefreshing = $false; AutoSaveProjectConfig = $null; IsAutoSavingMainConfig = $false }
@@ -3340,6 +3455,7 @@ function Start-App {
     $UI.ManualProxyBox.Add_TextChanged({ AutoSave-MainConfigFromUi $UI $State }.GetNewClosure())
     $UI.CheckUpdateBtn.Add_Click({ Invoke-UpdateCheck $UI $State $true }.GetNewClosure())
     $UI.OpenConfigFolderBtn.Add_Click({ Open-ConfigFolder }.GetNewClosure())
+    $UI.CreateShortcutBtn.Add_Click({ Invoke-CreateLauncherShortcut $UI $State }.GetNewClosure())
     $UI.OneClickNavBtn.Add_Click({ Show-AppPage $UI "start" }.GetNewClosure())
     $UI.AdvancedNavBtn.Add_Click({ Show-AppPage $UI "advanced"; Select-RelevantMainTab $UI }.GetNewClosure())
     $UI.SoftwareNavBtn.Add_Click({ Show-AppPage $UI "software" }.GetNewClosure())
