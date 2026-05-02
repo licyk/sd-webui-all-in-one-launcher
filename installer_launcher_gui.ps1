@@ -138,12 +138,15 @@ $script:UninstallRegistryKey = "HKCU:\Software\Microsoft\Windows\CurrentVersion\
 $script:AutoUpdateIntervalSeconds = 3600
 $script:RunspacePool = $null
 $script:MainConfig = $null
+if ($null -eq (Get-Variable -Name InstallerLauncherGuiUpdateCheckSemaphore -Scope Global -ErrorAction SilentlyContinue)) {
+    $global:InstallerLauncherGuiUpdateCheckSemaphore = [System.Threading.SemaphoreSlim]::new(1, 1)
+}
 function Export-GuiEventFunctions {
     $names = @(
         "Append-UiLog", "Apply-HeroImage", "AutoSave-MainConfigFromUi", "Ensure-GuiState", "Get-CurrentProjectKey", "Get-ObjectPropertyValue", "Get-ProjectConfig",
-        "Get-SelectedScriptName", "Invoke-CreateLauncherShortcut", "Invoke-OneClickAction", "Invoke-TerminateCurrentOperation", "Invoke-UninstallLauncher",
+        "Get-SelectedScriptName", "Get-UpdateCheckSemaphore", "Invoke-CreateLauncherShortcut", "Invoke-OneClickAction", "Invoke-TerminateCurrentOperation", "Invoke-UninstallLauncher",
         "Invoke-UninstallProject", "Invoke-UpdateCheck", "Open-ConfigFolder", "Refresh-MainConfigUi",
-        "Refresh-ProjectConfigUi", "Refresh-ScriptParamUi", "Refresh-Status", "Report-UiError",
+        "Refresh-ProjectConfigUi", "Refresh-ScriptParamUi", "Refresh-Status", "Release-UpdateCheckLock", "Report-UiError",
         "Save-CurrentProjectConfigFromUi", "Save-MainConfig", "Save-MainConfigFromUi",
         "Select-FolderPath", "Select-RelevantMainTab", "Set-UiBusy", "Show-AppPage",
         "Show-CountdownConfirmDialog", "Show-HelpWindow", "Show-LogWindow", "Show-Message", "Show-UserAgreementDialog", "Start-HeroImageDownload", "Start-LauncherIconDownload", "Start-TabTransition",
@@ -152,6 +155,27 @@ function Export-GuiEventFunctions {
     foreach ($name in $names) {
         $command = Get-Command -Name $name -CommandType Function -ErrorAction Stop
         Set-Item -Path "Function:\Global:$name" -Value $command.ScriptBlock -Force
+    }
+}
+
+function Get-UpdateCheckSemaphore {
+    if ($null -eq (Get-Variable -Name InstallerLauncherGuiUpdateCheckSemaphore -Scope Global -ErrorAction SilentlyContinue)) {
+        $global:InstallerLauncherGuiUpdateCheckSemaphore = [System.Threading.SemaphoreSlim]::new(1, 1)
+    }
+    return (Get-Variable -Name InstallerLauncherGuiUpdateCheckSemaphore -Scope Global -ErrorAction Stop).Value
+}
+
+function Release-UpdateCheckLock {
+    try {
+        $semaphore = Get-UpdateCheckSemaphore
+        if ($null -ne $semaphore) {
+            [void]$semaphore.Release()
+            Write-Log DEBUG "update check lock released"
+        }
+    } catch [System.Threading.SemaphoreFullException] {
+        Write-Log WARN "update check lock release ignored: semaphore already full"
+    } catch {
+        Write-Log WARN "update check lock release failed: $($_.Exception.Message)"
     }
 }
 
@@ -2999,46 +3023,84 @@ function Invoke-UpdateCheck {
     $State = Ensure-GuiState $State
     Write-Log DEBUG "update check requested: manual=$Manual"
     $now = [DateTimeOffset]::Now.ToUnixTimeSeconds()
-    if (-not $Manual -and -not [bool]$script:MainConfig["AUTO_UPDATE_ENABLED"]) { return }
+    if (-not $Manual -and -not [bool]$script:MainConfig["AUTO_UPDATE_ENABLED"]) {
+        Write-Log DEBUG "update check skipped: auto update disabled"
+        return
+    }
     if (-not $Manual) {
         $last = 0
         [void][Int64]::TryParse([string]$script:MainConfig["AUTO_UPDATE_LAST_CHECK"], [ref]$last)
-        if (($now - $last) -lt $script:AutoUpdateIntervalSeconds) { return }
+        if (($now - $last) -lt $script:AutoUpdateIntervalSeconds) {
+            Write-Log DEBUG "update check skipped: interval not reached now=$now last=$last interval=$script:AutoUpdateIntervalSeconds"
+            return
+        }
+    }
+    if ($null -ne (Get-ObjectPropertyValue $State "CurrentOperation" $null)) {
+        $runningName = [string](Get-ObjectPropertyValue $State.CurrentOperation "Name" "当前任务")
+        Write-Log DEBUG "update check skipped: operation already running name=$runningName manual=$Manual"
+        if ($Manual) {
+            Append-UiLog $UI "已有任务正在运行，暂时不能检查更新。"
+            Show-Message "已有任务正在运行，请等待当前任务完成后再检查更新。" "任务运行中" "Warning"
+        }
+        return
+    }
+    if (-not (Get-UpdateCheckSemaphore).Wait(0)) {
+        Write-Log DEBUG "update check skipped: update lock is held manual=$Manual"
+        if ($Manual) {
+            Append-UiLog $UI "更新检查正在运行，请稍候。"
+            Show-Message "更新检查正在运行，请稍候。" "更新检查" "Information"
+        }
+        return
     }
     $script:MainConfig["AUTO_UPDATE_LAST_CHECK"] = $now
     Save-MainConfig
     $urlPayload = ConvertTo-Json -Compress -InputObject ([string[]]$script:SELF_REMOTE_URLS)
+    Write-Log DEBUG "update check dispatch: manual=$Manual current_version=$script:INSTALLER_LAUNCHER_GUI_VERSION self=$PSCommandPath cache=$(Join-Path $script:CacheHome "self-update") urls=$urlPayload"
     $operation = {
         param([string]$UrlPayload, [string]$CurrentVersion, [string]$SelfPath, [string]$UpdateCacheDir)
         $Urls = @()
+        $attempts = New-Object System.Collections.ArrayList
+        [void]$attempts.Add("BEGIN current_version=$CurrentVersion self=$SelfPath cache=$UpdateCacheDir")
         try {
             $parsedUrls = ConvertFrom-Json -InputObject $UrlPayload -ErrorAction Stop
             $Urls = @($parsedUrls | ForEach-Object { [string]$_ } | Where-Object { -not [string]::IsNullOrWhiteSpace($_) })
+            [void]$attempts.Add("URLS count=$($Urls.Count)")
         } catch {
-            return [PSCustomObject]@{ Success = $false; Updated = $false; Message = "更新检查失败：更新源列表解析失败: $($_.Exception.Message)"; Attempts = @() }
+            [void]$attempts.Add("FAIL parse-url-payload $($_.Exception.Message)")
+            return [PSCustomObject]@{ Success = $false; Updated = $false; Message = "更新检查失败：更新源列表解析失败: $($_.Exception.Message)"; Attempts = @($attempts.ToArray()) }
         }
         $lastError = ""
-        $attempts = New-Object System.Collections.ArrayList
         if ([string]::IsNullOrWhiteSpace($UpdateCacheDir)) {
             $UpdateCacheDir = Join-Path $env:TEMP "installer-launcher-self-update"
+            [void]$attempts.Add("CACHE fallback=$UpdateCacheDir")
         }
         New-Item -ItemType Directory -Force -Path $UpdateCacheDir | Out-Null
+        [void]$attempts.Add("CACHE ready=$UpdateCacheDir exists=$([bool](Test-Path -LiteralPath $UpdateCacheDir -PathType Container))")
         foreach ($url in $Urls) {
             $cachedScript = Join-Path $UpdateCacheDir ("installer_launcher_gui-{0}.ps1" -f ([guid]::NewGuid().ToString("N")))
             try {
                 $headers = @{ "User-Agent" = "installer-launcher-gui/$CurrentVersion" }
+                [void]$attempts.Add("TRY url=$url cache_file=$cachedScript")
                 Invoke-WebRequest -UseBasicParsing -Uri $url -Headers $headers -OutFile $cachedScript -TimeoutSec 20 -ErrorAction Stop
+                [void]$attempts.Add("DOWNLOADED url=$url cache_file=$cachedScript exists=$([bool](Test-Path -LiteralPath $cachedScript -PathType Leaf))")
                 if (-not (Test-Path -LiteralPath $cachedScript -PathType Leaf) -or (Get-Item -LiteralPath $cachedScript).Length -le 0) {
                     throw "下载后的脚本文件为空"
                 }
+                $cachedLength = (Get-Item -LiteralPath $cachedScript).Length
+                [void]$attempts.Add("CACHE_FILE size=$cachedLength path=$cachedScript")
                 $content = Get-Content -LiteralPath $cachedScript -Raw -Encoding UTF8
+                [void]$attempts.Add("READ cache_file=$cachedScript chars=$($content.Length)")
                 if ($content -match '\$script:INSTALLER_LAUNCHER_GUI_VERSION\s*=\s*"([^"]+)"') {
                     $remote = $matches[1]
                     [void]$attempts.Add("OK $url version=$remote")
+                    [void]$attempts.Add("COMPARE remote=$remote current=$CurrentVersion")
                     if ([version]$remote -le [version]$CurrentVersion) {
+                        [void]$attempts.Add("SKIP replace reason=not-newer remote=$remote current=$CurrentVersion")
                         return [PSCustomObject]@{ Success = $true; Updated = $false; Message = "已是最新版本: $CurrentVersion"; Attempts = @($attempts.ToArray()) }
                     }
+                    [void]$attempts.Add("REPLACE source=$cachedScript destination=$SelfPath")
                     Copy-Item -LiteralPath $cachedScript -Destination $SelfPath -Force
+                    [void]$attempts.Add("REPLACED destination=$SelfPath")
                     return [PSCustomObject]@{ Success = $true; Updated = $true; Message = "已更新到 $remote，重新启动 GUI 后生效。"; Attempts = @($attempts.ToArray()) }
                 }
                 $lastError = "未在远程脚本中找到 GUI 版本号"
@@ -3047,31 +3109,43 @@ function Invoke-UpdateCheck {
                 $lastError = $_.Exception.Message
                 [void]$attempts.Add("FAIL $url $lastError")
             } finally {
+                [void]$attempts.Add("CLEAN cache_file=$cachedScript exists_before=$([bool](Test-Path -LiteralPath $cachedScript -PathType Leaf))")
                 Remove-Item -LiteralPath $cachedScript -Force -ErrorAction SilentlyContinue
+                [void]$attempts.Add("CLEANED cache_file=$cachedScript exists_after=$([bool](Test-Path -LiteralPath $cachedScript -PathType Leaf))")
             }
         }
         return [PSCustomObject]@{ Success = $false; Updated = $false; Message = "更新检查失败：无法从远程地址获取 GUI 脚本。最后错误: $lastError"; Attempts = @($attempts.ToArray()) }
     }
     $manualCheck = $Manual
     $updateCacheDir = Join-Path $script:CacheHome "self-update"
-    Start-GuiOperation -UI $UI -State $State -Name "检查更新" -ScriptBlock $operation -Arguments @($urlPayload, $script:INSTALLER_LAUNCHER_GUI_VERSION, $PSCommandPath, $updateCacheDir) -CanTerminate $false -OnComplete {
-        param($result, $streamErrors)
-        $item = $result | Select-Object -First 1
-        if ($null -eq $item) {
-            Append-UiLog $UI "更新检查没有返回结果。"
-            if ($manualCheck) { Show-Message "更新检查没有返回结果。" "更新检查" "Warning" }
-            return
-        }
-        foreach ($attempt in @($item.Attempts)) {
-            Write-Log DEBUG "update source attempt: $attempt"
-        }
-        Append-UiLog $UI $item.Message
-        if ($manualCheck -or $item.Updated) {
-            $icon = "Information"
-            if (-not $item.Success) { $icon = "Warning" }
-            Show-Message $item.Message "更新检查" $icon
-        }
-    }.GetNewClosure()
+    try {
+        Start-GuiOperation -UI $UI -State $State -Name "检查更新" -ScriptBlock $operation -Arguments @($urlPayload, $script:INSTALLER_LAUNCHER_GUI_VERSION, $PSCommandPath, $updateCacheDir) -CanTerminate $false -OnComplete {
+            param($result, $streamErrors)
+            try {
+                $item = $result | Select-Object -First 1
+                if ($null -eq $item) {
+                    Append-UiLog $UI "更新检查没有返回结果。"
+                    if ($manualCheck) { Show-Message "更新检查没有返回结果。" "更新检查" "Warning" }
+                    return
+                }
+                foreach ($attempt in @($item.Attempts)) {
+                    Write-Log DEBUG "update source attempt: $attempt"
+                }
+                Append-UiLog $UI $item.Message
+                if ($manualCheck -or $item.Updated) {
+                    $icon = "Information"
+                    if (-not $item.Success) { $icon = "Warning" }
+                    Show-Message $item.Message "更新检查" $icon
+                }
+            } finally {
+                Release-UpdateCheckLock
+            }
+        }.GetNewClosure()
+    } catch {
+        Release-UpdateCheckLock
+        Write-Log DEBUG "update check lock released after dispatch failure"
+        throw
+    }
 }
 
 function Show-HelpWindow {
