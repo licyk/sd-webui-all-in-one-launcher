@@ -82,7 +82,7 @@ function Invoke-DownloadFirst {
         $temp = "$OutputPath.tmp"
         try {
             Write-Step "尝试下载: $url"
-            Invoke-WebRequest -UseBasicParsing -Uri $url -Headers @{ "User-Agent" = "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/111.0.0.0 Safari/537.36" } -OutFile $temp -TimeoutSec 45 -ErrorAction Stop
+            Invoke-WebRequest -UseBasicParsing -Uri $url -Headers @{ "User-Agent" = "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/111.0.0.0 Safari/537.36" } -OutFile $temp -TimeoutSec 15 -ErrorAction Stop
             if ($null -ne $Validate -and -not (& $Validate $temp)) {
                 throw "下载文件校验失败"
             }
