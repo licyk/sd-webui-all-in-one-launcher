@@ -449,6 +449,11 @@
 - [x] 修复 GUI 终止任务竞态后运行 `shellcheck install.sh installer_launcher.sh lib/*.sh`，通过。
 - [x] 修复 GUI 终止任务竞态后运行 `pwsh -NoProfile -Command '$null = [scriptblock]::Create((Get-Content -LiteralPath ./installer_launcher_gui.ps1 -Raw)); $null = [scriptblock]::Create((Get-Content -LiteralPath ./install.ps1 -Raw))'`，通过。
 - [x] 修复 GUI 终止任务竞态后运行 `git diff --check`，通过。
+- [x] 优化 GUI “终止当前任务”按钮 hover / pressed / disabled 样式，避免鼠标悬停时被全局按钮样式洗成浅色。
+- [x] 优化 GUI 终止按钮样式后运行 `bash -n install.sh installer_launcher.sh lib/*.sh`，通过。
+- [x] 优化 GUI 终止按钮样式后运行 `shellcheck install.sh installer_launcher.sh lib/*.sh`，通过。
+- [x] 优化 GUI 终止按钮样式后运行 `pwsh -NoProfile -Command '$null = [scriptblock]::Create((Get-Content -LiteralPath ./installer_launcher_gui.ps1 -Raw)); $null = [scriptblock]::Create((Get-Content -LiteralPath ./install.ps1 -Raw))'`，通过。
+- [x] 优化 GUI 终止按钮样式后运行 `git diff --check`，通过。
 - [ ] 在 Windows PowerShell 5.1 中运行 `installer_launcher_gui.ps1`，验证 WPF 界面可正常启动。
 - [ ] 在 Windows 中验证 GUI 首次启动会创建 AppData / LocalAppData 配置、缓存和日志目录。
 - [ ] 在 Windows 中验证 GUI 安装器下载重试、PowerShell 执行、安装检测、管理脚本运行和项目卸载流程。

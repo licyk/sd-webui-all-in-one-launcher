@@ -16,7 +16,7 @@ param(
     [switch]$UninstallLauncher
 )
 
-$script:INSTALLER_LAUNCHER_GUI_VERSION = "0.1.8"
+$script:INSTALLER_LAUNCHER_GUI_VERSION = "0.1.9"
 $script:APP_NAME = "installer-launcher"
 $script:APP_TITLE = "SD WebUI All In One Installer Launcher GUI"
 $script:SELF_REMOTE_URLS = @(
@@ -3257,6 +3257,9 @@ function Start-App {
     <SolidColorBrush x:Key="PrimaryBrush" Color="#0078D4"/>
     <SolidColorBrush x:Key="PrimaryHoverBrush" Color="#1689DF"/>
     <SolidColorBrush x:Key="PrimaryPressedBrush" Color="#005A9E"/>
+    <SolidColorBrush x:Key="DangerBrush" Color="#E53935"/>
+    <SolidColorBrush x:Key="DangerHoverBrush" Color="#D32F2F"/>
+    <SolidColorBrush x:Key="DangerPressedBrush" Color="#B71C1C"/>
     <SolidColorBrush x:Key="TextMainBrush" Color="$($colors.TextMain)"/>
     <SolidColorBrush x:Key="TextSecBrush" Color="$($colors.TextSec)"/>
     <SolidColorBrush x:Key="BorderBrush" Color="$($colors.Border)"/>
@@ -3325,6 +3328,37 @@ function Start-App {
               </Trigger>
               <Trigger Property="IsEnabled" Value="False">
                 <Setter Property="Opacity" Value="0.48"/>
+              </Trigger>
+            </ControlTemplate.Triggers>
+          </ControlTemplate>
+        </Setter.Value>
+      </Setter>
+    </Style>
+    <Style x:Key="DangerButton" TargetType="Button">
+      <Setter Property="Background" Value="{DynamicResource DangerBrush}"/>
+      <Setter Property="Foreground" Value="White"/>
+      <Setter Property="BorderThickness" Value="0"/>
+      <Setter Property="Padding" Value="12,7"/>
+      <Setter Property="Margin" Value="0,0,8,0"/>
+      <Setter Property="Cursor" Value="Hand"/>
+      <Setter Property="Template">
+        <Setter.Value>
+          <ControlTemplate TargetType="Button">
+            <Border x:Name="Bd" Background="{TemplateBinding Background}" CornerRadius="7" SnapsToDevicePixels="True">
+              <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center" Margin="{TemplateBinding Padding}"/>
+            </Border>
+            <ControlTemplate.Triggers>
+              <Trigger Property="IsMouseOver" Value="True">
+                <Setter TargetName="Bd" Property="Background" Value="{DynamicResource DangerHoverBrush}"/>
+              </Trigger>
+              <Trigger Property="IsPressed" Value="True">
+                <Setter TargetName="Bd" Property="Background" Value="{DynamicResource DangerPressedBrush}"/>
+                <Setter TargetName="Bd" Property="RenderTransform">
+                  <Setter.Value><ScaleTransform ScaleX="0.98" ScaleY="0.98"/></Setter.Value>
+                </Setter>
+              </Trigger>
+              <Trigger Property="IsEnabled" Value="False">
+                <Setter Property="Opacity" Value="0.58"/>
               </Trigger>
             </ControlTemplate.Triggers>
           </ControlTemplate>
@@ -3858,7 +3892,7 @@ function Start-App {
                     </StackPanel>
                   </Button>
                   <ProgressBar Name="StartProgressBar" IsIndeterminate="True" HorizontalAlignment="Stretch" Margin="0,0,8,0" Visibility="Collapsed"/>
-                  <Button Name="TerminateOperationBtn" Content="■ 终止当前任务" Background="#FFE53935" Foreground="White" BorderThickness="0" Padding="18,12" FontSize="16" HorizontalAlignment="Stretch" Margin="0,10,0,0" Visibility="Collapsed" IsEnabled="False"/>
+                  <Button Name="TerminateOperationBtn" Style="{StaticResource DangerButton}" Content="■ 终止当前任务" Padding="18,12" FontSize="16" HorizontalAlignment="Stretch" Margin="0,10,0,0" Visibility="Collapsed" IsEnabled="False"/>
                 </StackPanel>
               </Grid>
             </Border>
