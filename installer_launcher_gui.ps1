@@ -16,16 +16,14 @@ param(
     [switch]$UninstallLauncher
 )
 
-$script:INSTALLER_LAUNCHER_GUI_VERSION = "0.1.6"
+$script:INSTALLER_LAUNCHER_GUI_VERSION = "0.1.7"
 $script:APP_NAME = "installer-launcher"
 $script:APP_TITLE = "SD WebUI All In One Installer Launcher GUI"
 $script:SELF_REMOTE_URLS = @(
     "https://raw.githubusercontent.com/licyk/sd-webui-all-in-one-launcher/main/installer_launcher_gui.ps1",
     "https://github.com/licyk/sd-webui-all-in-one-launcher/raw/main/installer_launcher_gui.ps1",
     "https://gitee.com/licyk/sd-webui-all-in-one-launcher/raw/main/installer_launcher_gui.ps1",
-    "https://raw.githubusercontent.com/licyk/sd-webui-all-in-one-launcher/master/installer_launcher_gui.ps1",
-    "https://github.com/licyk/sd-webui-all-in-one-launcher/raw/master/installer_launcher_gui.ps1",
-    "https://gitee.com/licyk/sd-webui-all-in-one-launcher/raw/master/installer_launcher_gui.ps1"
+    "https://raw.githubusercontent.com/licyk/sd-webui-all-in-one-launcher/master/installer_launcher_gui.ps1"
 )
 $script:HERO_IMAGE_URLS = @(
     "https://raw.githubusercontent.com/licyk/sd-webui-all-in-one/main/.github/head_image.jpg",
@@ -3011,7 +3009,7 @@ function Invoke-UpdateCheck {
     Save-MainConfig
     $urlPayload = ConvertTo-Json -Compress -InputObject ([string[]]$script:SELF_REMOTE_URLS)
     $operation = {
-        param([string]$UrlPayload, [string]$CurrentVersion, [string]$SelfPath)
+        param([string]$UrlPayload, [string]$CurrentVersion, [string]$SelfPath, [string]$UpdateCacheDir)
         $Urls = @()
         try {
             $parsedUrls = ConvertFrom-Json -InputObject $UrlPayload -ErrorAction Stop
@@ -3021,20 +3019,26 @@ function Invoke-UpdateCheck {
         }
         $lastError = ""
         $attempts = New-Object System.Collections.ArrayList
+        if ([string]::IsNullOrWhiteSpace($UpdateCacheDir)) {
+            $UpdateCacheDir = Join-Path $env:TEMP "installer-launcher-self-update"
+        }
+        New-Item -ItemType Directory -Force -Path $UpdateCacheDir | Out-Null
         foreach ($url in $Urls) {
+            $cachedScript = Join-Path $UpdateCacheDir ("installer_launcher_gui-{0}.ps1" -f ([guid]::NewGuid().ToString("N")))
             try {
                 $headers = @{ "User-Agent" = "installer-launcher-gui/$CurrentVersion" }
-                $content = (Invoke-WebRequest -UseBasicParsing -Uri $url -Headers $headers -TimeoutSec 20 -ErrorAction Stop).Content
+                Invoke-WebRequest -UseBasicParsing -Uri $url -Headers $headers -OutFile $cachedScript -TimeoutSec 20 -ErrorAction Stop
+                if (-not (Test-Path -LiteralPath $cachedScript -PathType Leaf) -or (Get-Item -LiteralPath $cachedScript).Length -le 0) {
+                    throw "下载后的脚本文件为空"
+                }
+                $content = Get-Content -LiteralPath $cachedScript -Raw -Encoding UTF8
                 if ($content -match '\$script:INSTALLER_LAUNCHER_GUI_VERSION\s*=\s*"([^"]+)"') {
                     $remote = $matches[1]
                     [void]$attempts.Add("OK $url version=$remote")
                     if ([version]$remote -le [version]$CurrentVersion) {
                         return [PSCustomObject]@{ Success = $true; Updated = $false; Message = "已是最新版本: $CurrentVersion"; Attempts = @($attempts.ToArray()) }
                     }
-                    $temp = Join-Path $env:TEMP "installer_launcher_gui.update.ps1"
-                    Set-Content -LiteralPath $temp -Encoding UTF8 -Value $content
-                    Copy-Item -LiteralPath $temp -Destination $SelfPath -Force
-                    Remove-Item -LiteralPath $temp -Force -ErrorAction SilentlyContinue
+                    Copy-Item -LiteralPath $cachedScript -Destination $SelfPath -Force
                     return [PSCustomObject]@{ Success = $true; Updated = $true; Message = "已更新到 $remote，重新启动 GUI 后生效。"; Attempts = @($attempts.ToArray()) }
                 }
                 $lastError = "未在远程脚本中找到 GUI 版本号"
@@ -3042,12 +3046,15 @@ function Invoke-UpdateCheck {
             } catch {
                 $lastError = $_.Exception.Message
                 [void]$attempts.Add("FAIL $url $lastError")
+            } finally {
+                Remove-Item -LiteralPath $cachedScript -Force -ErrorAction SilentlyContinue
             }
         }
         return [PSCustomObject]@{ Success = $false; Updated = $false; Message = "更新检查失败：无法从远程地址获取 GUI 脚本。最后错误: $lastError"; Attempts = @($attempts.ToArray()) }
     }
     $manualCheck = $Manual
-    Start-GuiOperation -UI $UI -State $State -Name "检查更新" -ScriptBlock $operation -Arguments @($urlPayload, $script:INSTALLER_LAUNCHER_GUI_VERSION, $PSCommandPath) -CanTerminate $false -OnComplete {
+    $updateCacheDir = Join-Path $script:CacheHome "self-update"
+    Start-GuiOperation -UI $UI -State $State -Name "检查更新" -ScriptBlock $operation -Arguments @($urlPayload, $script:INSTALLER_LAUNCHER_GUI_VERSION, $PSCommandPath, $updateCacheDir) -CanTerminate $false -OnComplete {
         param($result, $streamErrors)
         $item = $result | Select-Object -First 1
         if ($null -eq $item) {
