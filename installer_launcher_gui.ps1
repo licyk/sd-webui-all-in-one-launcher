@@ -16,7 +16,7 @@ param(
     [switch]$UninstallLauncher
 )
 
-$script:INSTALLER_LAUNCHER_GUI_VERSION = "0.1.7"
+$script:INSTALLER_LAUNCHER_GUI_VERSION = "0.1.8"
 $script:APP_NAME = "installer-launcher"
 $script:APP_TITLE = "SD WebUI All In One Installer Launcher GUI"
 $script:SELF_REMOTE_URLS = @(
@@ -1224,8 +1224,14 @@ function Stop-LauncherProcessTree {
             if ($null -ne $process) {
                 Stop-Process -Id $processId -Force -ErrorAction Stop
                 Write-Log INFO "terminated process pid=$processId root=$RootPid"
+            } else {
+                Write-Log DEBUG "process already exited pid=$processId root=$RootPid"
             }
         } catch {
+            if ($null -eq (Get-Process -Id $processId -ErrorAction SilentlyContinue)) {
+                Write-Log INFO "process already exited during termination pid=$processId root=$RootPid"
+                continue
+            }
             $errors.Add("pid=${processId}: $($_.Exception.Message)")
             Write-Log WARN "failed to terminate process pid=$processId root=$RootPid error=$($_.Exception.Message)"
         }
@@ -2621,6 +2627,7 @@ $($args -join [Environment]::NewLine)
                     $process = Get-Process -Id $processId -ErrorAction SilentlyContinue
                     if ($null -ne $process) { Stop-Process -Id $processId -Force -ErrorAction Stop }
                 } catch {
+                    if ($null -eq (Get-Process -Id $processId -ErrorAction SilentlyContinue)) { continue }
                     $errors.Add("pid=${processId}: $($_.Exception.Message)")
                 }
             }
@@ -2838,6 +2845,7 @@ function Invoke-RunManagementScript {
                     $process = Get-Process -Id $processId -ErrorAction SilentlyContinue
                     if ($null -ne $process) { Stop-Process -Id $processId -Force -ErrorAction Stop }
                 } catch {
+                    if ($null -eq (Get-Process -Id $processId -ErrorAction SilentlyContinue)) { continue }
                     $errors.Add("pid=${processId}: $($_.Exception.Message)")
                 }
             }
