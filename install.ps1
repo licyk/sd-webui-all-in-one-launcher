@@ -3,9 +3,10 @@
     Install the Windows GUI launcher for the current user.
 
 .DESCRIPTION
-    Copies or downloads installer_launcher_gui.ps1 into
-    %APPDATA%\installer-launcher, downloads the launcher icon, creates desktop
-    and Start Menu shortcuts, and registers a current-user uninstall entry.
+    Downloads the latest installer_launcher_gui.ps1 into
+    %APPDATA%\installer-launcher, downloads the latest launcher icon, creates
+    desktop and Start Menu shortcuts, and registers a current-user uninstall
+    entry.
 #>
 
 [CmdletBinding()]
@@ -29,9 +30,7 @@ $GuiScriptUrls = @(
     "https://raw.githubusercontent.com/licyk/sd-webui-all-in-one-launcher/main/installer_launcher_gui.ps1",
     "https://github.com/licyk/sd-webui-all-in-one-launcher/raw/main/installer_launcher_gui.ps1",
     "https://gitee.com/licyk/sd-webui-all-in-one-launcher/raw/main/installer_launcher_gui.ps1",
-    "https://raw.githubusercontent.com/licyk/sd-webui-all-in-one-launcher/master/installer_launcher_gui.ps1",
-    "https://github.com/licyk/sd-webui-all-in-one-launcher/raw/master/installer_launcher_gui.ps1",
-    "https://gitee.com/licyk/sd-webui-all-in-one-launcher/raw/master/installer_launcher_gui.ps1"
+    "https://raw.githubusercontent.com/licyk/sd-webui-all-in-one-launcher/master/installer_launcher_gui.ps1"
 )
 $IconUrls = @(
     "https://modelscope.cn/models/licyks/sd-webui-all-in-one/resolve/master/icon/sd_webui_all_in_one_launcher.ico",
@@ -83,7 +82,7 @@ function Invoke-DownloadFirst {
         $temp = "$OutputPath.tmp"
         try {
             Write-Step "尝试下载: $url"
-            Invoke-WebRequest -UseBasicParsing -Uri $url -Headers @{ "User-Agent" = "installer-launcher-gui-installer" } -OutFile $temp -TimeoutSec 45 -ErrorAction Stop
+            Invoke-WebRequest -UseBasicParsing -Uri $url -Headers @{ "User-Agent" = "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/111.0.0.0 Safari/537.36" } -OutFile $temp -TimeoutSec 45 -ErrorAction Stop
             if ($null -ne $Validate -and -not (& $Validate $temp)) {
                 throw "下载文件校验失败"
             }
@@ -129,26 +128,13 @@ function Test-IconFile {
 
 function Install-GuiScript {
     New-Item -ItemType Directory -Force -Path $InstallDir | Out-Null
-    $localGuiPath = Join-Path $PSScriptRoot $GuiScriptName
-    if (Test-Path -LiteralPath $localGuiPath -PathType Leaf) {
-        Write-Step "复制 GUI 脚本到: $InstalledGuiPath"
-        Copy-Item -LiteralPath $localGuiPath -Destination $InstalledGuiPath -Force
-        if (-not (Test-PowerShellScriptFile $InstalledGuiPath)) {
-            throw "复制后的 GUI 脚本无法通过 PowerShell 语法解析。"
-        }
-        return
-    }
-
-    Write-Step "本地未找到 $GuiScriptName，改为联网下载。"
+    Write-Step "下载最新 GUI 脚本到: $InstalledGuiPath"
     $source = Invoke-DownloadFirst -Urls $GuiScriptUrls -OutputPath $InstalledGuiPath -Validate ${function:Test-PowerShellScriptFile}
     Write-Step "GUI 脚本下载完成: $source"
 }
 
 function Install-Icon {
-    if (Test-IconFile $IconPath) {
-        Write-Step "使用已存在的图标: $IconPath"
-        return
-    }
+    Write-Step "下载最新图标到: $IconPath"
     $source = Invoke-DownloadFirst -Urls $IconUrls -OutputPath $IconPath -Validate ${function:Test-IconFile}
     Write-Step "图标下载完成: $source"
 }
@@ -246,7 +232,7 @@ function Show-InstallWindow {
     $form.Controls.Add($title)
 
     $subtitle = New-Object System.Windows.Forms.Label
-    $subtitle.Text = "将 GUI 脚本安装到当前用户配置目录，创建快捷方式并注册卸载信息。"
+    $subtitle.Text = "联网下载最新 GUI 脚本和图标，安装到当前用户配置目录，创建快捷方式并注册卸载信息。"
     $subtitle.ForeColor = [System.Drawing.Color]::FromArgb(89, 99, 109)
     $subtitle.AutoSize = $true
     $subtitle.Location = New-Object System.Drawing.Point(24, 58)

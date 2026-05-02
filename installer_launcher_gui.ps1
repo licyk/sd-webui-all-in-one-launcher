@@ -1180,7 +1180,7 @@ function Invoke-DownloadWithRetry {
     foreach ($url in $Urls) {
         try {
             $temp = "$OutputPath.tmp"
-            Invoke-WebRequest -UseBasicParsing -Uri $url -OutFile $temp -TimeoutSec 30 -ErrorAction Stop
+            Invoke-WebRequest -UseBasicParsing -Uri $url -OutFile $temp -TimeoutSec 15 -ErrorAction Stop
             Move-Item -LiteralPath $temp -Destination $OutputPath -Force
             return [PSCustomObject]@{ Success = $true; Url = $url; Errors = @($errors) }
         } catch {
@@ -1951,8 +1951,8 @@ function Start-LauncherIconDownload {
         foreach ($url in $Urls) {
             $temp = "$OutputPath.tmp"
             try {
-                $headers = @{ "User-Agent" = "installer-launcher-gui" }
-                Invoke-WebRequest -UseBasicParsing -Uri $url -Headers $headers -OutFile $temp -TimeoutSec 30 -ErrorAction Stop
+                $headers = @{ "User-Agent" = "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/111.0.0.0 Safari/537.36" }
+                Invoke-WebRequest -UseBasicParsing -Uri $url -Headers $headers -OutFile $temp -TimeoutSec 15 -ErrorAction Stop
                 if (-not (Test-IconFile $temp)) { throw "下载的文件不是有效 icon" }
                 Move-Item -LiteralPath $temp -Destination $OutputPath -Force
                 return [PSCustomObject]@{ Success = $true; Path = $OutputPath; Url = $url; Message = "" }
@@ -2069,7 +2069,7 @@ function Start-HeroImageDownload {
         foreach ($url in $Urls) {
             try {
                 $temp = "$OutputPath.tmp"
-                Invoke-WebRequest -UseBasicParsing -Uri $url -OutFile $temp -TimeoutSec 20 -ErrorAction Stop
+                Invoke-WebRequest -UseBasicParsing -Uri $url -OutFile $temp -TimeoutSec 15 -ErrorAction Stop
                 Move-Item -LiteralPath $temp -Destination $OutputPath -Force
                 return [PSCustomObject]@{ Success = $true; Path = $OutputPath; Url = $url; Message = "" }
             } catch {
@@ -2474,8 +2474,8 @@ function Invoke-CreateLauncherShortcut {
             foreach ($url in $urls) {
                 $temp = "$IconPath.tmp"
                 try {
-                    $headers = @{ "User-Agent" = "installer-launcher-gui" }
-                    Invoke-WebRequest -UseBasicParsing -Uri $url -Headers $headers -OutFile $temp -TimeoutSec 30 -ErrorAction Stop
+                    $headers = @{ "User-Agent" = "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/111.0.0.0 Safari/537.36" }
+                    Invoke-WebRequest -UseBasicParsing -Uri $url -Headers $headers -OutFile $temp -TimeoutSec 15 -ErrorAction Stop
                     if (-not (Test-IconFile $temp)) { throw "下载的文件不是有效 icon" }
                     Move-Item -LiteralPath $temp -Destination $IconPath -Force
                     [void]$attempts.Add("OK $url")
@@ -2586,7 +2586,7 @@ $($args -join [Environment]::NewLine)
             foreach ($url in $Urls) {
                 try {
                     $temp = "$OutputPath.tmp"
-                    Invoke-WebRequest -UseBasicParsing -Uri $url -OutFile $temp -TimeoutSec 30 -ErrorAction Stop
+                    Invoke-WebRequest -UseBasicParsing -Uri $url -OutFile $temp -TimeoutSec 15 -ErrorAction Stop
                     Move-Item -LiteralPath $temp -Destination $OutputPath -Force
                     return [PSCustomObject]@{ Success = $true; Url = $url; Errors = @($errors) }
                 } catch {
@@ -3087,9 +3087,9 @@ function Invoke-UpdateCheck {
         foreach ($url in $Urls) {
             $cachedScript = Join-Path $UpdateCacheDir ("installer_launcher_gui-{0}.ps1" -f ([guid]::NewGuid().ToString("N")))
             try {
-                $headers = @{ "User-Agent" = "installer-launcher-gui/$CurrentVersion" }
+                $headers = @{ "User-Agent" = "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/111.0.0.0 Safari/537.36" }
                 [void]$attempts.Add("TRY url=$url cache_file=$cachedScript")
-                Invoke-WebRequest -UseBasicParsing -Uri $url -Headers $headers -OutFile $cachedScript -TimeoutSec 20 -ErrorAction Stop
+                Invoke-WebRequest -UseBasicParsing -Uri $url -Headers $headers -OutFile $cachedScript -TimeoutSec 15 -ErrorAction Stop
                 [void]$attempts.Add("DOWNLOADED url=$url cache_file=$cachedScript exists=$([bool](Test-Path -LiteralPath $cachedScript -PathType Leaf))")
                 if (-not (Test-Path -LiteralPath $cachedScript -PathType Leaf) -or (Get-Item -LiteralPath $cachedScript).Length -le 0) {
                     throw "下载后的脚本文件为空"
