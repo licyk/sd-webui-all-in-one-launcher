@@ -28,6 +28,7 @@ PROJECT_sd_webui_MANAGEMENT_SCRIPTS=(
   "update.ps1:更新 Stable Diffusion WebUI"
   "update_extension.ps1:更新扩展"
   "switch_branch.ps1:切换分支"
+  "version_manager.ps1:管理 WebUI 和扩展版本"
   "terminal.ps1:打开交互终端"
   "settings.ps1:管理设置"
   "download_models.ps1:下载模型"
@@ -77,6 +78,7 @@ PROJECT_comfyui_MANAGEMENT_SCRIPTS=(
   "launch.ps1:启动 ComfyUI"
   "update.ps1:更新 ComfyUI"
   "update_node.ps1:更新自定义节点"
+  "version_manager.ps1:管理 ComfyUI 和自定义节点版本"
   "terminal.ps1:打开交互终端"
   "settings.ps1:管理设置"
   "download_models.ps1:下载模型"
@@ -112,6 +114,7 @@ PROJECT_invokeai_MANAGEMENT_SCRIPTS=(
   "launch.ps1:启动 InvokeAI"
   "update.ps1:更新 InvokeAI"
   "update_node.ps1:更新节点"
+  "version_manager.ps1:管理 InvokeAI 和节点版本"
   "terminal.ps1:打开交互终端"
   "settings.ps1:管理设置"
   "download_models.ps1:下载模型"
@@ -150,6 +153,7 @@ PROJECT_fooocus_MANAGEMENT_SCRIPTS=(
   "launch.ps1:启动 Fooocus"
   "update.ps1:更新 Fooocus"
   "switch_branch.ps1:切换分支"
+  "version_manager.ps1:管理 Fooocus 版本"
   "terminal.ps1:打开交互终端"
   "settings.ps1:管理设置"
   "download_models.ps1:下载模型"
@@ -193,6 +197,7 @@ PROJECT_sd_trainer_MANAGEMENT_SCRIPTS=(
   "launch.ps1:启动 SD Trainer"
   "update.ps1:更新 SD Trainer"
   "switch_branch.ps1:切换分支"
+  "version_manager.ps1:管理 SD Trainer 版本"
   "terminal.ps1:打开交互终端"
   "settings.ps1:管理设置"
   "download_models.ps1:下载模型"
@@ -235,6 +240,7 @@ PROJECT_sd_trainer_script_MANAGEMENT_SCRIPTS=(
   "train.ps1:运行训练脚本"
   "update.ps1:更新 SD-Trainer-Script"
   "switch_branch.ps1:切换分支"
+  "version_manager.ps1:管理 SD-Trainer-Script 版本"
   "terminal.ps1:打开交互终端"
   "settings.ps1:管理设置"
   "download_models.ps1:下载模型"
@@ -280,6 +286,7 @@ PROJECT_qwen_tts_webui_DEFAULT_DIR="qwen-tts-webui"
 PROJECT_qwen_tts_webui_MANAGEMENT_SCRIPTS=(
   "launch.ps1:启动 Qwen TTS WebUI"
   "update.ps1:更新 Qwen TTS WebUI"
+  "version_manager.ps1:管理 Qwen TTS WebUI 版本"
   "terminal.ps1:打开交互终端"
   "settings.ps1:管理设置"
   "reinstall_pytorch.ps1:重装 PyTorch"
@@ -371,6 +378,9 @@ management_script_param_entries() {
       ;;
     switch_branch.ps1)
       printf '%s\n' CorePrefix BuildMode BuildWithBranch DisableUpdate DisableProxy UseCustomProxy DisableGithubMirror UseCustomGithubMirror NoPause
+      ;;
+    version_manager.ps1)
+      printf '%s\n' CorePrefix DisableUpdate DisableProxy UseCustomProxy DisableGithubMirror UseCustomGithubMirror NoPause
       ;;
     update.ps1)
       if [[ "$key" == "invokeai" ]]; then

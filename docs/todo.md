@@ -253,6 +253,8 @@
 - [x] GUI 版执行 PowerShell 脚本时优先使用 `pwsh`，找不到时回退到 `powershell`。
 - [x] GUI 版执行安装器和管理脚本时打开独立 PowerShell 控制台，并在非零退出时保留窗口提示用户查看输出。
 - [x] GUI 版支持 `launch.ps1` 和 `terminal.ps1` 的运行前提示。
+- [x] TUI/GUI 已新增 `version_manager.ps1` 管理脚本入口；Stable Diffusion WebUI、ComfyUI、InvokeAI 标注为版本和扩展/节点管理，Fooocus、Qwen TTS WebUI、SD Trainer、SD Trainer Script 仅标注为版本管理。
+- [x] `version_manager.ps1` 参数配置已按 `version_manager_docs.md` 接入通用参数：`CorePrefix`、`DisableUpdate`、`DisableProxy`、`UseCustomProxy`、`DisableGithubMirror`、`UseCustomGithubMirror` 和自动追加 `NoPause`。
 - [x] GUI 版支持项目卸载，卸载前使用警告确认和倒计时最终确认，倒计时结束后才可执行删除。
 - [x] GUI 版支持 `auto` / `manual` / `off` 三种代理模式。
 - [x] GUI 版支持按日志等级写入 `%LOCALAPPDATA%\installer-launcher\logs\`。
