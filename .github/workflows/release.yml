@@ -17,7 +17,7 @@ jobs:
         include:
           - name: Installer Launcher
             gh_tag: launcher
-            gt_id: 668264
+            gt_id: launcher
             files: |
               install.sh
               install.ps1
@@ -31,7 +31,7 @@ jobs:
       - name: Setup Python
         uses: actions/setup-python@v6
         with:
-          python-version: '3.x'
+          python-version: '3.13'
 
       - name: Install Python dependencies
         run: |
