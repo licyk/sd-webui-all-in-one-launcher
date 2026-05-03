@@ -1,0 +1,57 @@
+name: Release
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'installer.*'
+      - 'install_launcher_gui.ps1'
+  workflow_dispatch:
+
+jobs:
+  Release-Task:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: Installer Launcher
+            gh_tag: launcher
+            gt_id: launcher
+            files: |
+              install.sh
+              install.ps1
+              install_launcher_gui.ps1
+
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v5
+
+      - name: Setup Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: '3.13'
+          cache: 'pip'
+
+      - name: Install Python dependencies
+        run: |
+          pip install requests requests-toolbelt
+
+      - name: Release ${{ matrix.name }} to GitHub
+        shell: bash
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+          github_release_tag: ${{ matrix.gh_tag }}
+          github_files: ${{ matrix.files }}
+        run: bash "${{ github.workspace }}/.github/github_release.sh"
+
+      - name: Release ${{ matrix.name }} to Gitee
+        shell: bash
+        env:
+          gitee_owner: licyk
+          gitee_repo: sd-webui-all-in-one
+          gitee_token: ${{ secrets.gitee_token }}
+          gitee_upload_retry_times: 3
+          gitee_release_id: ${{ matrix.gt_id }}
+          gitee_files: ${{ matrix.files }}
+        run: python "${{ github.workspace }}/.github/gitee_release.py"
