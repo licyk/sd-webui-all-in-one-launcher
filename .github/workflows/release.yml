@@ -49,7 +49,7 @@ jobs:
         shell: bash
         env:
           gitee_owner: licyk
-          gitee_repo: sd-webui-all-in-one
+          gitee_repo: sd-webui-all-in-one-launcher
           gitee_token: ${{ secrets.gitee_token }}
           gitee_upload_retry_times: 3
           gitee_release_id: ${{ matrix.gt_id }}
