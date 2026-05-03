@@ -21,7 +21,8 @@ jobs:
             files: |
               install.sh
               install.ps1
-              install_launcher_gui.ps1
+              installer_launcher.sh
+              installer_launcher_gui.ps1
 
     steps:
       - name: Checkout repo
