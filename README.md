@@ -58,13 +58,20 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .\installer_launcher_gui.ps1
 powershell -NoProfile -ExecutionPolicy Bypass -File .\install.ps1
 ```
 
+如果不想手动打开 PowerShell，也可以下载 `install.bat` 后双击运行。它会启动安装流程并从网络获取最新 GUI 脚本和图标：
+
+| 下载源 | 下载 |
+| --- | --- |
+| GitHub Release | [![下载 install.bat](https://img.shields.io/badge/下载-install.bat-0078D4?style=for-the-badge&logo=github&logoColor=white)](https://github.com/licyk/sd-webui-all-in-one-launcher/releases/download/launcher/install.bat) |
+| Gitee Release | [![下载 install.bat](https://img.shields.io/badge/下载-install.bat-C71D23?style=for-the-badge&logo=gitee&logoColor=white)](https://gitee.com/licyk/sd-webui-all-in-one-launcher/releases/download/launcher/install.bat) |
+
 需要纯命令行安装时可以加 `-NoGui`：
 
 ```powershell
 powershell -NoProfile -ExecutionPolicy Bypass -File .\install.ps1 -NoGui
 ```
 
-如果单独下载 `install.ps1` 运行，同目录没有 `installer_launcher_gui.ps1`，安装脚本会自动从 GitHub/Gitee 下载 GUI 脚本。
+`install.ps1` 每次运行都会从 GitHub/Gitee 下载最新 GUI 脚本；快捷方式图标也会重新下载，避免复用旧文件。
 
 GUI 版会使用 Windows 原生目录保存数据：
 
@@ -226,6 +233,13 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .\installer_launcher_gui.ps1
 ```powershell
 powershell -NoProfile -ExecutionPolicy Bypass -File .\install.ps1
 ```
+
+也可以下载 `install.bat` 后双击运行：
+
+| 下载源 | 下载 |
+| --- | --- |
+| GitHub Release | [![下载 install.bat](https://img.shields.io/badge/下载-install.bat-0078D4?style=for-the-badge&logo=github&logoColor=white)](https://github.com/licyk/sd-webui-all-in-one-launcher/releases/download/launcher/install.bat) |
+| Gitee Release | [![下载 install.bat](https://img.shields.io/badge/下载-install.bat-C71D23?style=for-the-badge&logo=gitee&logoColor=white)](https://gitee.com/licyk/sd-webui-all-in-one-launcher/releases/download/launcher/install.bat) |
 
 推荐流程：
 

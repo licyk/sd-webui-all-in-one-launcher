@@ -23,6 +23,8 @@ jobs:
               install.ps1
               installer_launcher.sh
               installer_launcher_gui.ps1
+              installer_launcher_gui.bat
+              install.bat
 
     steps:
       - name: Checkout repo
@@ -31,11 +33,17 @@ jobs:
       - name: Setup Python
         uses: actions/setup-python@v6
         with:
-          python-version: '3.13'
+          python-version: '3.x'
 
       - name: Install Python dependencies
         run: |
-          pip install requests requests-toolbelt
+          pip install requests requests-toolbelt psh2bat
+
+      - name: Convert PowerShell script to Bat script
+        shell: bash
+        run: |
+          python -m psh2bat "${{ github.workspace }}/install.ps1" --output-path "${{ github.workspace }}/install.bat"
+          python -m psh2bat "${{ github.workspace }}/installer_launcher_gui.ps1" --output-path "${{ github.workspace }}/installer_launcher_gui.bat"
 
       - name: Release ${{ matrix.name }} to GitHub
         shell: bash
