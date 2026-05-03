@@ -38,8 +38,12 @@ The dependency bootstrap entry point is `install.sh`. The Bash launcher entry po
 - Windows PowerShell 5.1 handles WPF/Dispatcher event scriptblocks with narrower function lookup than PowerShell 7.
   - Before registering WPF events, call `Export-GuiEventFunctions` to export event-used helpers to `Global:` functions.
   - Event handlers may call those helpers by normal function name after export.
+  - If a WPF event creates dynamic controls whose events call helper functions, export those helpers too; PS5.1 can fail to resolve even functions that are only used by controls created after startup.
   - Do not rely on event closures that capture local scriptblock variables such as `$reportUiError = ${function:Report-UiError}`; PS5.1 can lose or mis-handle those captures in WPF events and `DispatcherTimer` callbacks.
   - Do not reintroduce `$script:GuiHandler_*` cached scriptblock variables for WPF events; that approach caused startup/runtime crashes in PS5.1.
+- PowerShell string literals can be tripped up by Chinese curved quotes in `.ps1` code.
+  - In PowerShell source code, avoid wrapping strings with `"` when the text itself contains Chinese quotes such as `“...”`; use single-quoted strings or escape inner quotes.
+  - Keep XAML attribute text as valid XML, but be extra careful with runtime PowerShell assignments like `$text.Text = "点击“按钮”"` because the parser treats curly quotes as string delimiters.
 
 ## Shell Requirements
 
