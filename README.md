@@ -46,24 +46,26 @@
 - Windows WPF / .NET 桌面环境。
 - 需要 `pwsh` 或 `powershell` 命令用于执行上游安装器和管理脚本。
 
-Windows GUI 版只适配 Windows，入口为：
-
-```powershell
-powershell -NoProfile -ExecutionPolicy Bypass -File .\installer_launcher_gui.ps1
-```
-
-也可以安装到当前用户环境中。安装脚本默认会显示一个简易图形安装窗口，并把 GUI 脚本安装到 `%APPDATA%\installer-launcher\installer_launcher_gui.ps1`，下载快捷方式图标，创建桌面/开始菜单快捷方式，并写入当前用户级卸载信息：
-
-```powershell
-powershell -NoProfile -ExecutionPolicy Bypass -File .\install.ps1
-```
-
-如果不想手动打开 PowerShell，也可以下载 `install.bat` 后双击运行。它会启动安装流程并从网络获取最新 GUI 脚本和图标：
+Windows GUI 版只适配 Windows。推荐下载 `install.bat` 后双击运行，这是最简单的安装方式。它会启动图形安装流程，从网络获取最新 GUI 脚本和图标，并创建桌面/开始菜单快捷方式：
 
 | 下载源 | 下载 |
 | --- | --- |
 | GitHub Release | [![下载 install.bat](https://img.shields.io/badge/下载-install.bat-0078D4?style=for-the-badge&logo=github&logoColor=white)](https://github.com/licyk/sd-webui-all-in-one-launcher/releases/download/launcher/install.bat) |
 | Gitee Release | [![下载 install.bat](https://img.shields.io/badge/下载-install.bat-C71D23?style=for-the-badge&logo=gitee&logoColor=white)](https://gitee.com/licyk/sd-webui-all-in-one-launcher/releases/download/launcher/install.bat) |
+
+安装完成后，GUI 脚本会放在 `%APPDATA%\installer-launcher\installer_launcher_gui.ps1`，并写入当前用户级卸载信息。
+
+如果你已经下载了源码，也可以手动运行安装脚本：
+
+```powershell
+powershell -NoProfile -ExecutionPolicy Bypass -File .\install.ps1
+```
+
+也可以不安装，直接运行 GUI 脚本：
+
+```powershell
+powershell -NoProfile -ExecutionPolicy Bypass -File .\installer_launcher_gui.ps1
+```
 
 需要纯命令行安装时可以加 `-NoGui`：
 
@@ -222,24 +224,24 @@ installer-launcher install-launcher
 
 ### Windows GUI 快速开始
 
-在 Windows 中可以直接启动 GUI：
-
-```powershell
-powershell -NoProfile -ExecutionPolicy Bypass -File .\installer_launcher_gui.ps1
-```
-
-推荐先安装 GUI 到当前用户环境，安装后可从桌面或开始菜单启动：
-
-```powershell
-powershell -NoProfile -ExecutionPolicy Bypass -File .\install.ps1
-```
-
-也可以下载 `install.bat` 后双击运行：
+推荐先下载 `install.bat` 后双击安装 GUI，安装后可从桌面或开始菜单启动：
 
 | 下载源 | 下载 |
 | --- | --- |
 | GitHub Release | [![下载 install.bat](https://img.shields.io/badge/下载-install.bat-0078D4?style=for-the-badge&logo=github&logoColor=white)](https://github.com/licyk/sd-webui-all-in-one-launcher/releases/download/launcher/install.bat) |
 | Gitee Release | [![下载 install.bat](https://img.shields.io/badge/下载-install.bat-C71D23?style=for-the-badge&logo=gitee&logoColor=white)](https://gitee.com/licyk/sd-webui-all-in-one-launcher/releases/download/launcher/install.bat) |
+
+如果你已经下载了源码，也可以用 PowerShell 安装：
+
+```powershell
+powershell -NoProfile -ExecutionPolicy Bypass -File .\install.ps1
+```
+
+需要临时试用时，可以直接启动 GUI：
+
+```powershell
+powershell -NoProfile -ExecutionPolicy Bypass -File .\installer_launcher_gui.ps1
+```
 
 推荐流程：
 
