@@ -17,7 +17,7 @@ jobs:
         include:
           - name: Installer Launcher
             gh_tag: launcher
-            gt_tag: launcher
+            gt_id: 668264
             files: |
               install.sh
               install.ps1
@@ -51,6 +51,6 @@ jobs:
           gitee_repo: sd-webui-all-in-one
           gitee_token: ${{ secrets.gitee_token }}
           gitee_upload_retry_times: 3
-          gitee_release_name: ${{ matrix.gt_tag }}
+          gitee_release_id: ${{ matrix.gt_id }}
           gitee_files: ${{ matrix.files }}
         run: python "${{ github.workspace }}/.github/gitee_release.py"
