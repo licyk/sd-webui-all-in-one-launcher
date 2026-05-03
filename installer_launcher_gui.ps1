@@ -145,7 +145,7 @@ function Export-GuiEventFunctions {
     $names = @(
         "Append-UiLog", "Apply-HeroImage", "AutoSave-MainConfigFromUi", "Ensure-GuiState", "Get-CurrentProjectKey", "Get-ObjectPropertyValue", "Get-ProjectConfig",
         "Get-SelectedScriptName", "Get-UpdateCheckSemaphore", "Invoke-CreateLauncherShortcut", "Invoke-OneClickAction", "Invoke-TerminateCurrentOperation", "Invoke-UninstallLauncher",
-        "Invoke-UninstallProject", "Invoke-UpdateCheck", "Open-ConfigFolder", "Refresh-MainConfigUi",
+        "Invoke-UninstallProject", "Invoke-UpdateCheck", "Open-ConfigFolder", "Open-ExternalUrl", "Refresh-MainConfigUi",
         "Refresh-ProjectConfigUi", "Refresh-ScriptParamUi", "Refresh-Status", "Release-UpdateCheckLock", "Report-UiError",
         "Save-CurrentProjectConfigFromUi", "Save-MainConfig", "Save-MainConfigFromUi",
         "Select-FolderPath", "Select-RelevantMainTab", "Set-UiBusy", "Show-AppPage",
@@ -2286,6 +2286,24 @@ function Open-ConfigFolder {
     Start-Process -FilePath "explorer.exe" -ArgumentList @($path) | Out-Null
 }
 
+function Open-ExternalUrl {
+    param([string]$Url)
+    if ([string]::IsNullOrWhiteSpace($Url)) { return }
+    try {
+        $startInfo = New-Object System.Diagnostics.ProcessStartInfo
+        $startInfo.FileName = $Url
+        $startInfo.UseShellExecute = $true
+        [System.Diagnostics.Process]::Start($startInfo) | Out-Null
+    } catch {
+        try {
+            Start-Process -FilePath "explorer.exe" -ArgumentList @($Url) | Out-Null
+        } catch {
+            Write-Log WARN "failed to open external url: $Url error=$($_.Exception.Message)"
+            Show-Message "无法打开链接: $Url`n$($_.Exception.Message)" "打开链接失败" "Warning"
+        }
+    }
+}
+
 function ConvertTo-SingleQuotedLiteral {
     param([string]$Value)
     return "'{0}'" -f (($Value -replace "'", "''"))
@@ -3365,6 +3383,37 @@ function Start-App {
         </Setter.Value>
       </Setter>
     </Style>
+    <Style x:Key="AboutLinkCardButton" TargetType="Button">
+      <Setter Property="Background" Value="{DynamicResource PanelBGBrush}"/>
+      <Setter Property="Foreground" Value="{DynamicResource TextMainBrush}"/>
+      <Setter Property="BorderBrush" Value="{DynamicResource BorderBrush}"/>
+      <Setter Property="BorderThickness" Value="1"/>
+      <Setter Property="Padding" Value="16"/>
+      <Setter Property="Margin" Value="0,0,12,12"/>
+      <Setter Property="Cursor" Value="Hand"/>
+      <Setter Property="HorizontalContentAlignment" Value="Stretch"/>
+      <Setter Property="VerticalContentAlignment" Value="Stretch"/>
+      <Setter Property="Template">
+        <Setter.Value>
+          <ControlTemplate TargetType="Button">
+            <Border x:Name="Bd" Background="{TemplateBinding Background}" BorderBrush="{TemplateBinding BorderBrush}" BorderThickness="{TemplateBinding BorderThickness}" CornerRadius="9" SnapsToDevicePixels="True">
+              <ContentPresenter HorizontalAlignment="{TemplateBinding HorizontalContentAlignment}" VerticalAlignment="{TemplateBinding VerticalContentAlignment}" Margin="{TemplateBinding Padding}"/>
+            </Border>
+            <ControlTemplate.Triggers>
+              <Trigger Property="IsMouseOver" Value="True">
+                <Setter TargetName="Bd" Property="Background" Value="{DynamicResource ItemHoverBrush}"/>
+                <Setter TargetName="Bd" Property="BorderBrush" Value="{DynamicResource SelectedItemBorderBrush}"/>
+              </Trigger>
+              <Trigger Property="IsPressed" Value="True">
+                <Setter TargetName="Bd" Property="RenderTransform">
+                  <Setter.Value><ScaleTransform ScaleX="0.99" ScaleY="0.99"/></Setter.Value>
+                </Setter>
+              </Trigger>
+            </ControlTemplate.Triggers>
+          </ControlTemplate>
+        </Setter.Value>
+      </Setter>
+    </Style>
     <Style TargetType="TextBox">
       <Setter Property="Background" Value="{DynamicResource InputBGBrush}"/>
       <Setter Property="Foreground" Value="{DynamicResource TextMainBrush}"/>
@@ -3828,7 +3877,14 @@ function Start-App {
                 <GradientStop Color="#FFEAF3F8" Offset="1"/>
               </LinearGradientBrush>
             </Border.Background>
-            <Grid>
+            <Grid Name="StartHeroContent">
+              <Grid.OpacityMask>
+                <VisualBrush Stretch="Fill">
+                  <VisualBrush.Visual>
+                    <Border Background="Black" CornerRadius="10" Width="{Binding ActualWidth, ElementName=StartHeroContent}" Height="{Binding ActualHeight, ElementName=StartHeroContent}"/>
+                  </VisualBrush.Visual>
+                </VisualBrush>
+              </Grid.OpacityMask>
               <Grid.ColumnDefinitions><ColumnDefinition Width="300"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
               <Image Name="HeroImage" Grid.ColumnSpan="2" Stretch="UniformToFill" HorizontalAlignment="Center" VerticalAlignment="Center" Visibility="Collapsed" Opacity="0"/>
               <Border Name="HeroImageOverlay" Grid.ColumnSpan="2" Background="#CC000000" Visibility="Collapsed" Opacity="0"/>
@@ -4016,7 +4072,6 @@ function Start-App {
             </Grid.RowDefinitions>
             <StackPanel Grid.Row="0" Margin="0,0,0,18">
               <TextBlock Text="关于" FontSize="28" FontWeight="Bold"/>
-              <TextBlock Text="SD WebUI All In One Launcher GUI 版本信息、项目链接和用户协议。" Foreground="{DynamicResource TextSecBrush}" Margin="0,4,0,0"/>
             </StackPanel>
             <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
               <StackPanel>
@@ -4028,7 +4083,14 @@ function Start-App {
                       <GradientStop Color="#FFEAF3F8" Offset="1"/>
                     </LinearGradientBrush>
                   </Border.Background>
-                  <Grid>
+                  <Grid Name="AboutHeroContent">
+                    <Grid.OpacityMask>
+                      <VisualBrush Stretch="Fill">
+                        <VisualBrush.Visual>
+                          <Border Background="Black" CornerRadius="12" Width="{Binding ActualWidth, ElementName=AboutHeroContent}" Height="{Binding ActualHeight, ElementName=AboutHeroContent}"/>
+                        </VisualBrush.Visual>
+                      </VisualBrush>
+                    </Grid.OpacityMask>
                     <Image Name="AboutHeroImage" Stretch="UniformToFill" HorizontalAlignment="Center" VerticalAlignment="Center" Visibility="Collapsed" Opacity="0"/>
                     <Border Name="AboutHeroOverlay" Background="#CC000000" Visibility="Collapsed" Opacity="0"/>
                     <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center" Margin="24">
@@ -4038,26 +4100,73 @@ function Start-App {
                     </StackPanel>
                   </Grid>
                 </Border>
-                <UniformGrid Columns="3" Margin="0,0,0,18">
-                  <Border Background="{DynamicResource PanelBGBrush}" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1" CornerRadius="9" Padding="16" Margin="0,0,10,0">
-                    <StackPanel>
-                      <TextBlock Text="项目仓库" FontWeight="SemiBold"/>
-                      <TextBlock Text="licyk/sd-webui-all-in-one-launcher" Foreground="{DynamicResource TextSecBrush}" TextWrapping="Wrap" Margin="0,6,0,0"/>
-                    </StackPanel>
-                  </Border>
-                  <Border Background="{DynamicResource PanelBGBrush}" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1" CornerRadius="9" Padding="16" Margin="0,0,10,0">
-                    <StackPanel>
-                      <TextBlock Text="安装器来源" FontWeight="SemiBold"/>
-                      <TextBlock Text="sd-webui-all-in-one PowerShell installer" Foreground="{DynamicResource TextSecBrush}" TextWrapping="Wrap" Margin="0,6,0,0"/>
-                    </StackPanel>
-                  </Border>
-                  <Border Background="{DynamicResource PanelBGBrush}" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1" CornerRadius="9" Padding="16">
-                    <StackPanel>
-                      <TextBlock Text="配置与日志" FontWeight="SemiBold"/>
-                      <TextBlock Text="$displayConfigHome" Foreground="{DynamicResource TextSecBrush}" TextWrapping="Wrap" Margin="0,6,0,0"/>
-                    </StackPanel>
-                  </Border>
-                </UniformGrid>
+                <WrapPanel Margin="0,0,0,18">
+                  <Button Name="AboutSdAllInOneBtn" Style="{StaticResource AboutLinkCardButton}" Width="318" Tag="https://github.com/licyk/sd-webui-all-in-one">
+                    <Grid>
+                      <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="Auto"/>
+                        <ColumnDefinition Width="*"/>
+                      </Grid.ColumnDefinitions>
+                      <TextBlock Text="⌘" FontSize="22" Foreground="{DynamicResource PrimaryBrush}" VerticalAlignment="Center" Margin="0,0,12,0"/>
+                      <StackPanel Grid.Column="1">
+                        <TextBlock Text="SD WebUI All In One" FontWeight="SemiBold"/>
+                        <TextBlock Text="github.com/licyk/sd-webui-all-in-one" Foreground="{DynamicResource TextSecBrush}" TextWrapping="Wrap" Margin="0,6,0,0"/>
+                      </StackPanel>
+                    </Grid>
+                  </Button>
+                  <Button Name="AboutLauncherBtn" Style="{StaticResource AboutLinkCardButton}" Width="318" Tag="https://github.com/licyk/sd-webui-all-in-one-launcher">
+                    <Grid>
+                      <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="Auto"/>
+                        <ColumnDefinition Width="*"/>
+                      </Grid.ColumnDefinitions>
+                      <TextBlock Text="⌂" FontSize="22" Foreground="{DynamicResource PrimaryBrush}" VerticalAlignment="Center" Margin="0,0,12,0"/>
+                      <StackPanel Grid.Column="1">
+                        <TextBlock Text="Launcher 项目" FontWeight="SemiBold"/>
+                        <TextBlock Text="github.com/licyk/sd-webui-all-in-one-launcher" Foreground="{DynamicResource TextSecBrush}" TextWrapping="Wrap" Margin="0,6,0,0"/>
+                      </StackPanel>
+                    </Grid>
+                  </Button>
+                  <Button Name="AboutAuthorBtn" Style="{StaticResource AboutLinkCardButton}" Width="318" Tag="https://github.com/licyk">
+                    <Grid>
+                      <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="Auto"/>
+                        <ColumnDefinition Width="*"/>
+                      </Grid.ColumnDefinitions>
+                      <TextBlock Text="✦" FontSize="22" Foreground="{DynamicResource PrimaryBrush}" VerticalAlignment="Center" Margin="0,0,12,0"/>
+                      <StackPanel Grid.Column="1">
+                        <TextBlock Text="licyk" FontWeight="SemiBold"/>
+                        <TextBlock Text="github.com/licyk" Foreground="{DynamicResource TextSecBrush}" TextWrapping="Wrap" Margin="0,6,0,0"/>
+                      </StackPanel>
+                    </Grid>
+                  </Button>
+                  <Button Name="AboutBlogBtn" Style="{StaticResource AboutLinkCardButton}" Width="318" Tag="https://licyk.netlify.app">
+                    <Grid>
+                      <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="Auto"/>
+                        <ColumnDefinition Width="*"/>
+                      </Grid.ColumnDefinitions>
+                      <TextBlock Text="✎" FontSize="22" Foreground="{DynamicResource PrimaryBrush}" VerticalAlignment="Center" Margin="0,0,12,0"/>
+                      <StackPanel Grid.Column="1">
+                        <TextBlock Text="博客" FontWeight="SemiBold"/>
+                        <TextBlock Text="licyk.netlify.app" Foreground="{DynamicResource TextSecBrush}" TextWrapping="Wrap" Margin="0,6,0,0"/>
+                      </StackPanel>
+                    </Grid>
+                  </Button>
+                  <Button Name="AboutBilibiliBtn" Style="{StaticResource AboutLinkCardButton}" Width="318" Tag="https://space.bilibili.com/46497516">
+                    <Grid>
+                      <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="Auto"/>
+                        <ColumnDefinition Width="*"/>
+                      </Grid.ColumnDefinitions>
+                      <TextBlock Text="▷" FontSize="22" Foreground="{DynamicResource PrimaryBrush}" VerticalAlignment="Center" Margin="0,0,12,0"/>
+                      <StackPanel Grid.Column="1">
+                        <TextBlock Text="哔哩哔哩" FontWeight="SemiBold"/>
+                        <TextBlock Text="space.bilibili.com/46497516" Foreground="{DynamicResource TextSecBrush}" TextWrapping="Wrap" Margin="0,6,0,0"/>
+                      </StackPanel>
+                    </Grid>
+                  </Button>
+                </WrapPanel>
                 <Border Background="{DynamicResource PanelBGBrush}" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1" CornerRadius="12" Padding="22">
                   <StackPanel>
                     <TextBlock Text="用户协议" FontSize="20" FontWeight="SemiBold" Margin="0,0,0,14"/>
@@ -4090,6 +4199,7 @@ function Start-App {
         StartModeTabs = $window.FindName("StartModeTabs"); LaunchScriptList = $window.FindName("LaunchScriptList"); UnifiedStartBtn = $window.FindName("UnifiedStartBtn"); UnifiedStartLabel = $window.FindName("UnifiedStartLabel"); StartProgressBar = $window.FindName("StartProgressBar"); TerminateOperationBtn = $window.FindName("TerminateOperationBtn"); StartHintText = $window.FindName("StartHintText"); InstallHintText = $window.FindName("InstallHintText")
         AutoUpdateCheck = $window.FindName("AutoUpdateCheck"); LogLevelCombo = $window.FindName("LogLevelCombo"); ProxyModeCombo = $window.FindName("ProxyModeCombo"); ManualProxyBox = $window.FindName("ManualProxyBox")
         CheckUpdateBtn = $window.FindName("CheckUpdateBtn"); OpenConfigFolderBtn = $window.FindName("OpenConfigFolderBtn"); CreateShortcutBtn = $window.FindName("CreateShortcutBtn"); UninstallLauncherBtn = $window.FindName("UninstallLauncherBtn"); UninstallBtn = $window.FindName("UninstallBtn"); OneClickNavBtn = $window.FindName("OneClickNavBtn"); AdvancedNavBtn = $window.FindName("AdvancedNavBtn"); SoftwareNavBtn = $window.FindName("SoftwareNavBtn"); SettingsNavBtn = $window.FindName("SettingsNavBtn"); AboutNavBtn = $window.FindName("AboutNavBtn"); OneClickNavLabel = $window.FindName("OneClickNavLabel"); AdvancedNavLabel = $window.FindName("AdvancedNavLabel"); SoftwareNavLabel = $window.FindName("SoftwareNavLabel"); SettingsNavLabel = $window.FindName("SettingsNavLabel"); AboutNavLabel = $window.FindName("AboutNavLabel"); OneClickNavIcon = $window.FindName("OneClickNavIcon"); AdvancedNavIcon = $window.FindName("AdvancedNavIcon"); SoftwareNavIcon = $window.FindName("SoftwareNavIcon"); SettingsNavIcon = $window.FindName("SettingsNavIcon"); AboutNavIcon = $window.FindName("AboutNavIcon"); HelpBtn = $window.FindName("HelpBtn"); ShowLogBtn = $window.FindName("ShowLogBtn"); AboutAgreementText = $window.FindName("AboutAgreementText")
+        AboutSdAllInOneBtn = $window.FindName("AboutSdAllInOneBtn"); AboutLauncherBtn = $window.FindName("AboutLauncherBtn"); AboutAuthorBtn = $window.FindName("AboutAuthorBtn"); AboutBlogBtn = $window.FindName("AboutBlogBtn"); AboutBilibiliBtn = $window.FindName("AboutBilibiliBtn")
         LogBox = $window.FindName("LogBox")
     }
     $State = [PSCustomObject]@{ CurrentOperation = $null; ConfigControls = @{}; ScriptParamControls = @{}; ProjectConfig = @{}; StatusRefreshTimer = $null; LastOneClickStatus = ""; IsRefreshing = $false; AutoSaveProjectConfig = $null; IsAutoSavingMainConfig = $false }
@@ -4177,6 +4287,14 @@ function Start-App {
     $UI.UninstallBtn.Add_Click({ Invoke-UninstallProject $UI $State }.GetNewClosure())
     $UI.HelpBtn.Add_Click({ Show-HelpWindow }.GetNewClosure())
     $UI.ShowLogBtn.Add_Click({ Show-LogWindow }.GetNewClosure())
+    foreach ($button in @($UI.AboutSdAllInOneBtn, $UI.AboutLauncherBtn, $UI.AboutAuthorBtn, $UI.AboutBlogBtn, $UI.AboutBilibiliBtn)) {
+        if ($null -ne $button) {
+            $button.Add_Click({
+                param($sender, $eventArgs)
+                Open-ExternalUrl ([string]$sender.Tag)
+            }.GetNewClosure())
+        }
+    }
 
     $script:WindowChromeState = [PSCustomObject]@{ IsMaximized = $false; RestoreBounds = $null }
     $UI.TitleBar.Add_MouseLeftButtonDown({
