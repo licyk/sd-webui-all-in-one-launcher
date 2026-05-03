@@ -138,16 +138,18 @@ $script:UninstallRegistryKey = "HKCU:\Software\Microsoft\Windows\CurrentVersion\
 $script:AutoUpdateIntervalSeconds = 3600
 $script:RunspacePool = $null
 $script:MainConfig = $null
+$script:InstallerLauncherGuiUi = $null
+$script:InstallerLauncherGuiState = $null
 if ($null -eq (Get-Variable -Name InstallerLauncherGuiUpdateCheckSemaphore -Scope Global -ErrorAction SilentlyContinue)) {
     $global:InstallerLauncherGuiUpdateCheckSemaphore = [System.Threading.SemaphoreSlim]::new(1, 1)
 }
 function Export-GuiEventFunctions {
     $names = @(
-        "Append-UiLog", "Apply-HeroImage", "AutoSave-MainConfigFromUi", "Ensure-GuiState", "Get-CurrentProjectKey", "Get-ObjectPropertyValue", "Get-ProjectConfig",
-        "Get-SelectedScriptName", "Get-UpdateCheckSemaphore", "Invoke-CreateLauncherShortcut", "Invoke-OneClickAction", "Invoke-TerminateCurrentOperation", "Invoke-UninstallLauncher",
+        "Append-UiLog", "Apply-DiscoveredInstallTarget", "Apply-HeroImage", "AutoSave-MainConfigFromUi", "Ensure-GuiState", "Get-CurrentProjectKey", "Get-DefaultInstallDiscoveryRoots", "Get-EffectiveInstallPath", "Get-InstallDiscoveryFeatureRows", "Get-ObjectPropertyValue", "Get-ProjectConfig",
+        "Get-SelectedScriptName", "Get-UiControl", "Get-UpdateCheckSemaphore", "Invoke-CreateLauncherShortcut", "Invoke-DiscoverInstalledWebUis", "Invoke-DiscoverInstalledWebUisInFolder", "Invoke-OneClickAction", "Invoke-TerminateCurrentOperation", "Invoke-UninstallLauncher",
         "Invoke-UninstallProject", "Invoke-UpdateCheck", "Open-ConfigFolder", "Open-ExternalUrl", "Refresh-MainConfigUi",
-        "Refresh-ProjectConfigUi", "Refresh-ScriptParamUi", "Refresh-Status", "Release-UpdateCheckLock", "Report-UiError",
-        "Save-CurrentProjectConfigFromUi", "Save-MainConfig", "Save-MainConfigFromUi",
+        "Refresh-DiscoveredInstallList", "Refresh-ProjectConfigUi", "Refresh-ScriptParamUi", "Refresh-Status", "Release-UpdateCheckLock", "Report-UiError",
+        "Save-CurrentProjectConfigFromUi", "Save-MainConfig", "Save-MainConfigFromUi", "Save-ProjectConfig",
         "Select-FolderPath", "Select-RelevantMainTab", "Set-UiBusy", "Show-AppPage",
         "Show-CountdownConfirmDialog", "Show-HelpWindow", "Show-LogWindow", "Show-Message", "Show-UserAgreementDialog", "Start-HeroImageDownload", "Start-LauncherIconDownload", "Start-TabTransition",
         "Test-DictionaryKey", "Toggle-CustomMaximizeWindow", "Update-OneClickModeUi", "Write-Log"
@@ -359,13 +361,14 @@ function Get-ObjectPropertyValue {
 function Ensure-GuiState {
     param($State)
     if ($null -eq $State) {
-        return [PSCustomObject]@{ CurrentOperation = $null; ConfigControls = @{}; ScriptParamControls = @{}; ProjectConfig = @{}; StatusRefreshTimer = $null; LastOneClickStatus = ""; IsRefreshing = $false; AutoSaveProjectConfig = $null; IsAutoSavingMainConfig = $false }
+        return [PSCustomObject]@{ CurrentOperation = $null; ConfigControls = @{}; ScriptParamControls = @{}; ProjectConfig = @{}; DiscoveredInstalls = @(); StatusRefreshTimer = $null; LastOneClickStatus = ""; IsRefreshing = $false; AutoSaveProjectConfig = $null; IsAutoSavingMainConfig = $false }
     }
     $defaults = [ordered]@{
         CurrentOperation = $null
         ConfigControls = @{}
         ScriptParamControls = @{}
         ProjectConfig = @{}
+        DiscoveredInstalls = @()
         StatusRefreshTimer = $null
         LastOneClickStatus = ""
         IsRefreshing = $false
@@ -1366,7 +1369,7 @@ function Append-UiLog {
 function Set-UiBusy {
     param($UI, [bool]$Busy, [string]$Message, [bool]$CanTerminate = $true)
     $enabled = -not $Busy
-    foreach ($name in @("UninstallBtn", "CheckUpdateBtn", "UnifiedStartBtn", "OpenConfigFolderBtn", "ShowLogBtn", "CreateShortcutBtn", "UninstallLauncherBtn")) {
+    foreach ($name in @("UninstallBtn", "CheckUpdateBtn", "UnifiedStartBtn", "OpenConfigFolderBtn", "ShowLogBtn", "CreateShortcutBtn", "UninstallLauncherBtn", "DiscoverInstallsBtn", "DiscoverFolderInstallsBtn")) {
         $button = Get-UiControl $UI $name
         if ($null -ne $button) { $button.IsEnabled = $enabled }
     }
@@ -1437,9 +1440,9 @@ function Collect-ProjectConfigFromUi {
 }
 
 function Select-FolderPath {
-    param([string]$InitialPath)
+    param([string]$InitialPath, [string]$Description = "选择安装路径")
     $dialog = New-Object System.Windows.Forms.FolderBrowserDialog
-    $dialog.Description = "选择安装路径"
+    $dialog.Description = $Description
     $dialog.ShowNewFolderButton = $true
     if (-not [string]::IsNullOrWhiteSpace($InitialPath) -and (Test-Path -LiteralPath $InitialPath -PathType Container)) {
         $dialog.SelectedPath = $InitialPath
@@ -1449,6 +1452,307 @@ function Select-FolderPath {
         return $dialog.SelectedPath
     }
     return $null
+}
+
+function Get-InstallDiscoveryFeatureRows {
+    $rows = @()
+    foreach ($projectKey in $script:Projects.Keys) {
+        $project = $script:Projects[$projectKey]
+        foreach ($scriptName in $project.Scripts.Keys) {
+            if ($scriptName -match '^launch_.+_installer\.ps1$') {
+                $rows += [PSCustomObject]@{
+                    FeatureScript = [string]$scriptName
+                    ProjectKey = [string]$projectKey
+                    ProjectName = [string]$project.Name
+                    ManagementScripts = @($project.Scripts.Keys)
+                }
+            }
+        }
+    }
+    return @($rows)
+}
+
+function Get-DefaultInstallDiscoveryRoots {
+    $roots = @()
+    try {
+        foreach ($drive in [System.IO.DriveInfo]::GetDrives()) {
+            if ($drive.DriveType -eq [System.IO.DriveType]::Fixed -and $drive.IsReady) {
+                $roots += $drive.RootDirectory.FullName
+            }
+        }
+    } catch {
+        Write-Log WARN "failed to enumerate fixed drives for install discovery: $($_.Exception.Message)"
+    }
+    if ($roots.Count -eq 0) {
+        $roots += [Environment]::GetFolderPath("UserProfile")
+    }
+    return @($roots | Select-Object -Unique)
+}
+
+function Refresh-DiscoveredInstallList {
+    param($UI, $State)
+    $panel = Get-UiControl $UI "DiscoveredInstallPanel"
+    $statusText = Get-UiControl $UI "DiscoveryStatusText"
+    if ($null -eq $panel) { return }
+    $panel.Children.Clear()
+    $items = @()
+    if ($null -ne $State -and $null -ne $State.PSObject.Properties["DiscoveredInstalls"]) {
+        $items = @($State.DiscoveredInstalls)
+    }
+    if ($items.Count -eq 0) {
+        if ($null -ne $statusText -and [string]::IsNullOrWhiteSpace($statusText.Text)) {
+            $statusText.Text = "尚未搜索到已安装实例。可以扫描固定磁盘，或选择某个目录进行快速搜索。"
+        }
+        $empty = New-Object System.Windows.Controls.TextBlock
+        $empty.Text = '暂无发现结果。搜索不会覆盖当前安装路径，只有点击“设为当前管理目标”才会写入配置。'
+        $empty.TextWrapping = "Wrap"
+        $empty.Margin = "0,8,0,0"
+        $empty.SetResourceReference([System.Windows.Controls.TextBlock]::ForegroundProperty, "TextSecBrush")
+        $panel.Children.Add($empty) | Out-Null
+        return
+    }
+    if ($null -ne $statusText) {
+        $projectCount = @($items | Select-Object -ExpandProperty ProjectKey -Unique).Count
+        $statusText.Text = "已发现 $($items.Count) 个安装实例，覆盖 $projectCount 种 WebUI / 工具。"
+    }
+    $groups = @($items | Sort-Object ProjectName, InstallPath | Group-Object ProjectKey)
+    foreach ($group in $groups) {
+        $first = @($group.Group | Select-Object -First 1)[0]
+        $header = New-Object System.Windows.Controls.TextBlock
+        $header.Text = $first.ProjectName
+        $header.FontSize = 15
+        $header.FontWeight = "SemiBold"
+        $header.Margin = "0,14,0,8"
+        $panel.Children.Add($header) | Out-Null
+        foreach ($item in @($group.Group)) {
+            $card = New-Object System.Windows.Controls.Border
+            $card.Margin = "0,0,0,10"
+            $card.Padding = "12"
+            $card.CornerRadius = 8
+            $card.BorderThickness = 1
+            $card.SetResourceReference([System.Windows.Controls.Border]::BackgroundProperty, "HeaderBGBrush")
+            $card.SetResourceReference([System.Windows.Controls.Border]::BorderBrushProperty, "BorderBrush")
+
+            $grid = New-Object System.Windows.Controls.Grid
+            $left = New-Object System.Windows.Controls.ColumnDefinition
+            $left.Width = New-Object System.Windows.GridLength(1, [System.Windows.GridUnitType]::Star)
+            $right = New-Object System.Windows.Controls.ColumnDefinition
+            $right.Width = New-Object System.Windows.GridLength(150)
+            $grid.ColumnDefinitions.Add($left) | Out-Null
+            $grid.ColumnDefinitions.Add($right) | Out-Null
+
+            $text = New-Object System.Windows.Controls.TextBlock
+            $text.Text = "$($item.InstallPath)`n特征脚本: $($item.FeatureScript)    可用管理脚本: $($item.ManagementScriptCount)    状态: $($item.Status)"
+            $text.TextWrapping = "Wrap"
+            $text.Margin = "0,0,14,0"
+            [System.Windows.Controls.Grid]::SetColumn($text, 0)
+            $grid.Children.Add($text) | Out-Null
+
+            $button = New-Object System.Windows.Controls.Button
+            $button.Content = "设为当前管理目标"
+            $button.Tag = $item
+            $button.VerticalAlignment = "Center"
+            if ($null -ne $UI.Window.Resources["PrimaryButton"]) {
+                $button.Style = $UI.Window.Resources["PrimaryButton"]
+            }
+            [System.Windows.Controls.Grid]::SetColumn($button, 1)
+            $grid.Children.Add($button) | Out-Null
+            $button.Add_Click({
+                param($sender, $eventArgs)
+                Apply-DiscoveredInstallTarget $script:InstallerLauncherGuiUi $script:InstallerLauncherGuiState $sender.Tag
+            })
+
+            $card.Child = $grid
+            $panel.Children.Add($card) | Out-Null
+        }
+    }
+}
+
+function Apply-DiscoveredInstallTarget {
+    param($UI, $State, $InstallTarget)
+    if ($null -eq $InstallTarget) { return }
+    $projectKey = [string](Get-ObjectPropertyValue $InstallTarget "ProjectKey" "")
+    $installPath = [string](Get-ObjectPropertyValue $InstallTarget "InstallPath" "")
+    if ([string]::IsNullOrWhiteSpace($projectKey) -or -not $script:Projects.Contains($projectKey)) {
+        Show-Message "发现结果中的项目类型无效，无法应用。" "无法应用" "Warning"
+        return
+    }
+    if ([string]::IsNullOrWhiteSpace($installPath)) {
+        Show-Message "发现结果中的安装路径为空，无法应用。" "无法应用" "Warning"
+        return
+    }
+    $script:MainConfig["CURRENT_PROJECT"] = $projectKey
+    Save-MainConfig
+
+    $config = Get-ProjectConfig $projectKey
+    $config["INSTALL_PATH"] = $installPath
+    Save-ProjectConfig $projectKey $config
+
+    $projectList = Get-UiControl $UI "ProjectList"
+    if ($null -ne $projectList) {
+        foreach ($item in $projectList.Items) {
+            if ($item.Key -eq $projectKey) {
+                $projectList.SelectedItem = $item
+                break
+            }
+        }
+    }
+    Refresh-ProjectConfigUi $UI $State
+    Refresh-Status $UI $State
+    Select-RelevantMainTab $UI
+    Append-UiLog $UI "已切换管理目标: $projectKey -> $installPath"
+}
+
+function Invoke-DiscoverInstalledWebUis {
+    param($UI, $State, [string[]]$Roots)
+    $State = Ensure-GuiState $State
+    if ($null -eq $Roots -or $Roots.Count -eq 0) {
+        $Roots = @(Get-DefaultInstallDiscoveryRoots)
+    }
+    $featureRows = @(Get-InstallDiscoveryFeatureRows)
+    if ($featureRows.Count -eq 0) {
+        Show-Message "没有可用于搜索的安装特征脚本。" "无法搜索" "Warning"
+        return
+    }
+    $statusText = Get-UiControl $UI "DiscoveryStatusText"
+    if ($null -ne $statusText) {
+        $statusText.Text = "正在搜索: $($Roots -join ', ')"
+    }
+    Append-UiLog $UI "开始搜索已安装 WebUI: $($Roots -join ', ')"
+
+    $operation = {
+        param($FeatureRows, [string[]]$Roots, $Control)
+        $results = New-Object System.Collections.Generic.List[object]
+        $attempts = New-Object System.Collections.Generic.List[string]
+        $seen = @{}
+        $skipNames = @(
+            "Windows", "Program Files", "Program Files (x86)", "ProgramData", "`$Recycle.Bin", "System Volume Information",
+            ".git", ".hg", ".svn", ".cache", ".gradle", ".nuget", "node_modules", "__pycache__", "Temp", "tmp"
+        )
+        $skipSet = @{}
+        foreach ($name in $skipNames) { $skipSet[$name.ToLowerInvariant()] = $true }
+        $skipped = 0
+        $errors = 0
+
+        foreach ($root in @($Roots)) {
+            if ([string]::IsNullOrWhiteSpace($root)) { continue }
+            if (-not (Test-Path -LiteralPath $root -PathType Container)) {
+                [void]$attempts.Add("ROOT missing: $root")
+                continue
+            }
+            $rootPath = [System.IO.Path]::GetFullPath($root)
+            [void]$attempts.Add("ROOT scan: $rootPath")
+            $stack = New-Object System.Collections.Generic.Stack[string]
+            $stack.Push($rootPath)
+            while ($stack.Count -gt 0) {
+                $dir = $stack.Pop()
+                try {
+                    foreach ($row in @($FeatureRows)) {
+                        $featureScript = [string]$row.FeatureScript
+                        $featurePath = Join-Path $dir $featureScript
+                        if (-not (Test-Path -LiteralPath $featurePath -PathType Leaf)) { continue }
+                        $projectKey = [string]$row.ProjectKey
+                        $normalizedDir = [System.IO.Path]::GetFullPath($dir).TrimEnd('\')
+                        $dedupeKey = ("{0}|{1}" -f $projectKey, $normalizedDir).ToLowerInvariant()
+                        if ($seen.ContainsKey($dedupeKey)) { continue }
+                        $seen[$dedupeKey] = $true
+                        $availableScripts = New-Object System.Collections.Generic.List[string]
+                        foreach ($scriptName in @($row.ManagementScripts)) {
+                            if (Test-Path -LiteralPath (Join-Path $dir ([string]$scriptName)) -PathType Leaf) {
+                                [void]$availableScripts.Add([string]$scriptName)
+                            }
+                        }
+                        $status = "仅发现特征脚本"
+                        if ($availableScripts.Count -gt 0) { $status = "发现管理脚本" }
+                        [void]$results.Add([PSCustomObject]@{
+                            ProjectKey = $projectKey
+                            ProjectName = [string]$row.ProjectName
+                            InstallPath = $normalizedDir
+                            FeatureScript = $featureScript
+                            FeaturePath = $featurePath
+                            Status = $status
+                            ManagementScriptCount = $availableScripts.Count
+                            ManagementScripts = @($availableScripts.ToArray())
+                        })
+                        [void]$attempts.Add("HIT project=$projectKey path=$normalizedDir feature=$featureScript scripts=$($availableScripts.Count)")
+                    }
+
+                    foreach ($child in [System.IO.Directory]::EnumerateDirectories($dir)) {
+                        try {
+                            $info = New-Object System.IO.DirectoryInfo($child)
+                            if (($info.Attributes -band [System.IO.FileAttributes]::ReparsePoint) -ne 0) {
+                                $skipped++
+                                continue
+                            }
+                            if ($skipSet.ContainsKey($info.Name.ToLowerInvariant())) {
+                                $skipped++
+                                continue
+                            }
+                            $stack.Push($info.FullName)
+                        } catch {
+                            $errors++
+                            if ($errors -le 50) { [void]$attempts.Add("DIR skip: $child -> $($_.Exception.Message)") }
+                        }
+                    }
+                } catch {
+                    $errors++
+                    if ($errors -le 50) { [void]$attempts.Add("DIR error: $dir -> $($_.Exception.Message)") }
+                }
+            }
+        }
+        [void]$attempts.Add("SUMMARY results=$($results.Count) skipped=$skipped errors=$errors")
+        return [PSCustomObject]@{
+            Success = $true
+            Results = @($results.ToArray())
+            Attempts = @($attempts.ToArray())
+            Message = "搜索完成，发现 $($results.Count) 个安装实例。"
+        }
+    }
+
+    Start-GuiOperation -UI $UI -State $State -Name "搜索已安装 WebUI" -ScriptBlock $operation -Arguments @($featureRows, @($Roots)) -CanTerminate $false -OnComplete {
+        param($result, $streamErrors)
+        $item = $result | Select-Object -First 1
+        if ($null -eq $item) {
+            Append-UiLog $UI "搜索已安装 WebUI 没有返回结果。"
+            $status = Get-UiControl $UI "DiscoveryStatusText"
+            if ($null -ne $status) { $status.Text = "搜索没有返回结果。" }
+            return
+        }
+        foreach ($attempt in @($item.Attempts)) {
+            Write-Log DEBUG "install discovery: $attempt"
+        }
+        $State.DiscoveredInstalls = @($item.Results)
+        Refresh-DiscoveredInstallList $UI $State
+        Append-UiLog $UI $item.Message
+        if (@($item.Results).Count -eq 0) {
+            $status = Get-UiControl $UI "DiscoveryStatusText"
+            if ($null -ne $status) { $status.Text = "未发现已安装实例。可以选择更靠近安装目录的父目录再搜索一次。" }
+        }
+    }.GetNewClosure()
+}
+
+function Invoke-DiscoverInstalledWebUisInFolder {
+    param($UI, $State)
+    $initial = [Environment]::GetFolderPath("UserProfile")
+    $key = Get-CurrentProjectKey
+    if (-not [string]::IsNullOrWhiteSpace($key)) {
+        $project = $script:Projects[$key]
+        $config = Get-ProjectConfig $key
+        $currentPath = Get-EffectiveInstallPath $project $config
+        if (-not [string]::IsNullOrWhiteSpace($currentPath)) {
+            if (Test-Path -LiteralPath $currentPath -PathType Container) {
+                $initial = $currentPath
+            } else {
+                $parent = Split-Path -Parent $currentPath
+                if (-not [string]::IsNullOrWhiteSpace($parent) -and (Test-Path -LiteralPath $parent -PathType Container)) {
+                    $initial = $parent
+                }
+            }
+        }
+    }
+    $selected = Select-FolderPath $initial "选择要扫描的目录"
+    if ([string]::IsNullOrWhiteSpace($selected)) { return }
+    Invoke-DiscoverInstalledWebUis -UI $UI -State $State -Roots @($selected)
 }
 
 function New-ConfigCardRow {
@@ -1745,7 +2049,17 @@ function Refresh-Status {
         $nextStep = "检测到安装目录但缺少管理脚本。请进入安装模式重新运行安装器修复完整安装。"
     }
     if ($null -ne $projectStatusText) { $projectStatusText.Text = "当前项目: $($project.Name)`n安装状态: $($status.Label)`n$($status.Detail)`n下一步: $nextStep`n代理模式: $proxyMode    自动更新: $autoUpdate" }
-    if ($null -ne $selectedProjectHintText) { $selectedProjectHintText.Text = "当前选择：$($project.Name)    安装状态：$($status.Label)" }
+    if ($null -ne $selectedProjectHintText) {
+        $sameProjectDiscovered = 0
+        if ($null -ne $State -and $null -ne $State.PSObject.Properties["DiscoveredInstalls"]) {
+            $sameProjectDiscovered = @($State.DiscoveredInstalls | Where-Object { $_.ProjectKey -eq $key }).Count
+        }
+        $hint = "当前选择：$($project.Name)    管理路径：$($status.Path)    安装状态：$($status.Label)"
+        if ($sameProjectDiscovered -gt 1) {
+            $hint = "$hint    已发现 $sameProjectDiscovered 个同类型路径，可在「安装路径」页切换。"
+        }
+        $selectedProjectHintText.Text = $hint
+    }
     $scripts = @()
     foreach ($scriptName in $project.Scripts.Keys) {
         $scripts += [LauncherChoice]::new($scriptName, "$scriptName - $($project.Scripts[$scriptName])")
@@ -3981,6 +4295,18 @@ function Start-App {
                         <Border Background="{DynamicResource HeaderBGBrush}" CornerRadius="8" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1" Padding="14" Margin="0,8,0,0">
                           <TextBlock Text="安装路径用于检测当前项目是否已安装，也会作为 -InstallPath 传给安装器。卸载按钮会删除该路径指向的已安装软件，并要求二次确认。" TextWrapping="Wrap" Foreground="{DynamicResource TextSecBrush}"/>
                         </Border>
+                        <Border Background="{DynamicResource HeaderBGBrush}" CornerRadius="8" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1" Padding="14" Margin="0,14,0,0">
+                          <StackPanel>
+                            <TextBlock Text="搜索已安装 WebUI" FontSize="16" FontWeight="SemiBold"/>
+                            <TextBlock Text="通过 launch_*_installer.ps1 特征脚本发现系统中已有的安装目录；同一种 WebUI 可以发现多个路径，点击后可切换当前管理目标。" TextWrapping="Wrap" Foreground="{DynamicResource TextSecBrush}" Margin="0,6,0,10"/>
+                            <StackPanel Orientation="Horizontal">
+                              <Button Name="DiscoverInstallsBtn" Content="搜索当前系统"/>
+                              <Button Name="DiscoverFolderInstallsBtn" Content="选择目录搜索"/>
+                            </StackPanel>
+                            <TextBlock Name="DiscoveryStatusText" Text="尚未搜索到已安装实例。可以扫描固定磁盘，或选择某个目录进行快速搜索。" TextWrapping="Wrap" Foreground="{DynamicResource TextSecBrush}" Margin="0,10,0,0"/>
+                            <StackPanel Name="DiscoveredInstallPanel" Margin="0,4,0,0"/>
+                          </StackPanel>
+                        </Border>
                       </StackPanel>
                     </ScrollViewer>
                   </DockPanel>
@@ -4195,6 +4521,7 @@ function Start-App {
         MainBorder = $window.FindName("MainBorder"); StartPage = $window.FindName("StartPage"); AdvancedPage = $window.FindName("AdvancedPage"); SoftwarePage = $window.FindName("SoftwarePage"); SettingsPage = $window.FindName("SettingsPage"); AboutPage = $window.FindName("AboutPage"); MainTabs = $window.FindName("MainTabs"); ProjectList = $window.FindName("ProjectList"); ProjectStatusText = $window.FindName("ProjectStatusText"); BusyText = $window.FindName("BusyText"); HeroImage = $window.FindName("HeroImage"); HeroImageOverlay = $window.FindName("HeroImageOverlay"); AboutHeroImage = $window.FindName("AboutHeroImage"); AboutHeroOverlay = $window.FindName("AboutHeroOverlay"); TitleLogoBorder = $window.FindName("TitleLogoBorder"); TitleLogoImage = $window.FindName("TitleLogoImage"); TitleLogoText = $window.FindName("TitleLogoText")
         SelectedProjectHintText = $window.FindName("SelectedProjectHintText")
         PathPanel = $window.FindName("PathPanel"); ConfigPanel = $window.FindName("ConfigPanel")
+        DiscoverInstallsBtn = $window.FindName("DiscoverInstallsBtn"); DiscoverFolderInstallsBtn = $window.FindName("DiscoverFolderInstallsBtn"); DiscoveryStatusText = $window.FindName("DiscoveryStatusText"); DiscoveredInstallPanel = $window.FindName("DiscoveredInstallPanel")
         ScriptCombo = $window.FindName("ScriptCombo"); ScriptParamPanel = $window.FindName("ScriptParamPanel"); ScriptArgsBox = $window.FindName("ScriptArgsBox")
         StartModeTabs = $window.FindName("StartModeTabs"); LaunchScriptList = $window.FindName("LaunchScriptList"); UnifiedStartBtn = $window.FindName("UnifiedStartBtn"); UnifiedStartLabel = $window.FindName("UnifiedStartLabel"); StartProgressBar = $window.FindName("StartProgressBar"); TerminateOperationBtn = $window.FindName("TerminateOperationBtn"); StartHintText = $window.FindName("StartHintText"); InstallHintText = $window.FindName("InstallHintText")
         AutoUpdateCheck = $window.FindName("AutoUpdateCheck"); LogLevelCombo = $window.FindName("LogLevelCombo"); ProxyModeCombo = $window.FindName("ProxyModeCombo"); ManualProxyBox = $window.FindName("ManualProxyBox")
@@ -4202,7 +4529,9 @@ function Start-App {
         AboutSdAllInOneBtn = $window.FindName("AboutSdAllInOneBtn"); AboutLauncherBtn = $window.FindName("AboutLauncherBtn"); AboutAuthorBtn = $window.FindName("AboutAuthorBtn"); AboutBlogBtn = $window.FindName("AboutBlogBtn"); AboutBilibiliBtn = $window.FindName("AboutBilibiliBtn")
         LogBox = $window.FindName("LogBox")
     }
-    $State = [PSCustomObject]@{ CurrentOperation = $null; ConfigControls = @{}; ScriptParamControls = @{}; ProjectConfig = @{}; StatusRefreshTimer = $null; LastOneClickStatus = ""; IsRefreshing = $false; AutoSaveProjectConfig = $null; IsAutoSavingMainConfig = $false }
+    $State = [PSCustomObject]@{ CurrentOperation = $null; ConfigControls = @{}; ScriptParamControls = @{}; ProjectConfig = @{}; DiscoveredInstalls = @(); StatusRefreshTimer = $null; LastOneClickStatus = ""; IsRefreshing = $false; AutoSaveProjectConfig = $null; IsAutoSavingMainConfig = $false }
+    $script:InstallerLauncherGuiUi = $UI
+    $script:InstallerLauncherGuiState = $State
     $mainConfig = $script:MainConfig
     $State.AutoSaveProjectConfig = { Save-CurrentProjectConfigFromUi $UI $State $false }.GetNewClosure()
     if ($null -ne $UI.AboutAgreementText) {
@@ -4241,6 +4570,7 @@ function Start-App {
             Save-MainConfig
             Refresh-ProjectConfigUi $UI $State
             Refresh-Status $UI $State
+            Refresh-DiscoveredInstallList $UI $State
             Select-RelevantMainTab $UI
             $currentProject = $mainConfig["CURRENT_PROJECT"]
             Append-UiLog $UI "当前项目已切换: $currentProject"
@@ -4279,6 +4609,8 @@ function Start-App {
     $UI.OpenConfigFolderBtn.Add_Click({ Open-ConfigFolder }.GetNewClosure())
     $UI.CreateShortcutBtn.Add_Click({ Invoke-CreateLauncherShortcut $UI $State }.GetNewClosure())
     $UI.UninstallLauncherBtn.Add_Click({ Invoke-UninstallLauncher $UI }.GetNewClosure())
+    $UI.DiscoverInstallsBtn.Add_Click({ Invoke-DiscoverInstalledWebUis -UI $UI -State $State }.GetNewClosure())
+    $UI.DiscoverFolderInstallsBtn.Add_Click({ Invoke-DiscoverInstalledWebUisInFolder $UI $State }.GetNewClosure())
     $UI.OneClickNavBtn.Add_Click({ Show-AppPage $UI "start" }.GetNewClosure())
     $UI.AdvancedNavBtn.Add_Click({ Show-AppPage $UI "advanced"; Select-RelevantMainTab $UI }.GetNewClosure())
     $UI.SoftwareNavBtn.Add_Click({ Show-AppPage $UI "software" }.GetNewClosure())

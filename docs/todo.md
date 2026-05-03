@@ -485,6 +485,12 @@
 - [x] 优化 GUI 头图圆角后运行 `shellcheck install.sh installer_launcher.sh lib/*.sh`，通过。
 - [x] 优化 GUI 头图圆角后运行 `pwsh -NoProfile -Command '$null = [scriptblock]::Create((Get-Content -LiteralPath ./installer_launcher_gui.ps1 -Raw)); $null = [scriptblock]::Create((Get-Content -LiteralPath ./install.ps1 -Raw))'`，通过。
 - [x] 优化 GUI 头图圆角后运行 `git diff --check`，通过。
+- [x] GUI 安装路径页新增已安装 WebUI 搜索功能，通过 `launch_*_installer.ps1` 特征发现候选路径，并支持同类型多个安装目录切换当前管理目标。
+- [x] README 补充 Windows GUI 可搜索已安装 WebUI 并切换管理路径的说明。
+- [x] GUI 已安装 WebUI 搜索功能后运行 `bash -n install.sh installer_launcher.sh lib/*.sh`，通过。
+- [x] GUI 已安装 WebUI 搜索功能后运行 `shellcheck install.sh installer_launcher.sh lib/*.sh`，通过。
+- [x] GUI 已安装 WebUI 搜索功能后运行 `pwsh -NoProfile -Command '$null = [scriptblock]::Create((Get-Content -LiteralPath ./installer_launcher_gui.ps1 -Raw)); $null = [scriptblock]::Create((Get-Content -LiteralPath ./install.ps1 -Raw))'`，通过。
+- [x] GUI 已安装 WebUI 搜索功能后运行 `git diff --check`，通过。
 - [ ] 在 Windows PowerShell 5.1 中运行 `installer_launcher_gui.ps1`，验证 WPF 界面可正常启动。
 - [ ] 在 Windows 中验证 GUI 首次启动会创建 AppData / LocalAppData 配置、缓存和日志目录。
 - [ ] 在 Windows 中验证 GUI 安装器下载重试、PowerShell 执行、安装检测、管理脚本运行和项目卸载流程。
