@@ -229,7 +229,7 @@ function Set-DiscoverySearchBusy {
 
 function Update-DiscoveryProgressUi {
     param($UI, $State)
-    $operation = Get-ObjectPropertyValue $State "CurrentOperation" $null
+    $operation = Get-ObjectPropertyValue $State "DiscoveryOperation" $null
     if ($null -eq $operation -or [string](Get-ObjectPropertyValue $operation "Name" "") -ne "搜索已安装 WebUI") {
         Set-DiscoverySearchBusy $UI $State $false
         return
@@ -268,7 +268,7 @@ function Start-DiscoveryProgressTimer {
 
 function Invoke-CancelDiscoverySearch {
     param($UI, $State)
-    $operation = Get-ObjectPropertyValue $State "CurrentOperation" $null
+    $operation = Get-ObjectPropertyValue $State "DiscoveryOperation" $null
     if ($null -eq $operation -or [string](Get-ObjectPropertyValue $operation "Name" "") -ne "搜索已安装 WebUI") {
         Show-Message "当前没有正在搜索的任务。" "无需停止" "Information"
         return
@@ -292,8 +292,8 @@ function Invoke-CancelDiscoverySearch {
 function Invoke-DiscoverInstalledWebUis {
     param($UI, $State, [string[]]$Roots)
     $State = Ensure-GuiState $State
-    if ($null -ne (Get-ObjectPropertyValue $State "CurrentOperation" $null)) {
-        Show-Message "已有任务正在运行，请等待当前任务完成。" "任务运行中" "Warning"
+    if ($null -ne (Get-ObjectPropertyValue $State "DiscoveryOperation" $null)) {
+        Show-Message "搜索任务正在运行，请等待当前搜索完成或先停止搜索。" "搜索运行中" "Warning"
         return
     }
     if ($null -eq $Roots -or $Roots.Count -eq 0) {
@@ -442,10 +442,10 @@ function Invoke-DiscoverInstalledWebUis {
         }
     }
 
-    Start-GuiOperation -UI $UI -State $State -Name "搜索已安装 WebUI" -ScriptBlock $operation -Arguments @($featureRows, @($Roots)) -CanTerminate $false -OnComplete {
+    Start-GuiOperation -UI $UI -State $State -Name "搜索已安装 WebUI" -ScriptBlock $operation -Arguments @($featureRows, @($Roots)) -CanTerminate $false -UseGlobalBusy $false -StateProperty "DiscoveryOperation" -OnComplete {
         param($result, $streamErrors)
         Set-DiscoverySearchBusy $UI $State $false
-        $item = $result | Select-Object -First 1
+        $item = Select-GuiOperationResultItem -Result $result -PreferredProperties @("Results", "Message", "Success")
         if ($null -eq $item) {
             Append-UiLog $UI "搜索已安装 WebUI 没有返回结果。"
             $status = Get-UiControl $UI "DiscoveryStatusText"

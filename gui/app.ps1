@@ -52,7 +52,7 @@ function Start-App {
         AboutSdAllInOneBtn = $window.FindName("AboutSdAllInOneBtn"); AboutLauncherBtn = $window.FindName("AboutLauncherBtn"); AboutAuthorBtn = $window.FindName("AboutAuthorBtn"); AboutBlogBtn = $window.FindName("AboutBlogBtn"); AboutBilibiliBtn = $window.FindName("AboutBilibiliBtn")
         LogBox = $window.FindName("LogBox")
     }
-    $State = [PSCustomObject]@{ CurrentOperation = $null; ConfigControls = @{}; ScriptParamControls = @{}; ProjectConfig = @{}; DiscoveredInstalls = @(); StatusRefreshTimer = $null; DiscoveryProgressTimer = $null; LastOneClickStatus = ""; IsRefreshing = $false; AutoSaveProjectConfig = $null; IsAutoSavingMainConfig = $false }
+    $State = [PSCustomObject]@{ CurrentOperation = $null; DiscoveryOperation = $null; ConfigControls = @{}; ScriptParamControls = @{}; ProjectConfig = @{}; DiscoveredInstalls = @(); StatusRefreshTimer = $null; DiscoveryProgressTimer = $null; LastOneClickStatus = ""; IsRefreshing = $false; AutoSaveProjectConfig = $null; IsAutoSavingMainConfig = $false }
     $script:InstallerLauncherGuiUi = $UI
     $script:InstallerLauncherGuiState = $State
     $mainConfig = $script:MainConfig

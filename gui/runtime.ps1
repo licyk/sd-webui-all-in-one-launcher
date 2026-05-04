@@ -43,16 +43,15 @@ if (-not [string]::IsNullOrWhiteSpace($ArgsTextPath) -and (Test-Path -LiteralPat
     $ScriptArgsText = (Get-Content -LiteralPath $ArgsTextPath -Raw).Trim()
 }
 Set-Location -LiteralPath (Split-Path -Parent $ScriptPath)
-Write-Host ""
-Write-Host "Running PowerShell script:" -ForegroundColor Cyan
-Write-Host $ScriptPath -ForegroundColor Gray
-Write-Host "Arguments:" -ForegroundColor Cyan
+Write-Host "执行 PowerShell 脚本:" -ForegroundColor Cyan
+Write-Host "  $ScriptPath" -ForegroundColor Gray
+Write-Host "执行参数:" -ForegroundColor Cyan
 if (-not [string]::IsNullOrWhiteSpace($ScriptArgsText)) {
     Write-Host "  $ScriptArgsText" -ForegroundColor Gray
 } else {
     Write-Host "  (none)" -ForegroundColor DarkGray
 }
-Write-Host ""
+Write-Host ("-" * $Host.UI.RawUI.WindowSize.Width)
 $Expression = $BaseExpression
 if (-not [string]::IsNullOrWhiteSpace($ScriptArgsText)) { $Expression = "$Expression $ScriptArgsText" }
 $invokeError = ""
@@ -65,7 +64,7 @@ try {
     $code = 1
 }
 if ($code -ne 0) {
-    Write-Host ""
+    Write-Host ("-" * $Host.UI.RawUI.WindowSize.Width)
     Write-Host "PowerShell 脚本异常退出。" -ForegroundColor Red
     Write-Host "退出代码: $code" -ForegroundColor Red
     if (-not [string]::IsNullOrWhiteSpace($invokeError)) {
@@ -401,10 +400,16 @@ function Start-GuiOperation {
         [scriptblock]$ScriptBlock,
         [object[]]$Arguments,
         [scriptblock]$OnComplete,
-        [bool]$CanTerminate = $true
+        [bool]$CanTerminate = $true,
+        [bool]$UseGlobalBusy = $true,
+        [string]$StateProperty = "CurrentOperation"
     )
     $State = Ensure-GuiState $State
-    if ($null -ne (Get-ObjectPropertyValue $State "CurrentOperation" $null)) {
+    if ([string]::IsNullOrWhiteSpace($StateProperty)) { $StateProperty = "CurrentOperation" }
+    if ($null -eq $State.PSObject.Properties[$StateProperty]) {
+        $State | Add-Member -MemberType NoteProperty -Name $StateProperty -Value $null -Force
+    }
+    if ($null -ne (Get-ObjectPropertyValue $State $StateProperty $null)) {
         Show-Message "已有任务正在运行，请等待当前任务完成。" "任务运行中" "Warning"
         return
     }
@@ -412,7 +417,7 @@ function Start-GuiOperation {
     $control["CanTerminate"] = $CanTerminate
     $busyMessage = "$Name 正在运行..."
     if ($CanTerminate) { $busyMessage = "$Name 正在运行，可点击终止当前任务。" }
-    Set-UiBusy -UI $UI -Busy $true -Message $busyMessage -CanTerminate $CanTerminate
+    if ($UseGlobalBusy) { Set-UiBusy -UI $UI -Busy $true -Message $busyMessage -CanTerminate $CanTerminate }
     $ps = [powershell]::Create()
     $ps.RunspacePool = $script:RunspacePool
     $workerPrelude = Get-RuntimeWorkerPrelude
@@ -431,12 +436,14 @@ $operationBody
     $async = $ps.BeginInvoke()
     $timer = New-Object System.Windows.Threading.DispatcherTimer
     $timer.Interval = [TimeSpan]::FromMilliseconds(250)
-    $State.CurrentOperation = [PSCustomObject]@{ PowerShell = $ps; Async = $async; Timer = $timer; Name = $Name; Control = $control; LoggedProcessId = 0 }
+    $operationRecord = [PSCustomObject]@{ PowerShell = $ps; Async = $async; Timer = $timer; Name = $Name; Control = $control; LoggedProcessId = 0 }
+    $State.PSObject.Properties[$StateProperty].Value = $operationRecord
     $timer.Add_Tick({
         if (-not $async.IsCompleted) {
             $currentProcessId = [int]$control["ProcessId"]
-            if ($currentProcessId -gt 0 -and $null -ne $State.CurrentOperation -and [int]$State.CurrentOperation.LoggedProcessId -ne $currentProcessId) {
-                $State.CurrentOperation.LoggedProcessId = $currentProcessId
+            $activeOperation = Get-ObjectPropertyValue $State $StateProperty $null
+            if ($currentProcessId -gt 0 -and $null -ne $activeOperation -and [int]$activeOperation.LoggedProcessId -ne $currentProcessId) {
+                $activeOperation.LoggedProcessId = $currentProcessId
                 $currentScriptPath = [string]$control["ScriptPath"]
                 Write-Log INFO "$Name external process started pid=$currentProcessId script=$currentScriptPath"
                 Append-UiLog -UI $UI -Text "$Name 已打开 PowerShell 控制台。pid=$currentProcessId"
@@ -454,8 +461,10 @@ $operationBody
             Show-Message "$Name 失败:`n$($_.Exception.Message)" "错误" "Error"
         } finally {
             $ps.Dispose()
-            $State.CurrentOperation = $null
-            Set-UiBusy -UI $UI -Busy $false -Message ""
+            if ($null -ne $State.PSObject.Properties[$StateProperty]) {
+                $State.PSObject.Properties[$StateProperty].Value = $null
+            }
+            if ($UseGlobalBusy) { Set-UiBusy -UI $UI -Busy $false -Message "" }
         }
     }.GetNewClosure())
     $timer.Start()

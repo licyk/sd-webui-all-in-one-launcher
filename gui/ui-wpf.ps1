@@ -121,7 +121,7 @@ function Append-UiLog {
 function Set-UiBusy {
     param($UI, [bool]$Busy, [string]$Message, [bool]$CanTerminate = $true)
     $enabled = -not $Busy
-    foreach ($name in @("UninstallBtn", "CheckUpdateBtn", "UnifiedStartBtn", "OpenConfigFolderBtn", "OpenLogFolderBtn", "OpenCacheFolderBtn", "ShowLogBtn", "CreateShortcutBtn", "UninstallLauncherBtn", "DiscoverInstallsBtn", "DiscoverFolderInstallsBtn")) {
+    foreach ($name in @("UninstallBtn", "CheckUpdateBtn", "UnifiedStartBtn", "OpenConfigFolderBtn", "OpenLogFolderBtn", "OpenCacheFolderBtn", "ShowLogBtn", "CreateShortcutBtn", "UninstallLauncherBtn")) {
         $button = Get-UiControl $UI $name
         if ($null -ne $button) { $button.IsEnabled = $enabled }
     }

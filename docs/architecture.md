@@ -131,7 +131,7 @@ GUI 启动时按以下顺序初始化：
 
 ### GUI 操作流
 
-耗时操作通过 `Start-GuiOperation` 进入后台 Runspace。UI 侧使用 `DispatcherTimer` 轮询任务状态，并在完成后统一恢复按钮、刷新安装状态、写入日志和展示必要提示。
+耗时操作通过 `Start-GuiOperation` 进入后台 Runspace。UI 侧使用 `DispatcherTimer` 轮询任务状态，并在完成后统一恢复按钮、刷新安装状态、写入日志和展示必要提示。安装器、管理脚本、更新、快捷方式等任务使用全局 `CurrentOperation` 和 `Set-UiBusy`；已安装 WebUI 搜索使用独立 `DiscoveryOperation` 和 `Set-DiscoverySearchBusy`，避免长时间搜索把一键启动和设置页按钮锁住。
 
 #### Runspace worker prelude 注意事项
 
@@ -181,7 +181,8 @@ $__InstallerLauncherOperation = {
 1. 默认异步扫描固定磁盘，或由用户选择目录扫描。
 2. 以 `launch_*_installer.ps1` 作为特征文件识别项目类型。
 3. 将特征脚本父目录作为候选安装路径，并用该项目的管理脚本列表做轻量校验。
-4. 用户选择候选项后，写入 `CURRENT_PROJECT` 和对应项目 `INSTALL_PATH`，再刷新状态和脚本列表。
+4. 搜索任务只禁用搜索按钮和停止搜索按钮，不禁用一键启动、设置和其它全局操作按钮。
+5. 用户选择候选项后，写入 `CURRENT_PROJECT` 和对应项目 `INSTALL_PATH`，再刷新状态和脚本列表。
 
 ### GUI 编译与验证
 

@@ -1,6 +1,6 @@
 ﻿# Core constants, helpers, logging.
 
-$script:INSTALLER_LAUNCHER_GUI_VERSION = "0.2.7"
+$script:INSTALLER_LAUNCHER_GUI_VERSION = "0.2.8"
 $script:APP_NAME = "installer-launcher"
 $script:APP_TITLE = "SD WebUI All In One Installer Launcher GUI"
 $script:SELF_REMOTE_URLS = @(
@@ -153,15 +153,17 @@ function Get-ObjectPropertyValue {
 function Ensure-GuiState {
     param($State)
     if ($null -eq $State) {
-        return [PSCustomObject]@{ CurrentOperation = $null; ConfigControls = @{}; ScriptParamControls = @{}; ProjectConfig = @{}; DiscoveredInstalls = @(); StatusRefreshTimer = $null; LastOneClickStatus = ""; IsRefreshing = $false; AutoSaveProjectConfig = $null; IsAutoSavingMainConfig = $false }
+        return [PSCustomObject]@{ CurrentOperation = $null; DiscoveryOperation = $null; ConfigControls = @{}; ScriptParamControls = @{}; ProjectConfig = @{}; DiscoveredInstalls = @(); StatusRefreshTimer = $null; DiscoveryProgressTimer = $null; LastOneClickStatus = ""; IsRefreshing = $false; AutoSaveProjectConfig = $null; IsAutoSavingMainConfig = $false }
     }
     $defaults = [ordered]@{
         CurrentOperation = $null
+        DiscoveryOperation = $null
         ConfigControls = @{}
         ScriptParamControls = @{}
         ProjectConfig = @{}
         DiscoveredInstalls = @()
         StatusRefreshTimer = $null
+        DiscoveryProgressTimer = $null
         LastOneClickStatus = ""
         IsRefreshing = $false
         AutoSaveProjectConfig = $null
