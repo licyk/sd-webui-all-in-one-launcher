@@ -4,6 +4,10 @@ function Start-App {
     Initialize-Directories
     $script:MainConfig = Get-DefaultMainConfig
     Write-Log INFO "gui launcher starting version=$script:INSTALLER_LAUNCHER_GUI_VERSION"
+    $runtimeEdition = if ($PSVersionTable.ContainsKey("PSEdition")) { [string]$PSVersionTable["PSEdition"] } else { "Desktop" }
+    $runtimeOs = if ($PSVersionTable.ContainsKey("OS")) { [string]$PSVersionTable["OS"] } else { [System.Environment]::OSVersion.VersionString }
+    $runtimeClr = if ($PSVersionTable.ContainsKey("CLRVersion")) { [string]$PSVersionTable["CLRVersion"] } else { "" }
+    Write-Log INFO "powershell runtime: version=$($PSVersionTable.PSVersion) edition=$runtimeEdition host=$($Host.Name) clr=$runtimeClr os=$runtimeOs"
     Register-LauncherUninstallEntry
     Load-AllConfig
     if (-not [bool]$script:MainConfig["USER_AGREEMENT_ACCEPTED"]) {
@@ -216,4 +220,3 @@ function Start-App {
     if ($null -ne $script:RunspacePool) { $script:RunspacePool.Close(); $script:RunspacePool.Dispose() }
     Write-Log INFO "gui launcher exited"
 }
-

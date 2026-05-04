@@ -356,9 +356,14 @@
         <Setter.Value>
           <ControlTemplate TargetType="TabItem">
             <Border x:Name="Bd" Background="Transparent" CornerRadius="7" Padding="{TemplateBinding Padding}" SnapsToDevicePixels="True">
-              <Grid>
-                <ContentPresenter ContentSource="Header" HorizontalAlignment="Center" VerticalAlignment="Center" Margin="0,0,0,3"/>
-                <Border x:Name="Accent" Height="3" CornerRadius="2" Background="Transparent" VerticalAlignment="Bottom" HorizontalAlignment="Stretch"/>
+              <Grid VerticalAlignment="Center">
+                <Grid.RowDefinitions>
+                  <RowDefinition Height="Auto"/>
+                  <RowDefinition Height="5"/>
+                  <RowDefinition Height="3"/>
+                </Grid.RowDefinitions>
+                <ContentPresenter Grid.Row="0" ContentSource="Header" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                <Border Grid.Row="2" x:Name="Accent" Height="3" CornerRadius="2" Background="Transparent" HorizontalAlignment="Stretch"/>
               </Grid>
             </Border>
             <ControlTemplate.Triggers>
@@ -737,7 +742,12 @@
                 <TabItem Header="安装器设置">
                   <DockPanel Margin="2,14,2,0">
                     <ScrollViewer VerticalScrollBarVisibility="Auto">
-                      <StackPanel Name="ConfigPanel"/>
+                      <StackPanel>
+                        <Border Background="{DynamicResource HeaderBGBrush}" CornerRadius="8" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1" Padding="14" Margin="0,0,0,14">
+                          <TextBlock Text="这里只显示当前项目安装器支持的参数，修改后会自动保存。运行安装器时会先使用结构化参数，再追加“额外原始参数”；-NoPause 会由启动器自动追加，不需要手动填写。" TextWrapping="Wrap" Foreground="{DynamicResource TextSecBrush}"/>
+                        </Border>
+                        <StackPanel Name="ConfigPanel"/>
+                      </StackPanel>
                     </ScrollViewer>
                   </DockPanel>
                 </TabItem>
@@ -745,10 +755,14 @@
                   <Grid Margin="2,14,2,0">
                     <Grid.RowDefinitions>
                       <RowDefinition Height="Auto"/>
+                      <RowDefinition Height="Auto"/>
                       <RowDefinition Height="*"/>
                     </Grid.RowDefinitions>
                     <ComboBox Name="ScriptCombo" Grid.Row="0" Margin="0,0,0,12" DisplayMemberPath="Label"/>
-                    <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto" Margin="0,0,0,14">
+                    <Border Grid.Row="1" Background="{DynamicResource HeaderBGBrush}" CornerRadius="8" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1" Padding="14" Margin="0,0,0,14">
+                      <TextBlock Text="先选择要配置的管理脚本。每个脚本的参数会单独保存；-NoPause 会自动追加。需要运行脚本时回到“一键启动”的启动模式选择脚本并启动。" TextWrapping="Wrap" Foreground="{DynamicResource TextSecBrush}"/>
+                    </Border>
+                    <ScrollViewer Grid.Row="2" VerticalScrollBarVisibility="Auto" Margin="0,0,0,14">
                       <StackPanel>
                         <StackPanel Name="ScriptParamPanel"/>
                         <TextBlock Text="额外原始参数（追加到结构化参数之后）" FontWeight="SemiBold" Margin="0,4,0,8"/>
@@ -785,22 +799,73 @@
             <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="360"/></Grid.ColumnDefinitions>
             <Border Grid.Column="0" Background="{DynamicResource PanelBGBrush}" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1" CornerRadius="10" Padding="22" Margin="0,0,18,0">
               <ScrollViewer VerticalScrollBarVisibility="Auto">
-                <StackPanel MaxWidth="680" HorizontalAlignment="Left">
+                <StackPanel>
                   <TextBlock Text="基础行为" FontSize="18" FontWeight="SemiBold" Margin="0,0,0,14"/>
-                  <CheckBox Name="AutoUpdateCheck" Content="启动时自动检查更新" Margin="0,0,0,18"/>
-                  <TextBlock Text="日志等级" FontWeight="SemiBold" Margin="0,0,0,5"/>
-                  <ComboBox Name="LogLevelCombo" Margin="0,0,0,14"/>
-                  <TextBlock Text="代理模式" FontWeight="SemiBold" Margin="0,0,0,5"/>
-                  <ComboBox Name="ProxyModeCombo" Margin="0,0,0,14"/>
-                  <TextBlock Text="手动代理地址" FontWeight="SemiBold" Margin="0,0,0,5"/>
-                  <TextBox Name="ManualProxyBox" Margin="0,0,0,20" VerticalContentAlignment="Center"/>
-                  <StackPanel Orientation="Horizontal" Margin="0,0,0,18">
+
+                  <Border Background="{DynamicResource HeaderBGBrush}" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1" CornerRadius="8" Padding="14" Margin="0,0,0,10">
+                    <Grid>
+                      <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="Auto"/>
+                      </Grid.ColumnDefinitions>
+                      <StackPanel Grid.Column="0" Margin="0,0,18,0" VerticalAlignment="Center">
+                        <TextBlock Text="启动时自动检查更新" FontWeight="SemiBold"/>
+                        <TextBlock Text="启动器会按间隔检查新版本，失败不会影响当前版本继续使用。" Foreground="{DynamicResource TextSecBrush}" TextWrapping="Wrap" Margin="0,4,0,0"/>
+                      </StackPanel>
+                      <CheckBox Name="AutoUpdateCheck" Grid.Column="1" Content="" Margin="0" VerticalAlignment="Center" HorizontalAlignment="Right"/>
+                    </Grid>
+                  </Border>
+
+                  <Border Background="{DynamicResource HeaderBGBrush}" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1" CornerRadius="8" Padding="14" Margin="0,0,0,10">
+                    <Grid>
+                      <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="320"/>
+                      </Grid.ColumnDefinitions>
+                      <StackPanel Grid.Column="0" Margin="0,0,18,0" VerticalAlignment="Center">
+                        <TextBlock Text="日志等级" FontWeight="SemiBold"/>
+                        <TextBlock Text="DEBUG 会记录最完整的运行细节，适合排查启动、下载和执行问题。" Foreground="{DynamicResource TextSecBrush}" TextWrapping="Wrap" Margin="0,4,0,0"/>
+                      </StackPanel>
+                      <ComboBox Name="LogLevelCombo" Grid.Column="1" Margin="0" VerticalAlignment="Center"/>
+                    </Grid>
+                  </Border>
+
+                  <Border Background="{DynamicResource HeaderBGBrush}" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1" CornerRadius="8" Padding="14" Margin="0,0,0,10">
+                    <Grid>
+                      <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="320"/>
+                      </Grid.ColumnDefinitions>
+                      <StackPanel Grid.Column="0" Margin="0,0,18,0" VerticalAlignment="Center">
+                        <TextBlock Text="代理模式" FontWeight="SemiBold"/>
+                        <TextBlock Text="auto 读取 Windows 系统代理；manual 使用手动地址；off 清理启动器进程代理变量。" Foreground="{DynamicResource TextSecBrush}" TextWrapping="Wrap" Margin="0,4,0,0"/>
+                      </StackPanel>
+                      <ComboBox Name="ProxyModeCombo" Grid.Column="1" Margin="0" VerticalAlignment="Center"/>
+                    </Grid>
+                  </Border>
+
+                  <Border Background="{DynamicResource HeaderBGBrush}" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1" CornerRadius="8" Padding="14" Margin="0,0,0,20">
+                    <Grid>
+                      <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="320"/>
+                      </Grid.ColumnDefinitions>
+                      <StackPanel Grid.Column="0" Margin="0,0,18,0" VerticalAlignment="Center">
+                        <TextBlock Text="手动代理地址" FontWeight="SemiBold"/>
+                        <TextBlock Text="仅在代理模式为 manual 时使用，例如 http://127.0.0.1:7890。" Foreground="{DynamicResource TextSecBrush}" TextWrapping="Wrap" Margin="0,4,0,0"/>
+                      </StackPanel>
+                      <TextBox Name="ManualProxyBox" Grid.Column="1" Margin="0" VerticalContentAlignment="Center" VerticalAlignment="Center"/>
+                    </Grid>
+                  </Border>
+
+                  <TextBlock Text="操作" FontSize="18" FontWeight="SemiBold" Margin="0,0,0,14"/>
+                  <WrapPanel Margin="0,0,0,18">
                     <Button Name="CheckUpdateBtn" Content="检查更新"/>
                     <Button Name="ShowLogBtn" Content="查看日志"/>
                     <Button Name="OpenConfigFolderBtn" Content="打开配置文件夹"/>
                     <Button Name="CreateShortcutBtn" Content="创建快捷方式"/>
                     <Button Name="UninstallLauncherBtn" Content="卸载启动器" Background="#FFE53935" Foreground="White" BorderThickness="0"/>
-                  </StackPanel>
+                  </WrapPanel>
                 </StackPanel>
               </ScrollViewer>
             </Border>

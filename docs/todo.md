@@ -528,6 +528,13 @@
 - [x] 修复 GUI 左上角标题垂直偏移后运行 PowerShell 解析检查，覆盖 `dist/installer_launcher_gui.ps1`、源码入口、`gui/*.ps1` 和 `install.ps1`，通过。
 - [x] 修复 GUI 左上角标题垂直偏移后解析 `gui/xaml/*.xaml`，全部可转换为 `Window`。
 - [x] 修复 GUI 左上角标题垂直偏移后运行 `git diff --check`，通过。
+- [x] 修复 GUI 高级选项 Tab 按钮文字上偏问题，移除 TabItem Header 的额外下边距，使文字和选中底线居中显示。
+- [x] 统一 GUI 设置页选项风格，将自动更新、日志等级、代理模式和手动代理改为与高级选项一致的卡片行布局，并保留每项说明文字。
+- [x] 在 GUI 安装器设置和管理脚本设置中补充上下文帮助，说明参数显示规则、自动保存、额外参数追加顺序和 `-NoPause` 自动追加行为。
+- [x] 调整 GUI 高级选项和设置页样式后运行 `python3 tools/compile_gui.py --output dist/installer_launcher_gui.ps1`，通过。
+- [x] 调整 GUI 高级选项和设置页样式后运行 PowerShell 解析检查，覆盖 `dist/installer_launcher_gui.ps1`、源码入口、`gui/*.ps1` 和 `install.ps1`，通过。
+- [x] 调整 GUI 高级选项和设置页样式后解析 `gui/xaml/*.xaml`，全部可转换为 `Window`。
+- [x] 调整 GUI 高级选项和设置页样式后运行 `git diff --check`，通过。
 - [ ] 在 Windows PowerShell 5.1 中运行 `installer_launcher_gui.ps1`，验证 WPF 界面可正常启动。
 - [ ] 在 Windows 中验证 GUI 首次启动会创建 AppData / LocalAppData 配置、缓存和日志目录。
 - [ ] 在 Windows 中验证 GUI 安装器下载重试、PowerShell 执行、安装检测、管理脚本运行和项目卸载流程。
