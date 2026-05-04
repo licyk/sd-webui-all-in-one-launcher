@@ -13,6 +13,8 @@
 param(
     [switch]$SkipDesktopShortcut,
     [switch]$SkipStartMenuShortcut,
+    [string]$ProxyMode = "",
+    [string]$ManualProxy = "",
     [switch]$NoGui
 )
 
@@ -51,6 +53,127 @@ function Write-Step {
     if ($null -ne $script:InstallStatusLabel) {
         $script:InstallStatusLabel.Text = $Message
         [System.Windows.Forms.Application]::DoEvents()
+    }
+}
+
+function ConvertTo-SafeInstallLogText {
+    param([string]$Message)
+    if ($null -eq $Message) { return "" }
+    $safe = $Message -replace '(?i)(token|password|passwd|secret|api_key|access_key|private_key)=\S+', '$1=<redacted>'
+    $safe = $safe -replace '(?i)(token|password|passwd|secret|api_key|access_key|private_key):\S+', '$1:<redacted>'
+    $safe = $safe -replace '(?i)(https?://)[^/@\s]+:[^/@\s]+@', '$1<redacted>@'
+    return $safe
+}
+
+function Normalize-InstallProxyMode {
+    param([string]$Value)
+    switch (($Value + "").ToLowerInvariant()) {
+        "manual" { "manual"; break }
+        "off" { "off"; break }
+        "none" { "off"; break }
+        "disabled" { "off"; break }
+        default { "auto" }
+    }
+}
+
+function Get-InstallProxyConfig {
+    $config = @{
+        PROXY_MODE = "auto"
+        MANUAL_PROXY = ""
+    }
+    if (-not [string]::IsNullOrWhiteSpace($ProxyMode)) {
+        $config["PROXY_MODE"] = $ProxyMode
+    }
+    if (-not [string]::IsNullOrWhiteSpace($ManualProxy)) {
+        $config["MANUAL_PROXY"] = $ManualProxy
+    }
+    $config["PROXY_MODE"] = Normalize-InstallProxyMode $config["PROXY_MODE"]
+    return $config
+}
+
+function Get-WindowsSystemProxy {
+    try {
+        $internet = Get-ItemProperty -Path "HKCU:\Software\Microsoft\Windows\CurrentVersion\Internet Settings" -ErrorAction Stop
+        if ($internet.ProxyEnable -ne 1 -or [string]::IsNullOrWhiteSpace($internet.ProxyServer)) { return "" }
+        $proxyAddr = [string]$internet.ProxyServer
+        if (($proxyAddr -match "http=(.*?);") -or ($proxyAddr -match "https=(.*?);")) {
+            $value = $matches[1].ToString().Replace("http://", "").Replace("https://", "")
+            return "http://$value"
+        }
+        if ($proxyAddr -match "socks=(.*)") {
+            $value = $matches[1].ToString().Replace("socks://", "")
+            return "socks://$value"
+        }
+        $proxyAddr = $proxyAddr.Replace("http://", "").Replace("https://", "")
+        return "http://$proxyAddr"
+    } catch {
+        Write-Step "检测 Windows 系统代理失败: $($_.Exception.Message)"
+        return ""
+    }
+}
+
+function Clear-InstallProxyEnvironment {
+    Remove-Item Env:HTTP_PROXY -ErrorAction SilentlyContinue
+    Remove-Item Env:HTTPS_PROXY -ErrorAction SilentlyContinue
+    Remove-Item Env:http_proxy -ErrorAction SilentlyContinue
+    Remove-Item Env:https_proxy -ErrorAction SilentlyContinue
+    Write-Step "已关闭安装器代理环境。"
+}
+
+function Set-InstallProxyEnvironment {
+    param([string]$ProxyValue, [string]$Source)
+    if ([string]::IsNullOrWhiteSpace($ProxyValue)) { return }
+    $env:NO_PROXY = "localhost,127.0.0.1,::1"
+    $env:no_proxy = $env:NO_PROXY
+    $env:HTTP_PROXY = $ProxyValue
+    $env:HTTPS_PROXY = $ProxyValue
+    $env:http_proxy = $ProxyValue
+    $env:https_proxy = $ProxyValue
+    if ($ProxyValue -match '(?i)^https?://') {
+        try {
+            $webProxy = New-Object System.Net.WebProxy($ProxyValue)
+            $webProxy.BypassProxyOnLocal = $true
+            [System.Net.WebRequest]::DefaultWebProxy = $webProxy
+        } catch {
+            Write-Step "设置 .NET 默认代理失败，仅使用环境变量: $($_.Exception.Message)"
+        }
+    }
+    Write-Step "已配置代理: source=$Source value=$(ConvertTo-SafeInstallLogText $ProxyValue)"
+}
+
+function Test-InstallProxyEnvironmentExists {
+    return (-not [string]::IsNullOrWhiteSpace($env:HTTP_PROXY) -or
+        -not [string]::IsNullOrWhiteSpace($env:HTTPS_PROXY) -or
+        -not [string]::IsNullOrWhiteSpace($env:http_proxy) -or
+        -not [string]::IsNullOrWhiteSpace($env:https_proxy))
+}
+
+function Configure-InstallProxy {
+    $config = Get-InstallProxyConfig
+    $mode = [string]$config["PROXY_MODE"]
+    Write-Step "代理模式: $mode"
+    if ($mode -eq "off") {
+        Clear-InstallProxyEnvironment
+        return
+    }
+    if ($mode -eq "manual") {
+        if ([string]::IsNullOrWhiteSpace($config["MANUAL_PROXY"])) {
+            Clear-InstallProxyEnvironment
+            Write-Step "手动代理为空，已跳过代理配置。"
+            return
+        }
+        Set-InstallProxyEnvironment -ProxyValue $config["MANUAL_PROXY"] -Source "manual"
+        return
+    }
+    if (Test-InstallProxyEnvironmentExists) {
+        Write-Step "检测到已有代理环境变量，沿用当前代理环境。"
+        return
+    }
+    $proxy = Get-WindowsSystemProxy
+    if (-not [string]::IsNullOrWhiteSpace($proxy)) {
+        Set-InstallProxyEnvironment -ProxyValue $proxy -Source "windows"
+    } else {
+        Write-Step "未检测到 Windows 系统代理，直接联网。"
     }
 }
 
@@ -201,6 +324,7 @@ function Invoke-InstallMain {
     Assert-Windows
     $powerShellPath = Get-CurrentPowerShellPath
     Write-Step "安装目录: $InstallDir"
+    Configure-InstallProxy
     Install-GuiScript
     Install-Icon
     Install-Shortcuts -PowerShellPath $powerShellPath

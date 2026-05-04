@@ -71,7 +71,8 @@ if ($code -ne 0) {
         Write-Host "错误信息: $invokeError" -ForegroundColor Red
     }
     Write-Host "请先查看上方 PowerShell 输出日志，确认具体失败原因。" -ForegroundColor Yellow
-    Read-Host "按 Enter 关闭窗口"
+    Write-Host "按 Enter 关闭窗口"
+    Read-Host | Out-Null
 }
 exit $code
 '@ | Set-Content -LiteralPath $path -Encoding UTF8
@@ -794,7 +795,17 @@ $($args -join [Environment]::NewLine)
         } elseif ($item.Success) {
             Write-TrackedScriptResultDebug -Kind "installer" -Item $item
             Append-UiLog $UI "安装器执行成功。$($item.Detail)"
-            Show-Message "安装器执行成功。`n$($item.Detail)" "完成"
+            $successMessage = @'
+安装器执行成功。
+
+下一步:
+1. 回到一键启动页面的启动模式。
+2. 通常选择 launch.ps1 启动 WebUI。
+3. 如需维护，可运行 update.ps1、terminal.ps1 或 version_manager.ps1。
+
+下载源已记录到运行日志。
+'@
+            Show-Message $successMessage "完成"
         } else {
             Write-TrackedScriptResultDebug -Kind "installer" -Item $item
             Append-UiLog $UI "安装器执行失败: $($item.Message) exit=$($item.ExitCode) $($item.Detail)"

@@ -58,6 +58,8 @@
 - [x] `docs/architecture.md` 已记录 GUI runtime worker prelude 的 `param(...)` 参数绑定陷阱和排障方法。
 - [x] GUI 已安装 WebUI 搜索改为独立 `DiscoveryOperation`，搜索期间只锁搜索控件，不再禁用一键启动和设置按钮。
 - [x] GUI 已安装 WebUI 搜索中途停止时会展示本次已发现的部分结果，但不会写入配置。
+- [x] GUI 安装器成功弹窗不再显示下载源 URL，改为提示下一步启动或维护操作，下载源仅记录到日志。
+- [x] `install.ps1` 下载前会自包含配置代理，默认自动读取 Windows 系统代理，并支持命令行临时指定手动代理或关闭代理。
 - [x] `gui/app.ps1`：GUI `Start-App`、主窗口控件收集和事件绑定。
 - [x] `gui/xaml/`：主窗口和对话框 XAML 文件。
 - [x] `tools/compile_gui.py`：GUI 单文件预处理器，按 `gui/bootstrap.ps1` 模块顺序展开源码，并将 XAML 以 Base64 UTF-8 内嵌到发布产物。
