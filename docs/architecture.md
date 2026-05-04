@@ -7,7 +7,7 @@
 项目包含两个启动器入口，用于通过 `sd-webui-all-in-one` 系列 PowerShell 安装器安装和管理多个 AI WebUI / 训练工具：
 
 - Bash 5+ TUI/CLI 启动器：入口为 `installer_launcher.sh`，业务逻辑拆分在 `lib/`。
-- Windows PowerShell WPF GUI 启动器：入口为 `installer_launcher_gui.ps1`，以单文件形式交付。
+- Windows PowerShell WPF GUI 启动器：源码入口为 `installer_launcher_gui.ps1`，业务逻辑拆分在 `gui/`；发布时通过 `tools/compile_gui.py` 生成单文件产物。
 
 ```text
 installer_launcher.sh
@@ -23,7 +23,18 @@ installer_launcher.sh
     └── lib/cli.sh
 
 installer_launcher_gui.ps1
-└── 单文件 WPF GUI、项目注册表、配置、下载、执行、日志和自动更新
+└── gui/bootstrap.ps1
+    ├── gui/core.ps1
+    ├── gui/registry.ps1
+    ├── gui/config.ps1
+    ├── gui/runtime.ps1
+    ├── gui/ui-dialogs.ps1
+    ├── gui/ui-wpf.ps1
+    ├── gui/ui-pages.ps1
+    └── gui/app.ps1
+
+tools/compile_gui.py
+└── dist/installer_launcher_gui.ps1
 ```
 
 核心原则：
@@ -56,13 +67,13 @@ installer_launcher_gui.ps1
 
 ## Windows GUI 入口
 
-`installer_launcher_gui.ps1` 是 Windows-only GUI 入口。
+`installer_launcher_gui.ps1` 是 Windows-only GUI 源码入口。用户安装和自动更新使用 `dist/installer_launcher_gui.ps1` 对应的 Release 单文件产物。
 
 主要职责：
 
 - 检查运行系统是否为 Windows。
-- 加载 WPF 依赖并构建无边框 GUI。
-- 内置项目注册表、配置读写、下载重试、PowerShell 执行、安装检测、卸载、代理、日志和自动更新。
+- 加载 `gui/bootstrap.ps1`，按固定顺序加载 GUI 模块。
+- 通过 GUI 模块提供项目注册表、配置读写、下载重试、PowerShell 执行、安装检测、卸载、代理、日志和自动更新。
 - 使用 WPFUI 风格应用壳：左侧方形功能入口负责切换“一键启动 / 高级选项 / 软件选择 / 设置 / 关于”页面。
 - “一键启动”页用标签页提供安装模式和启动模式；安装状态变化时自动切换默认模式，安装模式运行安装器，启动模式从可用管理脚本列表中选择脚本并通过统一启动按钮执行。
 - “高级选项”页集中维护安装路径、安装器参数和管理脚本参数，“设置”页维护 GUI 主配置并提供打开配置目录入口。
@@ -79,7 +90,14 @@ Windows GUI 数据路径：
 日志目录: %LOCALAPPDATA%\installer-launcher\logs\
 ```
 
-GUI 版自动更新只替换 `installer_launcher_gui.ps1` 自身，不实现 Bash 版的命令注册、shell rc 修改或 Linux/macOS 依赖引导。
+GUI 版自动更新只替换当前运行的编译版 `installer_launcher_gui.ps1`，不实现 Bash 版的命令注册、shell rc 修改或 Linux/macOS 依赖引导。
+
+GUI 发布流程：
+
+1. 开发时维护 `installer_launcher_gui.ps1`、`gui/*.ps1` 和 `gui/xaml/*.xaml`。
+2. 发布前运行 `python tools/compile_gui.py --output dist/installer_launcher_gui.ps1`。
+3. 编译器按 `gui/bootstrap.ps1` 中的模块顺序展开代码，并将 XAML 以 Base64 UTF-8 资源内嵌。
+4. Release 上传 `dist/installer_launcher_gui.ps1`；`install.ps1` 和 GUI 自更新都下载该编译产物。
 
 ## 模块职责
 

@@ -1023,6 +1023,15 @@ function Invoke-UpdateCheck {
         Write-Log DEBUG "update check skipped: auto update disabled"
         return
     }
+    $bundledXaml = Get-Variable -Name BundledXamlResources -Scope Script -ErrorAction SilentlyContinue
+    if ($null -eq $bundledXaml -or $null -eq $bundledXaml.Value) {
+        Write-Log DEBUG "update check skipped: source multi-file mode"
+        if ($Manual) {
+            Append-UiLog $UI "当前以源码多文件模式运行，跳过 GUI 自更新。发布版单文件可通过 install.ps1 或 Release 获取。"
+            Show-Message "当前运行的是源码多文件入口，不会用 Release 单文件覆盖源码。`n`n请通过 install.ps1 安装，或下载 Release 中的 installer_launcher_gui.ps1 后再检查更新。" "源码模式" "Information"
+        }
+        return
+    }
     if (-not $Manual) {
         $last = 0
         [void][Int64]::TryParse([string]$script:MainConfig["AUTO_UPDATE_LAST_CHECK"], [ref]$last)
@@ -1143,4 +1152,3 @@ function Invoke-UpdateCheck {
         throw
     }
 }
-

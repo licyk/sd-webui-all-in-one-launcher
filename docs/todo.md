@@ -22,8 +22,8 @@
 - [x] `AGENTS.md` 已创建，用于记录项目约定、编码风格和验证规则。
 - [x] `README.md` 已创建，用于面向用户说明安装、TUI/CLI 使用、配置、下载策略和卸载。
 - [x] 已新增 Windows PowerShell WPF GUI 版启动器，入口为 `installer_launcher_gui.ps1`。
-- [x] GUI 已拆分为入口脚本、`gui/*.ps1` 模块和 `gui/xaml/*.xaml` 外置视图文件；本阶段暂不处理多文件安装分发。
-- [ ] GUI 多文件安装、发布打包和多文件自更新流程仍待后续设计。
+- [x] GUI 已拆分为入口脚本、`gui/*.ps1` 模块和 `gui/xaml/*.xaml` 外置视图文件。
+- [x] GUI 发布链路已切换为源码多文件、发布单文件：通过 `tools/compile_gui.py` 生成 `dist/installer_launcher_gui.ps1`。
 - [x] `docs/` 已创建，维护类文档已迁移到该目录。
 - [x] `docs/architecture.md` 已创建，用于说明项目架构、模块职责和主要流程。
 - [x] 本文件已整理为分组状态板，避免继续堆叠流水账。
@@ -51,8 +51,12 @@
 - [x] `gui/ui-pages.ps1`：GUI 页面刷新、动态配置 UI、管理脚本参数 UI 和已安装 WebUI 搜索。
 - [x] `gui/app.ps1`：GUI `Start-App`、主窗口控件收集和事件绑定。
 - [x] `gui/xaml/`：主窗口和对话框 XAML 文件。
+- [x] `tools/compile_gui.py`：GUI 单文件预处理器，按 `gui/bootstrap.ps1` 模块顺序展开源码，并将 XAML 以 Base64 UTF-8 内嵌到发布产物。
+- [x] `dist/installer_launcher_gui.ps1`：编译生成的 GUI 单文件发布产物，可脱离 `gui/` 目录运行。
+- [x] `.gitignore` 已忽略 `dist/` 和 Python 缓存目录，避免把本地生成的发布产物与缓存文件误提交。
 - [x] GUI 多文件拆分后的静态验证已通过：PowerShell 解析检查、`bash -n`、`shellcheck`、`git diff --check`。
 - [x] 修复 GUI 拆分后启动时主题资源替换可能把颜色值传给 `Foreground` 的问题，改用 `BrushConverter` 显式生成 `Brush`。
+- [x] GUI XAML 加载已支持优先读取编译产物中的内嵌 XAML 资源，源码运行时继续回退读取 `gui/xaml/`。
 
 ## 配置与项目选择
 
@@ -273,6 +277,8 @@
 - [x] GUI 版支持 `auto` / `manual` / `off` 三种代理模式。
 - [x] GUI 版支持按日志等级写入 `%LOCALAPPDATA%\installer-launcher\logs\`。
 - [x] GUI 版支持自动检查并尝试更新 `installer_launcher_gui.ps1` 自身。
+- [x] GUI 自更新地址已切换到 GitHub/Gitee Release 的编译版单文件产物，不再下载仓库根目录薄入口脚本。
+- [x] GUI 源码多文件模式会跳过自更新，避免开发入口被 Release 单文件产物覆盖；编译版单文件仍可正常自更新。
 - [x] 修复 GUI 在 Windows 中选择项目时因字典配置使用属性写入导致的 `CURRENT_PROJECT` 崩溃。
 - [x] 修复 GUI 日志中配置路径和日志路径因作用域变量字符串插值不正确显示为空的问题。
 - [x] 修复 GUI 自动更新回调中 `$Manual` 闭包变量丢失导致的更新检查错误。
@@ -469,6 +475,7 @@
 - [x] 优化 GUI 终止按钮样式后运行 `pwsh -NoProfile -Command '$null = [scriptblock]::Create((Get-Content -LiteralPath ./installer_launcher_gui.ps1 -Raw)); $null = [scriptblock]::Create((Get-Content -LiteralPath ./install.ps1 -Raw))'`，通过。
 - [x] 优化 GUI 终止按钮样式后运行 `git diff --check`，通过。
 - [x] 修改 `install.ps1`，移除本地 GUI 脚本复制和已存在图标复用逻辑，安装时始终联网下载最新脚本和图标。
+- [x] `install.ps1` 的 GUI 脚本下载源已切换到 GitHub/Gitee Release 的编译版单文件产物。
 - [x] 修改 `install.ps1` 网络安装逻辑后运行 `bash -n install.sh installer_launcher.sh lib/*.sh`，通过。
 - [x] 修改 `install.ps1` 网络安装逻辑后运行 `shellcheck install.sh installer_launcher.sh lib/*.sh`，通过。
 - [x] 修改 `install.ps1` 网络安装逻辑后运行 `pwsh -NoProfile -Command '$null = [scriptblock]::Create((Get-Content -LiteralPath ./installer_launcher_gui.ps1 -Raw)); $null = [scriptblock]::Create((Get-Content -LiteralPath ./install.ps1 -Raw))'`，通过。
@@ -506,6 +513,15 @@
 - [x] GUI 已安装 WebUI 搜索功能后运行 `pwsh -NoProfile -Command '$null = [scriptblock]::Create((Get-Content -LiteralPath ./installer_launcher_gui.ps1 -Raw)); $null = [scriptblock]::Create((Get-Content -LiteralPath ./install.ps1 -Raw))'`，通过。
 - [x] GUI 已安装 WebUI 搜索功能后运行 `git diff --check`，通过。
 - [x] `AGENTS.md` 已记录 GUI 已安装 WebUI 搜索时遇到的坑：动态 WPF 控件事件 helper 也要导出，以及 PowerShell 源码中中文弯引号会影响字符串解析。
+- [x] GUI 单文件编译器接入后运行 `python3 tools/compile_gui.py --output dist/installer_launcher_gui.ps1`，通过。
+- [x] README 已补充 Release 编译版 `installer_launcher_gui.ps1` 直接下载按钮，并说明源码入口需要配合 `gui/` 目录运行。
+- [x] GUI 单文件编译器接入后运行 `python3 -m py_compile tools/compile_gui.py`，通过。
+- [x] GUI 单文件编译器接入后运行 PowerShell 解析检查，覆盖 `dist/installer_launcher_gui.ps1`、源码入口、`gui/*.ps1` 和 `install.ps1`，通过。
+- [x] GUI 单文件编译器接入后运行 `bash -n install.sh installer_launcher.sh lib/*.sh`，通过。
+- [x] GUI 单文件编译器接入后运行 `shellcheck install.sh installer_launcher.sh lib/*.sh`，通过。
+- [x] GUI 单文件编译器接入后运行 `git diff --check`，通过。
+- [x] 修复 GUI 编译产物运行时内嵌 XAML 带 UTF-8 BOM 导致 Windows PowerShell 无法 `[xml]` 转换的问题；编译器写入内嵌 XAML 前会去除 BOM，加载器也会兜底 trim BOM。
+- [x] 修复内嵌 XAML BOM 问题后，将编译产物中的所有 XAML 解包到临时目录并用 PowerShell `[xml]` 转换验证，全部通过。
 - [ ] 在 Windows PowerShell 5.1 中运行 `installer_launcher_gui.ps1`，验证 WPF 界面可正常启动。
 - [ ] 在 Windows 中验证 GUI 首次启动会创建 AppData / LocalAppData 配置、缓存和日志目录。
 - [ ] 在 Windows 中验证 GUI 安装器下载重试、PowerShell 执行、安装检测、管理脚本运行和项目卸载流程。

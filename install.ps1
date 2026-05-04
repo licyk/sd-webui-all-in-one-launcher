@@ -27,10 +27,8 @@ $InstalledGuiPath = Join-Path $InstallDir $GuiScriptName
 $IconPath = Join-Path $InstallDir "sd_webui_all_in_one_launcher.ico"
 $UninstallRegistryKey = "HKCU:\Software\Microsoft\Windows\CurrentVersion\Uninstall\SDWebUIAllInOneLauncherGUI"
 $GuiScriptUrls = @(
-    "https://raw.githubusercontent.com/licyk/sd-webui-all-in-one-launcher/main/installer_launcher_gui.ps1",
-    "https://github.com/licyk/sd-webui-all-in-one-launcher/raw/main/installer_launcher_gui.ps1",
-    "https://gitee.com/licyk/sd-webui-all-in-one-launcher/raw/main/installer_launcher_gui.ps1",
-    "https://raw.githubusercontent.com/licyk/sd-webui-all-in-one-launcher/master/installer_launcher_gui.ps1"
+    "https://github.com/licyk/sd-webui-all-in-one-launcher/releases/download/launcher/installer_launcher_gui.ps1",
+    "https://gitee.com/licyk/sd-webui-all-in-one-launcher/releases/download/launcher/installer_launcher_gui.ps1"
 )
 $IconUrls = @(
     "https://modelscope.cn/models/licyks/sd-webui-all-in-one/resolve/master/icon/sd_webui_all_in_one_launcher.ico",

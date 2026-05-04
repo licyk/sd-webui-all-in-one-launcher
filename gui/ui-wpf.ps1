@@ -7,6 +7,19 @@ function Get-GuiXamlPath {
 
 function Load-GuiXamlWindow {
     param([Parameter(Mandatory)][string]$Name)
+    $bundled = Get-Variable -Name BundledXamlResources -Scope Script -ErrorAction SilentlyContinue
+    if ($null -ne $bundled -and $null -ne $bundled.Value -and (Test-DictionaryKey $bundled.Value $Name)) {
+        $encoded = [string]$bundled.Value[$Name]
+        if ([string]::IsNullOrWhiteSpace($encoded)) {
+            throw "GUI 内嵌 XAML 为空: $Name"
+        }
+        $bytes = [Convert]::FromBase64String(($encoded -replace '\s', ''))
+        $xamlText = [System.Text.Encoding]::UTF8.GetString($bytes).TrimStart([char]0xFEFF)
+        [xml]$xaml = $xamlText
+        $reader = New-Object System.Xml.XmlNodeReader $xaml
+        return [Windows.Markup.XamlReader]::Load($reader)
+    }
+
     $path = Get-GuiXamlPath $Name
     if (-not (Test-Path -LiteralPath $path -PathType Leaf)) {
         throw "GUI XAML 文件不存在: $path"

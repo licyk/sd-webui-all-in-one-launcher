@@ -4,8 +4,13 @@ on:
   push:
     branches: [main]
     paths:
-      - 'installer.*'
-      - 'install_launcher_gui.ps1'
+      - 'installer_launcher.sh'
+      - 'installer_launcher_gui.ps1'
+      - 'install.sh'
+      - 'install.ps1'
+      - 'gui/**'
+      - 'tools/compile_gui.py'
+      - '.github/workflows/release.yml'
   workflow_dispatch:
 
 jobs:
@@ -22,8 +27,8 @@ jobs:
               install.sh
               install.ps1
               installer_launcher.sh
-              installer_launcher_gui.ps1
-              installer_launcher_gui.bat
+              dist/installer_launcher_gui.ps1
+              dist/installer_launcher_gui.bat
               install.bat
 
     steps:
@@ -39,11 +44,16 @@ jobs:
         run: |
           pip install requests requests-toolbelt psh2bat
 
+      - name: Compile GUI release script
+        shell: bash
+        run: |
+          python "${{ github.workspace }}/tools/compile_gui.py" --output "${{ github.workspace }}/dist/installer_launcher_gui.ps1"
+
       - name: Convert PowerShell script to Bat script
         shell: bash
         run: |
           python -m psh2bat "${{ github.workspace }}/install.ps1" --output-path "${{ github.workspace }}/install.bat"
-          python -m psh2bat "${{ github.workspace }}/installer_launcher_gui.ps1" --output-path "${{ github.workspace }}/installer_launcher_gui.bat"
+          python -m psh2bat "${{ github.workspace }}/dist/installer_launcher_gui.ps1" --output-path "${{ github.workspace }}/dist/installer_launcher_gui.bat"
 
       - name: Release ${{ matrix.name }} to GitHub
         shell: bash

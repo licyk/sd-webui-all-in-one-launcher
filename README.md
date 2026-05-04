@@ -46,7 +46,7 @@
 - Windows WPF / .NET 桌面环境。
 - 需要 `pwsh` 或 `powershell` 命令用于执行上游安装器和管理脚本。
 
-Windows GUI 版只适配 Windows。推荐下载 `install.bat` 后双击运行，这是最简单的安装方式。它会启动图形安装流程，从网络获取最新 GUI 脚本和图标，并创建桌面/开始菜单快捷方式：
+Windows GUI 版只适配 Windows。推荐下载 `install.bat` 后双击运行，这是最简单的安装方式。它会启动图形安装流程，从 Release 获取编译后的单文件 GUI 脚本和图标，并创建桌面/开始菜单快捷方式：
 
 | 下载源 | 下载 |
 | --- | --- |
@@ -61,7 +61,12 @@ Windows GUI 版只适配 Windows。推荐下载 `install.bat` 后双击运行，
 powershell -NoProfile -ExecutionPolicy Bypass -File .\install.ps1
 ```
 
-也可以不安装，直接运行 GUI 脚本：
+也可以不安装，下载 Release 中的 `installer_launcher_gui.ps1` 后直接运行：
+
+| 下载源 | 下载 |
+| --- | --- |
+| GitHub Release | [![下载 installer_launcher_gui.ps1](https://img.shields.io/badge/下载-installer__launcher__gui.ps1-0078D4?style=for-the-badge&logo=github&logoColor=white)](https://github.com/licyk/sd-webui-all-in-one-launcher/releases/download/launcher/installer_launcher_gui.ps1) |
+| Gitee Release | [![下载 installer_launcher_gui.ps1](https://img.shields.io/badge/下载-installer__launcher__gui.ps1-C71D23?style=for-the-badge&logo=gitee&logoColor=white)](https://gitee.com/licyk/sd-webui-all-in-one-launcher/releases/download/launcher/installer_launcher_gui.ps1) |
 
 ```powershell
 powershell -NoProfile -ExecutionPolicy Bypass -File .\installer_launcher_gui.ps1
@@ -73,7 +78,7 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .\installer_launcher_gui.ps1
 powershell -NoProfile -ExecutionPolicy Bypass -File .\install.ps1 -NoGui
 ```
 
-`install.ps1` 每次运行都会从 GitHub/Gitee 下载最新 GUI 脚本；快捷方式图标也会重新下载，避免复用旧文件。
+`install.ps1` 每次运行都会从 GitHub/Gitee Release 下载最新的编译版 GUI 单文件；快捷方式图标也会重新下载，避免复用旧文件。仓库中的 `installer_launcher_gui.ps1` 是源码开发入口，需要配合 `gui/` 目录运行；面向普通用户发布的是 Release 中的单文件产物。
 
 GUI 版会使用 Windows 原生目录保存数据：
 
@@ -231,13 +236,18 @@ installer-launcher install-launcher
 | GitHub Release | [![下载 install.bat](https://img.shields.io/badge/下载-install.bat-0078D4?style=for-the-badge&logo=github&logoColor=white)](https://github.com/licyk/sd-webui-all-in-one-launcher/releases/download/launcher/install.bat) |
 | Gitee Release | [![下载 install.bat](https://img.shields.io/badge/下载-install.bat-C71D23?style=for-the-badge&logo=gitee&logoColor=white)](https://gitee.com/licyk/sd-webui-all-in-one-launcher/releases/download/launcher/install.bat) |
 
-如果你已经下载了源码，也可以用 PowerShell 安装：
+如果你已经下载了源码，也可以用 PowerShell 运行安装脚本；安装脚本仍会联网下载 Release 中的编译版 GUI 单文件：
 
 ```powershell
 powershell -NoProfile -ExecutionPolicy Bypass -File .\install.ps1
 ```
 
-需要临时试用时，可以直接启动 GUI：
+需要临时试用时，推荐下载 Release 中的 `installer_launcher_gui.ps1` 后直接启动。源码仓库根目录的同名文件是开发入口，需要保留旁边的 `gui/` 目录：
+
+| 下载源 | 下载 |
+| --- | --- |
+| GitHub Release | [![下载 installer_launcher_gui.ps1](https://img.shields.io/badge/下载-installer__launcher__gui.ps1-0078D4?style=for-the-badge&logo=github&logoColor=white)](https://github.com/licyk/sd-webui-all-in-one-launcher/releases/download/launcher/installer_launcher_gui.ps1) |
+| Gitee Release | [![下载 installer_launcher_gui.ps1](https://img.shields.io/badge/下载-installer__launcher__gui.ps1-C71D23?style=for-the-badge&logo=gitee&logoColor=white)](https://gitee.com/licyk/sd-webui-all-in-one-launcher/releases/download/launcher/installer_launcher_gui.ps1) |
 
 ```powershell
 powershell -NoProfile -ExecutionPolicy Bypass -File .\installer_launcher_gui.ps1
@@ -266,7 +276,7 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .\installer_launcher_gui.ps1
 - 如果检查或更新失败，会提示用户，但不会阻止当前启动器继续运行。
 - 检查和更新过程中会在终端输出简短状态，例如正在检查、已是最新版本、发现新版本或更新失败。
 
-Windows GUI 版也默认启用自动更新，但只替换 `installer_launcher_gui.ps1` 自身，不处理 Bash 命令注册。
+Windows GUI 版也默认启用自动更新，但只下载并替换 Release 中的编译版 `installer_launcher_gui.ps1`，不处理 Bash 命令注册。
 
 关闭自动更新：
 

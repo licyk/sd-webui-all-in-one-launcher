@@ -4,10 +4,8 @@ $script:INSTALLER_LAUNCHER_GUI_VERSION = "0.1.9"
 $script:APP_NAME = "installer-launcher"
 $script:APP_TITLE = "SD WebUI All In One Installer Launcher GUI"
 $script:SELF_REMOTE_URLS = @(
-    "https://raw.githubusercontent.com/licyk/sd-webui-all-in-one-launcher/main/installer_launcher_gui.ps1",
-    "https://github.com/licyk/sd-webui-all-in-one-launcher/raw/main/installer_launcher_gui.ps1",
-    "https://gitee.com/licyk/sd-webui-all-in-one-launcher/raw/main/installer_launcher_gui.ps1",
-    "https://raw.githubusercontent.com/licyk/sd-webui-all-in-one-launcher/master/installer_launcher_gui.ps1"
+    "https://github.com/licyk/sd-webui-all-in-one-launcher/releases/download/launcher/installer_launcher_gui.ps1",
+    "https://gitee.com/licyk/sd-webui-all-in-one-launcher/releases/download/launcher/installer_launcher_gui.ps1"
 )
 $script:HERO_IMAGE_URLS = @(
     "https://raw.githubusercontent.com/licyk/sd-webui-all-in-one/main/.github/head_image.jpg",
@@ -291,4 +289,3 @@ function Write-Log {
         Write-Warning "无法写入日志文件: $($script:LogFile)"
     }
 }
-
