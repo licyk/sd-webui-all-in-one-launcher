@@ -133,6 +133,34 @@ GUI 启动时按以下顺序初始化：
 
 耗时操作通过 `Start-GuiOperation` 进入后台 Runspace。UI 侧使用 `DispatcherTimer` 轮询任务状态，并在完成后统一恢复按钮、刷新安装状态、写入日志和展示必要提示。
 
+#### Runspace worker prelude 注意事项
+
+`gui/runtime.ps1` 会为后台任务注入一段 worker prelude，让安装器运行、管理脚本运行、快捷方式创建和自更新等任务复用下载、参数拼接、外部 PowerShell 控制台启动、进程树终止和临时文件清理 helper。
+
+这里有一个容易复发的 PowerShell 细节：后台任务的业务脚本块通常以 `param(...)` 开头，而 `param(...)` 必须位于脚本块最前面才会参与参数绑定。不要把 prelude 直接拼在业务脚本正文前面：
+
+```powershell
+# 错误示例：param(...) 已不在脚本块第一行，Start-GuiOperation 传入的参数会绑定失败。
+function Invoke-SharedHelper { }
+
+param($ScriptPath, $Control)
+```
+
+正确做法是先注入 prelude，再把原始业务脚本包进独立脚本块，并通过 `@args` 转交 `Start-GuiOperation` 添加的参数：
+
+```powershell
+function Invoke-SharedHelper { }
+
+$__InstallerLauncherOperation = {
+    param($ScriptPath, $Control)
+    # 原业务逻辑
+}
+
+& $__InstallerLauncherOperation @args
+```
+
+如果这里写错，常见症状是后台任务没有返回预期结果对象，管理脚本完成回调可能提示“找不到属性 ScriptName”或“管理脚本没有返回结果”。排查时优先检查 `Start-GuiOperation` 中构造的 `$operationScript` 是否仍保留上述包裹式执行结构，并确认完成回调使用 `Select-GuiOperationResultItem` 按预期属性筛选结果对象，而不是直接取输出流第一个对象。
+
 安装器运行流程：
 
 1. 从当前项目配置构建结构化参数，支持 `InstallPath` 时显式传入安装路径。

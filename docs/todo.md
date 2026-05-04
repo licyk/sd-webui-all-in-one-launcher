@@ -55,6 +55,7 @@
 - [x] GUI runtime 已抽出 runspace worker 公共 helper，安装器和管理脚本共用可终止 PowerShell 控制台执行流程，快捷方式和自更新共用基础下载尝试逻辑。
 - [x] GUI runtime 完成回调会按预期属性筛选后台任务结果，避免 runspace 杂散输出导致管理脚本结果对象识别失败。
 - [x] GUI runtime 的 worker prelude 改为包裹业务脚本执行，保持后台脚本块 `param(...)` 参数绑定正常。
+- [x] `docs/architecture.md` 已记录 GUI runtime worker prelude 的 `param(...)` 参数绑定陷阱和排障方法。
 - [x] `gui/app.ps1`：GUI `Start-App`、主窗口控件收集和事件绑定。
 - [x] `gui/xaml/`：主窗口和对话框 XAML 文件。
 - [x] `tools/compile_gui.py`：GUI 单文件预处理器，按 `gui/bootstrap.ps1` 模块顺序展开源码，并将 XAML 以 Base64 UTF-8 内嵌到发布产物。
