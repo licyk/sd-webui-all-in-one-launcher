@@ -75,7 +75,7 @@ function Export-GuiEventFunctions {
     $names = @(
         "Append-UiLog", "Get-GuiXamlPath", "Load-GuiXamlWindow", "Set-ThemeResources", "Apply-DiscoveredInstallTarget", "Apply-HeroImage", "AutoSave-MainConfigFromUi", "Ensure-GuiState", "Get-CurrentProjectKey", "Get-DefaultInstallDiscoveryRoots", "Get-EffectiveInstallPath", "Get-InstallDiscoveryFeatureRows", "Get-ObjectPropertyValue", "Get-ProjectConfig",
         "Get-SelectedScriptName", "Get-UiControl", "Get-UpdateCheckSemaphore", "Invoke-CreateLauncherShortcut", "Invoke-DiscoverInstalledWebUis", "Invoke-DiscoverInstalledWebUisInFolder", "Invoke-OneClickAction", "Invoke-TerminateCurrentOperation", "Invoke-UninstallLauncher",
-        "Invoke-UninstallProject", "Invoke-UpdateCheck", "Open-ConfigFolder", "Open-ExternalUrl", "Refresh-MainConfigUi",
+        "Invoke-UninstallProject", "Invoke-UpdateCheck", "Open-CacheFolder", "Open-ConfigFolder", "Open-ExternalUrl", "Open-LogFolder", "Refresh-MainConfigUi",
         "Refresh-DiscoveredInstallList", "Refresh-ProjectConfigUi", "Refresh-ScriptParamUi", "Refresh-Status", "Release-UpdateCheckLock", "Report-UiError",
         "Save-CurrentProjectConfigFromUi", "Save-MainConfig", "Save-MainConfigFromUi", "Save-ProjectConfig",
         "Select-FolderPath", "Select-RelevantMainTab", "Set-UiBusy", "Show-AppPage",
@@ -121,7 +121,7 @@ function Append-UiLog {
 function Set-UiBusy {
     param($UI, [bool]$Busy, [string]$Message, [bool]$CanTerminate = $true)
     $enabled = -not $Busy
-    foreach ($name in @("UninstallBtn", "CheckUpdateBtn", "UnifiedStartBtn", "OpenConfigFolderBtn", "ShowLogBtn", "CreateShortcutBtn", "UninstallLauncherBtn", "DiscoverInstallsBtn", "DiscoverFolderInstallsBtn")) {
+    foreach ($name in @("UninstallBtn", "CheckUpdateBtn", "UnifiedStartBtn", "OpenConfigFolderBtn", "OpenLogFolderBtn", "OpenCacheFolderBtn", "ShowLogBtn", "CreateShortcutBtn", "UninstallLauncherBtn", "DiscoverInstallsBtn", "DiscoverFolderInstallsBtn")) {
         $button = Get-UiControl $UI $name
         if ($null -ne $button) { $button.IsEnabled = $enabled }
     }
@@ -661,6 +661,18 @@ function Invoke-OneClickAction {
 
 function Open-ConfigFolder {
     $path = $script:ConfigHome
+    if (-not (Test-Path -LiteralPath $path)) { New-Item -ItemType Directory -Force -Path $path | Out-Null }
+    Start-Process -FilePath "explorer.exe" -ArgumentList @($path) | Out-Null
+}
+
+function Open-CacheFolder {
+    $path = $script:CacheHome
+    if (-not (Test-Path -LiteralPath $path)) { New-Item -ItemType Directory -Force -Path $path | Out-Null }
+    Start-Process -FilePath "explorer.exe" -ArgumentList @($path) | Out-Null
+}
+
+function Open-LogFolder {
+    $path = $script:LogHome
     if (-not (Test-Path -LiteralPath $path)) { New-Item -ItemType Directory -Force -Path $path | Out-Null }
     Start-Process -FilePath "explorer.exe" -ArgumentList @($path) | Out-Null
 }

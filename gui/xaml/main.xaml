@@ -861,8 +861,10 @@
                   <TextBlock Text="操作" FontSize="18" FontWeight="SemiBold" Margin="0,0,0,14"/>
                   <WrapPanel Margin="0,0,0,18">
                     <Button Name="CheckUpdateBtn" Content="检查更新"/>
-                    <Button Name="ShowLogBtn" Content="查看日志"/>
+                    <Button Name="ShowLogBtn" Content="查看最近日志"/>
                     <Button Name="OpenConfigFolderBtn" Content="打开配置文件夹"/>
+                    <Button Name="OpenLogFolderBtn" Content="打开日志文件夹"/>
+                    <Button Name="OpenCacheFolderBtn" Content="打开缓存文件夹"/>
                     <Button Name="CreateShortcutBtn" Content="创建快捷方式"/>
                     <Button Name="UninstallLauncherBtn" Content="卸载启动器" Background="#FFE53935" Foreground="White" BorderThickness="0"/>
                   </WrapPanel>
@@ -874,7 +876,8 @@
                 <TextBlock Text="设置说明" FontSize="18" FontWeight="SemiBold" Margin="0,0,0,14"/>
                 <TextBlock Text="自动更新只会更新启动器自身，失败不会阻止你继续使用当前版本。" Foreground="{DynamicResource TextSecBrush}" TextWrapping="Wrap" Margin="0,0,0,12"/>
                 <TextBlock Text="代理模式 auto 会读取 Windows 系统代理；manual 使用下方手动地址；off 会清理当前启动器进程中的代理变量。" Foreground="{DynamicResource TextSecBrush}" TextWrapping="Wrap" Margin="0,0,0,12"/>
-                <TextBlock Text="最近运行记录可通过左侧设置中的“查看日志”打开。" Foreground="{DynamicResource TextSecBrush}" TextWrapping="Wrap"/>
+                <TextBlock Text="缓存目录保存安装器下载、自更新临时文件和运行过程中产生的缓存，可通过“打开缓存文件夹”打开。" Foreground="{DynamicResource TextSecBrush}" TextWrapping="Wrap" Margin="0,0,0,12"/>
+                <TextBlock Text="最近运行记录可通过“查看最近日志”打开；完整日志文件可通过“打开日志文件夹”查看。" Foreground="{DynamicResource TextSecBrush}" TextWrapping="Wrap"/>
               </StackPanel>
             </Border>
           </Grid>

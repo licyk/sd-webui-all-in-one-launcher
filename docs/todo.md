@@ -544,6 +544,14 @@
 - [x] 修复 GUI Tab 横线和 PowerShell 版本日志后运行 `bash -n install.sh installer_launcher.sh lib/*.sh`，通过。
 - [x] 修复 GUI Tab 横线和 PowerShell 版本日志后运行 `shellcheck install.sh installer_launcher.sh lib/*.sh`，通过。
 - [x] 修复 GUI Tab 横线和 PowerShell 版本日志后运行 `git diff --check`，通过。
+- [x] GUI 设置页操作区新增 `打开日志文件夹` 和 `打开缓存文件夹` 按钮，并补齐 PS5.1 事件导出、忙碌态禁用和目录打开函数。
+- [x] 统一 GUI 设置页操作按钮文案：日志预览使用 `查看最近日志`，目录类统一使用 `打开...文件夹`。
+- [x] 新增 GUI 日志/缓存目录按钮后运行 `python3 tools/compile_gui.py --output dist/installer_launcher_gui.ps1`，通过。
+- [x] 新增 GUI 日志/缓存目录按钮后运行 PowerShell 解析检查，覆盖 `dist/installer_launcher_gui.ps1`、源码入口、`gui/*.ps1` 和 `install.ps1`，通过。
+- [x] 新增 GUI 日志/缓存目录按钮后解析 `gui/xaml/*.xaml`，全部可转换为 `Window`。
+- [x] 新增 GUI 日志/缓存目录按钮后运行 `bash -n install.sh installer_launcher.sh lib/*.sh`，通过。
+- [x] 新增 GUI 日志/缓存目录按钮后运行 `shellcheck install.sh installer_launcher.sh lib/*.sh`，通过。
+- [x] 新增 GUI 日志/缓存目录按钮后运行 `git diff --check`，通过。
 - [ ] 在 Windows PowerShell 5.1 中运行 `installer_launcher_gui.ps1`，验证 WPF 界面可正常启动。
 - [ ] 在 Windows 中验证 GUI 首次启动会创建 AppData / LocalAppData 配置、缓存和日志目录。
 - [ ] 在 Windows 中验证 GUI 安装器下载重试、PowerShell 执行、安装检测、管理脚本运行和项目卸载流程。
