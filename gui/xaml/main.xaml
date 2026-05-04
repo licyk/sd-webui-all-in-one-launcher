@@ -541,16 +541,21 @@
       <Grid.RowDefinitions><RowDefinition Height="48"/><RowDefinition Height="*"/></Grid.RowDefinitions>
       <Grid Name="TitleBar" Grid.Row="0" Background="{DynamicResource HeaderBGBrush}">
         <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
-        <StackPanel Orientation="Horizontal" Margin="18,0,0,0" VerticalAlignment="Center">
-          <Border Name="TitleLogoBorder" Width="24" Height="24" CornerRadius="7" Background="{DynamicResource PrimaryBrush}" Margin="0,0,10,0" ClipToBounds="True">
+        <Grid Margin="18,0,0,0" Height="48" VerticalAlignment="Stretch">
+          <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="Auto"/>
+            <ColumnDefinition Width="Auto"/>
+            <ColumnDefinition Width="Auto"/>
+          </Grid.ColumnDefinitions>
+          <Border Name="TitleLogoBorder" Grid.Column="0" Width="24" Height="24" CornerRadius="7" Background="{DynamicResource PrimaryBrush}" Margin="0,0,10,0" ClipToBounds="True" VerticalAlignment="Center">
             <Grid>
               <Image Name="TitleLogoImage" Stretch="Uniform" Margin="2" Visibility="Collapsed"/>
               <TextBlock Name="TitleLogoText" Text="AI" Foreground="White" FontSize="10" FontWeight="SemiBold" HorizontalAlignment="Center" VerticalAlignment="Center"/>
             </Grid>
           </Border>
-          <TextBlock Text="SD WebUI All In One Launcher" FontSize="15" FontWeight="SemiBold"/>
-          <TextBlock Name="TitleVersionText" Text="  v0.0.0" FontSize="13" Foreground="{DynamicResource TextSecBrush}" VerticalAlignment="Center"/>
-        </StackPanel>
+          <TextBlock Grid.Column="1" Text="SD WebUI All In One Launcher" FontSize="15" FontWeight="SemiBold" VerticalAlignment="Center" LineHeight="24" LineStackingStrategy="BlockLineHeight"/>
+          <TextBlock Grid.Column="2" Name="TitleVersionText" Text="v0.0.0" FontSize="13" Foreground="{DynamicResource TextSecBrush}" Margin="10,0,0,0" VerticalAlignment="Center" LineHeight="22" LineStackingStrategy="BlockLineHeight"/>
+        </Grid>
         <StackPanel Grid.Column="1" Orientation="Horizontal" HorizontalAlignment="Right" VerticalAlignment="Center">
           <Button Name="HelpBtn" Content="?" Width="34" Height="32" Padding="0" Margin="0,0,2,0" BorderThickness="0" Background="Transparent"/>
           <Button Name="MinBtn" Content="—" Width="44" Height="32" Padding="0" Margin="0" BorderThickness="0" Background="Transparent"/>

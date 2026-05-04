@@ -523,6 +523,11 @@
 - [x] 修复 GUI 编译产物运行时内嵌 XAML 带 UTF-8 BOM 导致 Windows PowerShell 无法 `[xml]` 转换的问题；编译器写入内嵌 XAML 前会去除 BOM，加载器也会兜底 trim BOM。
 - [x] 修复内嵌 XAML BOM 问题后，将编译产物中的所有 XAML 解包到临时目录并用 PowerShell `[xml]` 转换验证，全部通过。
 - [x] 新增 `docs/gui-compiler.md`，记录 GUI 单文件编译器用法、源码约束、验证命令、Release 接入和常见坑。
+- [x] 修复 GUI 左上角标题垂直偏移问题，将标题栏左侧内容从横向 `StackPanel` 改为固定高度列式 `Grid`，图标、标题和版本号统一居中对齐。
+- [x] 修复 GUI 左上角标题垂直偏移后运行 `python3 tools/compile_gui.py --output dist/installer_launcher_gui.ps1`，通过。
+- [x] 修复 GUI 左上角标题垂直偏移后运行 PowerShell 解析检查，覆盖 `dist/installer_launcher_gui.ps1`、源码入口、`gui/*.ps1` 和 `install.ps1`，通过。
+- [x] 修复 GUI 左上角标题垂直偏移后解析 `gui/xaml/*.xaml`，全部可转换为 `Window`。
+- [x] 修复 GUI 左上角标题垂直偏移后运行 `git diff --check`，通过。
 - [ ] 在 Windows PowerShell 5.1 中运行 `installer_launcher_gui.ps1`，验证 WPF 界面可正常启动。
 - [ ] 在 Windows 中验证 GUI 首次启动会创建 AppData / LocalAppData 配置、缓存和日志目录。
 - [ ] 在 Windows 中验证 GUI 安装器下载重试、PowerShell 执行、安装检测、管理脚本运行和项目卸载流程。
