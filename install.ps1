@@ -153,7 +153,6 @@ function New-LauncherShortcut {
     if (Test-IconFile $IconPath) {
         $shortcut.IconLocation = $IconPath
     }
-    $shortcut.WindowStyle = 7
     $shortcut.Save()
 }
 

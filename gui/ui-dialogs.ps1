@@ -196,7 +196,7 @@ function Show-LogWindow {
         Show-Message "还没有日志文件: $($script:LogFile)" "日志"
         return
     }
-    $content = (Get-Content -LiteralPath $script:LogFile -Tail 200 -Encoding UTF8) -join [Environment]::NewLine
+    $content = (Get-Content -LiteralPath $script:LogFile -Encoding UTF8) -join [Environment]::NewLine
     $window = Load-GuiXamlWindow "log_window.xaml"
     $window.FindName("LogText").Text = $content
     $window.FindName("CloseBtn").Add_Click({ $window.Close() }.GetNewClosure())
