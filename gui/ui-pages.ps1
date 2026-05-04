@@ -457,8 +457,15 @@ function Invoke-DiscoverInstalledWebUis {
         }
         if ([bool](Get-ObjectPropertyValue $item "Cancelled" $false)) {
             Append-UiLog $UI $item.Message
+            $partialResults = @($item.Results)
             $status = Get-UiControl $UI "DiscoveryStatusText"
-            if ($null -ne $status) { $status.Text = "搜索已取消，已保留当前发现列表，未写入配置。" }
+            if ($partialResults.Count -gt 0) {
+                $State.DiscoveredInstalls = @($partialResults)
+                Refresh-DiscoveredInstallList $UI $State
+                if ($null -ne $status) { $status.Text = "搜索已取消，已显示本次中途发现的 $($partialResults.Count) 个结果，未写入配置。" }
+            } elseif ($null -ne $status) {
+                $status.Text = "搜索已取消，未发现新的安装实例，已保留当前发现列表，未写入配置。"
+            }
             return
         }
         $State.DiscoveredInstalls = @($item.Results)

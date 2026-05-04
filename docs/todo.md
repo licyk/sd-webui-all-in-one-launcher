@@ -57,6 +57,7 @@
 - [x] GUI runtime 的 worker prelude 改为包裹业务脚本执行，保持后台脚本块 `param(...)` 参数绑定正常。
 - [x] `docs/architecture.md` 已记录 GUI runtime worker prelude 的 `param(...)` 参数绑定陷阱和排障方法。
 - [x] GUI 已安装 WebUI 搜索改为独立 `DiscoveryOperation`，搜索期间只锁搜索控件，不再禁用一键启动和设置按钮。
+- [x] GUI 已安装 WebUI 搜索中途停止时会展示本次已发现的部分结果，但不会写入配置。
 - [x] `gui/app.ps1`：GUI `Start-App`、主窗口控件收集和事件绑定。
 - [x] `gui/xaml/`：主窗口和对话框 XAML 文件。
 - [x] `tools/compile_gui.py`：GUI 单文件预处理器，按 `gui/bootstrap.ps1` 模块顺序展开源码，并将 XAML 以 Base64 UTF-8 内嵌到发布产物。
