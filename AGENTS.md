@@ -25,7 +25,21 @@ The dependency bootstrap entry point is `install.sh`. The Bash launcher entry po
 ## Windows GUI Rules
 
 - `installer_launcher_gui.ps1` is Windows-only and should use PowerShell/WPF, not Bash.
-- Keep it self-contained so users can download and run a single `.ps1` file.
+- The GUI source is intentionally multi-file:
+  - `installer_launcher_gui.ps1`: thin entry point, argument parsing, Windows guard, bootstrap loading, and top-level dispatch.
+  - `gui/bootstrap.ps1`: fixed module loading order.
+  - `gui/core.ps1`: constants, paths, Add-Type declarations, generic helpers, logging.
+  - `gui/registry.ps1`: GUI project registry.
+  - `gui/config.ps1`: JSON config, proxy setup, parameter and install-path helpers.
+  - `gui/runtime.ps1`: runspace jobs, PowerShell execution, process termination, downloads, update, shortcut, uninstall.
+  - `gui/ui-dialogs.ps1`: message, confirmation, agreement, help, and log dialogs.
+  - `gui/ui-wpf.ps1`: XAML loading, theme resources, window chrome, navigation, animation, icons, hero image.
+  - `gui/ui-pages.ps1`: page refresh logic, dynamic project/script config UI, installed WebUI discovery.
+  - `gui/app.ps1`: `Start-App`, main window control collection, and event wiring.
+  - `gui/xaml/*.xaml`: WPF window/view markup.
+- Do not add feature logic back into the entry script. Put it in the matching GUI module and keep `gui/bootstrap.ps1` load order explicit.
+- External XAML files must not contain PowerShell interpolation such as `$script:` or `$()`. Dynamic values like version, theme colors, config paths, and status text are assigned after loading through helpers such as `Set-ThemeResources`.
+- The old single-file distribution goal is now a packaging/release concern; do not collapse source files back into one `.ps1` unless a build step explicitly does that.
 - Keep the GUI project registry synchronized with `lib/projects.sh`: project keys, installer URL lists, default directories, branch lists, supported parameters, and direct management scripts.
 - GUI config uses Windows-native paths:
   - `%APPDATA%\installer-launcher\main.json`
@@ -34,7 +48,7 @@ The dependency bootstrap entry point is `install.sh`. The Bash launcher entry po
   - `%LOCALAPPDATA%\installer-launcher\logs\`
 - GUI proxy modes mirror the Bash launcher: `auto`, `manual`, and `off`.
 - GUI execution should open PowerShell scripts in a visible console window so upstream script output and prompts remain visible.
-- GUI self-update only replaces `installer_launcher_gui.ps1`; do not add Bash shell command registration or shell rc cleanup to the GUI.
+- GUI self-update must remain Windows-only and must not add Bash shell command registration or shell rc cleanup. Multi-file update/packaging is a separate release concern; do not silently assume the entry script alone represents the full GUI source tree.
 - Windows PowerShell 5.1 handles WPF/Dispatcher event scriptblocks with narrower function lookup than PowerShell 7.
   - Before registering WPF events, call `Export-GuiEventFunctions` to export event-used helpers to `Global:` functions.
   - Event handlers may call those helpers by normal function name after export.

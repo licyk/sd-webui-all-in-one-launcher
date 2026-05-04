@@ -1,0 +1,16 @@
+﻿<Window xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        Title="输入" Width="460" Height="180" WindowStartupLocation="CenterScreen" ResizeMode="NoResize">
+  <Grid Margin="16">
+    <Grid.RowDefinitions>
+      <RowDefinition Height="Auto"/>
+      <RowDefinition Height="Auto"/>
+      <RowDefinition Height="*"/>
+    </Grid.RowDefinitions>
+    <TextBlock Grid.Row="0" Name="MessageText" Text="" TextWrapping="Wrap" Margin="0,0,0,12"/>
+    <TextBox Grid.Row="1" Name="InputBox" Height="28"/>
+    <StackPanel Grid.Row="2" Orientation="Horizontal" HorizontalAlignment="Right" VerticalAlignment="Bottom">
+      <Button Name="OkBtn" Content="确定" Width="86" Margin="0,0,8,0"/>
+      <Button Name="CancelBtn" Content="取消" Width="86"/>
+    </StackPanel>
+  </Grid>
+</Window>

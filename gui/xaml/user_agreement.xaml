@@ -1,0 +1,23 @@
+﻿<Window xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        Title="用户协议" Width="720" Height="560" WindowStartupLocation="CenterScreen" ResizeMode="NoResize">
+  <Grid Margin="18">
+    <Grid.RowDefinitions>
+      <RowDefinition Height="Auto"/>
+      <RowDefinition Height="*"/>
+      <RowDefinition Height="Auto"/>
+    </Grid.RowDefinitions>
+    <StackPanel Grid.Row="0" Margin="0,0,0,14">
+      <TextBlock Text="用户协议" FontSize="24" FontWeight="Bold"/>
+      <TextBlock Text="首次使用前需要阅读并同意以下内容。同意后会写入配置文件，下次启动不再提示。" Foreground="#666666" TextWrapping="Wrap" Margin="0,6,0,0"/>
+    </StackPanel>
+    <Border Grid.Row="1" BorderBrush="#D0D7DE" BorderThickness="1" CornerRadius="8" Padding="12" Background="#FAFBFC">
+      <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+        <TextBlock Name="AgreementText" TextWrapping="Wrap" FontSize="14" LineHeight="24"/>
+      </ScrollViewer>
+    </Border>
+    <StackPanel Grid.Row="2" Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,16,0,0">
+      <Button Name="DeclineBtn" Content="不同意并退出" Width="128" Height="36" Margin="0,0,10,0"/>
+      <Button Name="AgreeBtn" Content="同意并继续" Width="128" Height="36" Background="#0078D4" Foreground="White" BorderThickness="0"/>
+    </StackPanel>
+  </Grid>
+</Window>

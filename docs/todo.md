@@ -21,7 +21,9 @@
 - [x] 支持卸载启动器自身，卸载时移除命令注册、配置目录和缓存目录。
 - [x] `AGENTS.md` 已创建，用于记录项目约定、编码风格和验证规则。
 - [x] `README.md` 已创建，用于面向用户说明安装、TUI/CLI 使用、配置、下载策略和卸载。
-- [x] 已新增 Windows PowerShell WPF GUI 版启动器 `installer_launcher_gui.ps1`。
+- [x] 已新增 Windows PowerShell WPF GUI 版启动器，入口为 `installer_launcher_gui.ps1`。
+- [x] GUI 已拆分为入口脚本、`gui/*.ps1` 模块和 `gui/xaml/*.xaml` 外置视图文件；本阶段暂不处理多文件安装分发。
+- [ ] GUI 多文件安装、发布打包和多文件自更新流程仍待后续设计。
 - [x] `docs/` 已创建，维护类文档已迁移到该目录。
 - [x] `docs/architecture.md` 已创建，用于说明项目架构、模块职责和主要流程。
 - [x] 本文件已整理为分组状态板，避免继续堆叠流水账。
@@ -38,7 +40,19 @@
 - [x] `lib/menus.sh`：TUI 菜单、配置交互、主界面状态、帮助页面。
 - [x] `lib/cli.sh`：CLI 命令分发和帮助文本。
 - [x] `lib/bootstrap.sh`：统一加载模块。
-- [x] `installer_launcher_gui.ps1`：Windows-only 单文件 WPF GUI，内置项目注册表、配置、下载、执行、日志、代理和自动更新。
+- [x] `installer_launcher_gui.ps1`：Windows-only GUI 薄入口，负责 Windows 检查、加载 `gui/bootstrap.ps1` 和启动/卸载分发。
+- [x] `gui/bootstrap.ps1`：按固定顺序加载 GUI 模块。
+- [x] `gui/core.ps1`：GUI 常量、路径、Add-Type、通用工具和日志。
+- [x] `gui/registry.ps1`：GUI 项目注册表。
+- [x] `gui/config.ps1`：GUI JSON 配置、代理、参数构建和安装状态检测。
+- [x] `gui/runtime.ps1`：GUI runspace 任务、PowerShell 执行、进程终止、下载、自更新、快捷方式和卸载。
+- [x] `gui/ui-dialogs.ps1`：GUI 消息、确认、用户协议、帮助和日志窗口。
+- [x] `gui/ui-wpf.ps1`：GUI XAML 加载、主题资源、窗口效果、导航、动画、图标和头图。
+- [x] `gui/ui-pages.ps1`：GUI 页面刷新、动态配置 UI、管理脚本参数 UI 和已安装 WebUI 搜索。
+- [x] `gui/app.ps1`：GUI `Start-App`、主窗口控件收集和事件绑定。
+- [x] `gui/xaml/`：主窗口和对话框 XAML 文件。
+- [x] GUI 多文件拆分后的静态验证已通过：PowerShell 解析检查、`bash -n`、`shellcheck`、`git diff --check`。
+- [x] 修复 GUI 拆分后启动时主题资源替换可能把颜色值传给 `Foreground` 的问题，改用 `BrushConverter` 显式生成 `Brush`。
 
 ## 配置与项目选择
 
