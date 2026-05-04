@@ -99,6 +99,8 @@ GUI 发布流程：
 3. 编译器按 `gui/bootstrap.ps1` 中的模块顺序展开代码，并将 XAML 以 Base64 UTF-8 资源内嵌。
 4. Release 上传 `dist/installer_launcher_gui.ps1`；`install.ps1` 和 GUI 自更新都下载该编译产物。
 
+编译器使用方式、源码约束和常见坑记录在 `docs/gui-compiler.md`。
+
 ## 模块职责
 
 ### `lib/bootstrap.sh`

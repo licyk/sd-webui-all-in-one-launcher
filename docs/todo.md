@@ -522,6 +522,7 @@
 - [x] GUI 单文件编译器接入后运行 `git diff --check`，通过。
 - [x] 修复 GUI 编译产物运行时内嵌 XAML 带 UTF-8 BOM 导致 Windows PowerShell 无法 `[xml]` 转换的问题；编译器写入内嵌 XAML 前会去除 BOM，加载器也会兜底 trim BOM。
 - [x] 修复内嵌 XAML BOM 问题后，将编译产物中的所有 XAML 解包到临时目录并用 PowerShell `[xml]` 转换验证，全部通过。
+- [x] 新增 `docs/gui-compiler.md`，记录 GUI 单文件编译器用法、源码约束、验证命令、Release 接入和常见坑。
 - [ ] 在 Windows PowerShell 5.1 中运行 `installer_launcher_gui.ps1`，验证 WPF 界面可正常启动。
 - [ ] 在 Windows 中验证 GUI 首次启动会创建 AppData / LocalAppData 配置、缓存和日志目录。
 - [ ] 在 Windows 中验证 GUI 安装器下载重试、PowerShell 执行、安装检测、管理脚本运行和项目卸载流程。
