@@ -600,12 +600,12 @@ function Refresh-Status {
     $installHintText = Get-UiControl $UI "InstallHintText"
     $key = Get-CurrentProjectKey
     if ([string]::IsNullOrWhiteSpace($key)) {
-        if ($null -ne $projectStatusText) { $projectStatusText.Text = "当前项目: 未选择`n安装状态: 未检测`n请先在左侧「软件选择」中选择要安装或管理的 WebUI / 工具。" }
-        if ($null -ne $selectedProjectHintText) { $selectedProjectHintText.Text = "当前未选择软件" }
+        if ($null -ne $projectStatusText) { $projectStatusText.Text = "当前项目: 未选择`n安装状态: 未检测`n下一步: 先到「软件选择」选择要安装或管理的 WebUI / 工具；如果不确定怎么选，可以点击左上角 ? 查看启动器说明。" }
+        if ($null -ne $selectedProjectHintText) { $selectedProjectHintText.Text = "当前未选择软件。请先选中一个 WebUI / 工具，启动器才会显示对应的 installer 参数和管理脚本。" }
         if ($null -ne $scriptCombo) { $scriptCombo.ItemsSource = $null }
         if ($null -ne $launchScriptList) { $launchScriptList.ItemsSource = $null }
-        if ($null -ne $startHintText) { $startHintText.Text = "请先进入「软件选择」选择要安装或管理的 WebUI / 工具。" }
-        if ($null -ne $installHintText) { $installHintText.Text = "请先在「软件选择」中选择项目，再确认安装路径和安装器参数。" }
+        if ($null -ne $startHintText) { $startHintText.Text = "还没有选择 WebUI / 工具。请先进入「软件选择」，再回到这里运行安装器或管理脚本。" }
+        if ($null -ne $installHintText) { $installHintText.Text = "选择项目后，先确认安装路径和 installer 参数，再运行安装器。启动器会负责下载最新 installer 并传入配置。" }
         Set-OneClickModeFromStatus $UI $State "none"
         return
     }
@@ -614,11 +614,11 @@ function Refresh-Status {
     $status = Get-InstallationStatus $project $config
     $proxyMode = $script:MainConfig["PROXY_MODE"]
     $autoUpdate = $script:MainConfig["AUTO_UPDATE_ENABLED"]
-    $nextStep = "先在安装路径确认目标目录，再到高级选项确认分支和镜像，然后进入安装模式运行安装器完成首次安装。"
+    $nextStep = "先在「安装路径」确认目标目录，再在「安装器设置」确认分支、镜像和代理，然后回到安装模式运行 installer 完成首次安装。"
     if ($status.Code -eq "installed") {
-        $nextStep = "已安装完成。请进入启动模式运行 launch.ps1 启动软件，或运行 update.ps1 / terminal.ps1 做维护。"
+        $nextStep = "已安装完成。请在启动模式运行 launch.ps1 启动 WebUI；如果需要维护，可运行 update.ps1、terminal.ps1 或 version_manager.ps1。WebUI 使用教程可从左上角 ? 打开 SD Note。"
     } elseif ($status.Code -eq "incomplete") {
-        $nextStep = "检测到安装目录但缺少管理脚本。请进入安装模式重新运行安装器修复完整安装。"
+        $nextStep = "检测到安装目录但缺少管理脚本。请进入安装模式重新运行 installer 修复完整安装。"
     }
     if ($null -ne $projectStatusText) { $projectStatusText.Text = "当前项目: $($project.Name)`n安装状态: $($status.Label)`n$($status.Detail)`n下一步: $nextStep`n代理模式: $proxyMode    自动更新: $autoUpdate" }
     if ($null -ne $selectedProjectHintText) {
@@ -650,18 +650,18 @@ function Refresh-Status {
     }
     if ($null -ne $startHintText) {
         if ($status.Code -eq "installed") {
-            $startHintText.Text = "启动模式会运行已安装目录中的管理脚本。通常选择 launch.ps1 启动软件，选择 terminal.ps1 打开交互终端。"
+            $startHintText.Text = "启动模式会运行安装目录中的管理脚本。通常选择 launch.ps1 启动 WebUI，选择 terminal.ps1 打开交互终端，选择 version_manager.ps1 管理 WebUI / 扩展 / 节点版本。"
         } else {
-            $startHintText.Text = "当前项目还未完整安装。请选择安装模式，确认路径和高级选项后运行安装器。"
+            $startHintText.Text = "当前项目还未完整安装。请切到安装模式，确认路径和安装器设置后运行 installer。"
         }
     }
     if ($null -ne $installHintText) {
         if ($status.Code -eq "installed") {
-            $installHintText.Text = "当前项目已安装。只有需要修复、更新安装器配置或重新安装时，才建议运行安装器。"
+            $installHintText.Text = "当前项目已安装。日常启动请用启动模式；只有需要修复环境、重新套用 installer 配置或重新安装时，才建议运行安装器。"
         } elseif ($status.Code -eq "incomplete") {
-            $installHintText.Text = "检测到安装目录但缺少管理脚本。建议运行安装器修复完整安装。"
+            $installHintText.Text = "检测到安装目录但缺少管理脚本。建议运行 installer 修复完整安装，修复后再回到启动模式。"
         } else {
-            $installHintText.Text = "当前项目未安装。确认高级选项中的安装路径、分支和镜像后，点击右侧按钮运行安装器。"
+            $installHintText.Text = "当前项目未安装。启动器会重新下载最新 installer，并把安装路径、分支、镜像和代理等配置传给它。确认无误后点击右侧按钮开始安装。"
         }
     }
     Set-OneClickModeFromStatus $UI $State $status.Code
@@ -696,4 +696,3 @@ function AutoSave-MainConfigFromUi {
         $State.IsAutoSavingMainConfig = $false
     }
 }
-

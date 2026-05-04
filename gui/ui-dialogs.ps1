@@ -160,31 +160,17 @@ function Show-InputDialog {
 }
 
 function Show-HelpWindow {
-    $message = @"
-Windows GUI 启动器使用说明
-
-1. 在左侧选择要安装或管理的 WebUI / 工具。
-2. 在「安装路径」中确认目标目录，在「高级选项」中调整分支、镜像、代理和开关参数，修改会自动保存。
-3. 回到「一键启动」选择安装模式运行安装器。GUI 会重新下载安装器并打开 PowerShell 控制台执行。
-4. 安装完成后，在「管理脚本」中选择 launch.ps1、update.ps1、terminal.ps1 等脚本运行。
-5. 管理脚本参数会按当前脚本文档动态显示；结构化参数会排在「额外原始参数」之前，-NoPause 会自动追加。
-
-代理:
-- auto: 自动读取 Windows 系统代理，不覆盖已有环境变量。
-- manual: 使用手动代理地址。
-- off: 清理当前 GUI 进程代理变量。
-
-日志:
-$($script:LogHome)
-
-配置:
-$($script:ConfigHome)
-
-注意:
-launch.ps1 运行后可在控制台按 Ctrl+C 终止服务。
-terminal.ps1 打开后输入 exit 并回车退出终端。
-"@
-    Show-Message $message "使用帮助"
+    $window = Load-GuiXamlWindow "help_window.xaml"
+    $window.FindName("OpenLauncherDocBtn").Add_Click({
+        Open-ExternalUrl $script:LAUNCHER_GUI_DOC_URL
+    }.GetNewClosure())
+    $window.FindName("OpenSdNoteBtn").Add_Click({
+        Open-ExternalUrl $script:SDNOTE_URL
+    }.GetNewClosure())
+    $window.FindName("CloseBtn").Add_Click({
+        $window.Close()
+    }.GetNewClosure())
+    $window.ShowDialog() | Out-Null
 }
 
 function Show-LogWindow {
@@ -198,4 +184,3 @@ function Show-LogWindow {
     $window.FindName("CloseBtn").Add_Click({ $window.Close() }.GetNewClosure())
     $window.ShowDialog() | Out-Null
 }
-

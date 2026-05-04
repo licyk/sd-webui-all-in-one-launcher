@@ -1,6 +1,8 @@
 #!/usr/bin/env python3
 """Bundle the multi-file Windows GUI launcher into one PowerShell script."""
 
+# pylint: disable=missing-function-docstring,line-too-long,consider-using-f-string
+
 from __future__ import annotations
 
 import argparse

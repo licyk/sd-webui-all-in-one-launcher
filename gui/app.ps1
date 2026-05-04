@@ -184,7 +184,7 @@ function Start-App {
             Select-RelevantMainTab $UI
             Show-AppPage $UI "start"
             Append-UiLog $UI "GUI 启动完成。配置: $displayConfigHome 日志: $displayLogFile"
-            Append-UiLog $UI "选择项目，调整配置，然后运行安装器。"
+            Append-UiLog $UI "先选择 WebUI / 工具；未安装时运行 installer，已安装后运行管理脚本。"
             Start-LauncherIconDownload $UI
             Start-HeroImageDownload $UI
 

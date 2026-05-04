@@ -562,7 +562,7 @@
           <TextBlock Grid.Column="2" Name="TitleVersionText" Text="v0.0.0" FontSize="13" Foreground="{DynamicResource TextSecBrush}" Margin="10,0,0,0" VerticalAlignment="Center" LineHeight="22" LineStackingStrategy="BlockLineHeight"/>
         </Grid>
         <StackPanel Grid.Column="1" Orientation="Horizontal" HorizontalAlignment="Right" VerticalAlignment="Center">
-          <Button Name="HelpBtn" Content="?" Width="34" Height="32" Padding="0" Margin="0,0,2,0" BorderThickness="0" Background="Transparent"/>
+          <Button Name="HelpBtn" Content="?" ToolTip="打开启动器说明和 WebUI 教程入口" Width="34" Height="32" Padding="0" Margin="0,0,2,0" BorderThickness="0" Background="Transparent"/>
           <Button Name="MinBtn" Content="—" Width="44" Height="32" Padding="0" Margin="0" BorderThickness="0" Background="Transparent"/>
           <Button Name="MaxBtn" Content="⬜" Width="44" Height="32" Padding="0" Margin="0" BorderThickness="0" Background="Transparent"/>
           <Button Name="CloseBtn" Content="✕" Width="44" Height="32" Padding="0" Margin="0" BorderThickness="0" Background="Transparent"/>
@@ -631,7 +631,7 @@
               <Image Name="HeroImage" Grid.ColumnSpan="2" Stretch="UniformToFill" HorizontalAlignment="Center" VerticalAlignment="Center" Visibility="Collapsed" Opacity="0"/>
               <Border Name="HeroImageOverlay" Grid.ColumnSpan="2" Background="#CC000000" Visibility="Collapsed" Opacity="0"/>
               <StackPanel VerticalAlignment="Top" Margin="22">
-                <TextBlock Text="AI WebUI 安装与管理" Foreground="White" FontSize="16" Opacity="0.9"/>
+                <TextBlock Text="借助 Installer 安装与启动 WebUI" Foreground="White" FontSize="16" Opacity="0.9"/>
                 <TextBlock Text="启动器控制台" Foreground="White" FontSize="26" FontWeight="Bold" Margin="0,6,0,0"/>
                 <TextBlock Name="BusyText" Foreground="White" Opacity="0.9" Margin="0,14,0,0"/>
               </StackPanel>
@@ -673,13 +673,13 @@
                 <TextBlock Grid.Row="0" Text="快速操作" FontSize="18" FontWeight="SemiBold" Margin="0,0,0,14"/>
                 <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled" Margin="0,0,0,14">
                   <StackPanel>
-                    <TextBlock Text="已安装后：使用启动模式，选择 launch.ps1 启动软件，或选择 update.ps1 / terminal.ps1 做维护。" Foreground="{DynamicResource TextSecBrush}" TextWrapping="Wrap" Margin="0,0,0,10"/>
-                    <TextBlock Text="未安装时：先在「高级选项」确认安装路径、分支和镜像，再切回安装模式运行安装器。" Foreground="{DynamicResource TextSecBrush}" TextWrapping="Wrap" Margin="0,0,0,10"/>
-                    <TextBlock Text="如果检测到安装不完整，请重新运行安装器修复后再启动。" Foreground="{DynamicResource TextSecBrush}" TextWrapping="Wrap" Margin="0,0,0,18"/>
+                    <TextBlock Text="未安装时：先选软件，再确认安装路径和安装器参数，最后用安装模式运行 installer 完成首次安装。" Foreground="{DynamicResource TextSecBrush}" TextWrapping="Wrap" Margin="0,0,0,10"/>
+                    <TextBlock Text="已安装后：优先使用启动模式，选择 launch.ps1 启动 WebUI，或选择 update.ps1 / terminal.ps1 / version_manager.ps1 做维护。" Foreground="{DynamicResource TextSecBrush}" TextWrapping="Wrap" Margin="0,0,0,10"/>
+                    <TextBlock Text="如果 WebUI 已经打开但不知道如何使用模型、提示词、扩展或排查错误，可以点左上角 ? 进入 SD Note 教程。" Foreground="{DynamicResource TextSecBrush}" TextWrapping="Wrap" Margin="0,0,0,18"/>
                     <Border Background="{DynamicResource HeaderBGBrush}" CornerRadius="8" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1" Padding="14" Margin="0,0,0,14">
                       <TextBlock Text="PowerShell 脚本会在独立控制台中运行；如果返回非零退出码，窗口会停留以便查看上游日志。" TextWrapping="Wrap" Foreground="{DynamicResource TextSecBrush}"/>
                     </Border>
-                    <TextBlock Text="下方统一启动按钮会根据当前模式运行安装器或所选管理脚本。" TextWrapping="Wrap" Foreground="{DynamicResource TextSecBrush}"/>
+                    <TextBlock Text="下方统一启动按钮会根据当前模式运行安装器或所选管理脚本；运行中的任务可用终止按钮关闭由启动器创建的控制台进程树。" TextWrapping="Wrap" Foreground="{DynamicResource TextSecBrush}"/>
                   </StackPanel>
                 </ScrollViewer>
                 <StackPanel Grid.Row="2">
@@ -707,7 +707,7 @@
             <DockPanel Grid.Row="0" Margin="0,0,0,18">
               <StackPanel>
                 <TextBlock Text="高级选项" FontSize="28" FontWeight="Bold"/>
-                <TextBlock Text="设置安装路径、安装器参数和管理脚本参数。修改后会自动保存。" Foreground="{DynamicResource TextSecBrush}" Margin="0,4,0,0"/>
+                <TextBlock Text="把安装器需要的参数和管理脚本需要的参数提前保存好；回到一键启动时会自动带上这些配置。" Foreground="{DynamicResource TextSecBrush}" Margin="0,4,0,0"/>
               </StackPanel>
             </DockPanel>
             <Border Grid.Row="1" Background="{DynamicResource PanelBGBrush}" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1" CornerRadius="10" Padding="18">
@@ -721,12 +721,12 @@
                       <StackPanel>
                         <StackPanel Name="PathPanel"/>
                         <Border Background="{DynamicResource HeaderBGBrush}" CornerRadius="8" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1" Padding="14" Margin="0,8,0,0">
-                          <TextBlock Text="安装路径用于检测当前项目是否已安装，也会作为 -InstallPath 传给安装器。卸载按钮会删除该路径指向的已安装软件，并要求二次确认。" TextWrapping="Wrap" Foreground="{DynamicResource TextSecBrush}"/>
+                          <TextBlock Text="安装路径决定当前管理目标：启动器会用它检测是否已安装，也会把它作为 -InstallPath 显式传给 installer。你可以手动指定目录，也可以搜索系统中已有的 WebUI 后接管。" TextWrapping="Wrap" Foreground="{DynamicResource TextSecBrush}"/>
                         </Border>
                         <Border Background="{DynamicResource HeaderBGBrush}" CornerRadius="8" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1" Padding="14" Margin="0,14,0,0">
                           <StackPanel>
                             <TextBlock Text="搜索已安装 WebUI" FontSize="16" FontWeight="SemiBold"/>
-                            <TextBlock Text="通过 launch_*_installer.ps1 特征脚本发现系统中已有的安装目录；同一种 WebUI 可以发现多个路径，点击后可切换当前管理目标。" TextWrapping="Wrap" Foreground="{DynamicResource TextSecBrush}" Margin="0,6,0,10"/>
+                            <TextBlock Text="适合已经解压过整合包或手动安装过 WebUI 的情况。启动器会通过 launch_*_installer.ps1 特征脚本发现目录；同一种 WebUI 如果有多个路径，可以选择其中一个作为当前管理目标。" TextWrapping="Wrap" Foreground="{DynamicResource TextSecBrush}" Margin="0,6,0,10"/>
                             <StackPanel Orientation="Horizontal">
                               <Button Name="DiscoverInstallsBtn" Content="搜索当前系统"/>
                               <Button Name="DiscoverFolderInstallsBtn" Content="选择目录搜索"/>
@@ -744,7 +744,7 @@
                     <ScrollViewer VerticalScrollBarVisibility="Auto">
                       <StackPanel>
                         <Border Background="{DynamicResource HeaderBGBrush}" CornerRadius="8" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1" Padding="14" Margin="0,0,0,14">
-                          <TextBlock Text="这里只显示当前项目安装器支持的参数，修改后会自动保存。运行安装器时会先使用结构化参数，再追加“额外原始参数”；-NoPause 会由启动器自动追加，不需要手动填写。" TextWrapping="Wrap" Foreground="{DynamicResource TextSecBrush}"/>
+                          <TextBlock Text="这里只显示当前项目 installer 支持的参数。首次安装、修复安装或重新配置环境前，先在这里确认分支、镜像、代理和跳过项；运行安装器时会先使用结构化参数，再追加“额外原始参数”。-NoPause 会自动追加。" TextWrapping="Wrap" Foreground="{DynamicResource TextSecBrush}"/>
                         </Border>
                         <StackPanel Name="ConfigPanel"/>
                       </StackPanel>
@@ -760,7 +760,7 @@
                     </Grid.RowDefinitions>
                     <ComboBox Name="ScriptCombo" Grid.Row="0" Margin="0,0,0,12" DisplayMemberPath="Label"/>
                     <Border Grid.Row="1" Background="{DynamicResource HeaderBGBrush}" CornerRadius="8" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1" Padding="14" Margin="0,0,0,14">
-                      <TextBlock Text="先选择要配置的管理脚本。每个脚本的参数会单独保存；-NoPause 会自动追加。需要运行脚本时回到“一键启动”的启动模式选择脚本并启动。" TextWrapping="Wrap" Foreground="{DynamicResource TextSecBrush}"/>
+                      <TextBlock Text="管理脚本用于启动、更新、打开终端、下载模型或管理版本。先选择脚本再配置参数；每个脚本的参数会单独保存。需要执行时回到“一键启动”的启动模式选择脚本并启动。" TextWrapping="Wrap" Foreground="{DynamicResource TextSecBrush}"/>
                     </Border>
                     <ScrollViewer Grid.Row="2" VerticalScrollBarVisibility="Auto" Margin="0,0,0,14">
                       <StackPanel>
@@ -778,7 +778,7 @@
             <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="*"/></Grid.RowDefinitions>
             <StackPanel Grid.Row="0" Margin="0,0,0,18">
               <TextBlock Text="软件选择" FontSize="28" FontWeight="Bold"/>
-              <TextBlock Text="选择要安装或管理的 WebUI / 工具。切换后会自动刷新安装状态和可用脚本。" Foreground="{DynamicResource TextSecBrush}" Margin="0,4,0,0"/>
+              <TextBlock Text="先选中你要安装或管理的 WebUI / 工具。切换后会自动刷新安装状态、安装路径和可用管理脚本。" Foreground="{DynamicResource TextSecBrush}" Margin="0,4,0,0"/>
               <Border Background="{DynamicResource SelectedItemBGBrush}" BorderBrush="{DynamicResource SelectedItemBorderBrush}" BorderThickness="1" CornerRadius="8" Padding="12,8" Margin="0,14,0,0">
                 <TextBlock Name="SelectedProjectHintText" Text="当前未选择软件" Foreground="{DynamicResource PrimaryBrush}" FontWeight="SemiBold"/>
               </Border>
@@ -792,7 +792,7 @@
           <DockPanel Grid.Row="0" Margin="0,0,0,18">
             <StackPanel>
               <TextBlock Text="启动器设置" FontSize="28" FontWeight="Bold"/>
-              <TextBlock Text="管理自动更新、日志等级、代理和配置文件位置。修改后会自动保存。" Foreground="{DynamicResource TextSecBrush}" Margin="0,4,0,0"/>
+              <TextBlock Text="管理启动器自身的更新、日志、代理、快捷方式和配置目录。修改后会自动保存。" Foreground="{DynamicResource TextSecBrush}" Margin="0,4,0,0"/>
             </StackPanel>
           </DockPanel>
           <Grid Grid.Row="1">
@@ -877,7 +877,7 @@
                 <TextBlock Text="自动更新只会更新启动器自身，失败不会阻止你继续使用当前版本。" Foreground="{DynamicResource TextSecBrush}" TextWrapping="Wrap" Margin="0,0,0,12"/>
                 <TextBlock Text="代理模式 auto 会读取 Windows 系统代理；manual 使用下方手动地址；off 会清理当前启动器进程中的代理变量。" Foreground="{DynamicResource TextSecBrush}" TextWrapping="Wrap" Margin="0,0,0,12"/>
                 <TextBlock Text="缓存目录保存安装器下载、自更新临时文件和运行过程中产生的缓存，可通过“打开缓存文件夹”打开。" Foreground="{DynamicResource TextSecBrush}" TextWrapping="Wrap" Margin="0,0,0,12"/>
-                <TextBlock Text="最近运行记录可通过“查看最近日志”打开；完整日志文件可通过“打开日志文件夹”查看。" Foreground="{DynamicResource TextSecBrush}" TextWrapping="Wrap"/>
+                <TextBlock Text="最近运行记录可通过“查看最近日志”打开；完整日志文件可通过“打开日志文件夹”查看。左上角 ? 中有启动器在线说明和 WebUI 教程入口。" Foreground="{DynamicResource TextSecBrush}" TextWrapping="Wrap"/>
               </StackPanel>
             </Border>
           </Grid>

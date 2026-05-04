@@ -65,21 +65,36 @@ tools/compile_gui.py
 
 入口脚本中位于 strict mode 之前的逻辑需要兼容 macOS 自带 Bash 3.x。
 
-## Windows GUI 入口
+## Windows GUI 架构
 
-`installer_launcher_gui.ps1` 是 Windows-only GUI 源码入口。用户安装和自动更新使用 `dist/installer_launcher_gui.ps1` 对应的 Release 单文件产物。
+Windows GUI 只面向 Windows PowerShell/WPF 环境。开发时维护多文件源码，用户安装、自更新和 Release 下载使用编译后的单文件产物。
 
-主要职责：
+```text
+开发入口: installer_launcher_gui.ps1
+源码模块: gui/*.ps1
+XAML 视图: gui/xaml/*.xaml
+编译器: tools/compile_gui.py
+发布产物: dist/installer_launcher_gui.ps1
+```
 
-- 检查运行系统是否为 Windows。
-- 加载 `gui/bootstrap.ps1`，按固定顺序加载 GUI 模块。
-- 通过 GUI 模块提供项目注册表、配置读写、下载重试、PowerShell 执行、安装检测、卸载、代理、日志和自动更新。
-- 使用 WPFUI 风格应用壳：左侧方形功能入口负责切换“一键启动 / 高级选项 / 软件选择 / 设置 / 关于”页面。
-- “一键启动”页用标签页提供安装模式和启动模式；安装状态变化时自动切换默认模式，安装模式运行安装器，启动模式从可用管理脚本列表中选择脚本并通过统一启动按钮执行。
-- “高级选项”页集中维护安装路径、安装器参数和管理脚本参数，“设置”页维护 GUI 主配置并提供打开配置目录入口。
-- 首次启动时读取主配置中的 `USER_AGREEMENT_ACCEPTED`；未同意时先展示用户协议，同意后写入配置，不同意则退出。
-- 使用 Runspace + DispatcherTimer 执行长任务，避免下载和运行脚本时阻塞 UI。
-- 执行安装器和管理脚本时打开独立 PowerShell 控制台，保留上游脚本输出和交互。
+`installer_launcher_gui.ps1` 是薄入口，只负责参数、Windows 环境检查、加载 `gui/bootstrap.ps1`，以及分发 `Start-App` / `-UninstallLauncher`。实际业务逻辑必须放在 `gui/` 模块中。Release 产物会把模块和 XAML 内嵌成单文件，因此正式安装、`install.ps1`、自更新都应指向 Release asset，而不是仓库根目录的源码入口。
+
+### GUI 模块分层
+
+`gui/bootstrap.ps1` 按固定顺序加载模块：
+
+- `gui/core.ps1`：GUI 版本、路径常量、通用 helper、Add-Type、日志、崩溃记录、全局状态初始化。
+- `gui/registry.ps1`：项目注册表、安装器下载源、默认目录、分支、安装器参数、管理脚本和脚本参数定义。这里需要与 `lib/projects.sh` 保持同步。
+- `gui/config.ps1`：主配置和项目 JSON 配置读写、默认值补齐、代理配置、安装状态检测、参数构建。
+- `gui/runtime.ps1`：Runspace 后台任务、操作锁、下载重试、外部 PowerShell 控制台启动、进程树终止、自更新、快捷方式、启动器卸载。
+- `gui/ui-dialogs.ps1`：消息框、倒计时确认、用户协议、帮助窗口、日志窗口和输入窗口。
+- `gui/ui-wpf.ps1`：XAML 加载、主题资源、窗口效果、标题栏/最大化、导航动画、Tab 动画、头图和图标加载。
+- `gui/ui-pages.ps1`：页面刷新、动态安装器配置 UI、管理脚本参数 UI、安装状态刷新、已安装 WebUI 搜索和多路径选择。
+- `gui/app.ps1`：`Start-App`、主窗口控件收集、事件注册、启动流程和退出流程。
+
+PowerShell 5.1 对 WPF 事件和 `DispatcherTimer` 回调的函数查找范围更窄。所有会被 WPF 事件调用的 helper 都要在注册事件前通过 `Export-GuiEventFunctions` 导出到 `Global:`，不要依赖本地闭包或 `$script:GuiHandler_*` 缓存脚本块。
+
+### GUI 数据路径
 
 Windows GUI 数据路径：
 
@@ -90,7 +105,57 @@ Windows GUI 数据路径：
 日志目录: %LOCALAPPDATA%\installer-launcher\logs\
 ```
 
-GUI 版自动更新只替换当前运行的编译版 `installer_launcher_gui.ps1`，不实现 Bash 版的命令注册、shell rc 修改或 Linux/macOS 依赖引导。
+配置目录还会缓存 GUI 头图、快捷方式图标和已安装的 GUI 脚本本体。项目的当前管理目标仍由项目配置中的 `INSTALL_PATH` 决定；已安装 WebUI 搜索结果只是运行时选择列表，用户点击“设为当前管理目标”后才会写入对应项目配置。
+
+### GUI 启动流程
+
+GUI 启动时按以下顺序初始化：
+
+1. 初始化路径、日志和崩溃处理，并记录 PowerShell 版本、Edition、Host、CLR 和 OS。
+2. 注册当前用户级卸载项，便于系统设置或控制面板调用 `-UninstallLauncher`。
+3. 加载主配置和项目配置，补齐默认值。
+4. 按 `PROXY_MODE` 配置当前进程代理，保证后续更新、头图、图标和安装器下载使用正确代理。
+5. 首次启动时展示用户协议；用户拒绝则退出，用户同意后写入 `USER_AGREEMENT_ACCEPTED`。
+6. 加载 XAML 主窗口。源码模式读取 `gui/xaml/`，编译产物优先读取 `$script:BundledXamlResources` 中的内嵌 XAML。
+7. 收集控件、导出 WPF 事件 helper、注册事件和定时器。
+8. 刷新当前项目、安装状态、一键启动模式、动态参数 UI 和运行日志。
+9. 后台加载/下载头图和图标，并按自动更新间隔触发非致命更新检查。
+
+### GUI 页面职责
+
+- “一键启动”：面向日常使用。未安装时默认安装模式，运行当前项目 installer；已安装时默认启动模式，列出可用管理脚本并通过统一启动按钮运行。
+- “高级选项”：维护当前项目的安装路径、installer 参数和管理脚本参数；输入变化自动保存。
+- “软件选择”：选择要安装或管理的 WebUI / 工具，并显示当前选中的项目和管理路径。
+- “设置”：维护 GUI 主配置，包括自动更新、日志等级、代理模式、目录入口、快捷方式创建和启动器卸载。
+- “关于”：展示项目链接、版本信息、头图和用户协议。
+
+### GUI 操作流
+
+耗时操作通过 `Start-GuiOperation` 进入后台 Runspace。UI 侧使用 `DispatcherTimer` 轮询任务状态，并在完成后统一恢复按钮、刷新安装状态、写入日志和展示必要提示。
+
+安装器运行流程：
+
+1. 从当前项目配置构建结构化参数，支持 `InstallPath` 时显式传入安装路径。
+2. 追加额外原始参数，最后自动追加 `-NoPause` 并避免重复。
+3. 每次运行前按下载源顺序重新下载安装到缓存目录。
+4. 创建 wrapper，在独立 PowerShell 控制台中运行 installer，保留上游输出。
+5. 记录外部进程 PID、退出码、脚本路径和参数摘要；非零退出时提示用户查看控制台输出。
+
+管理脚本运行流程：
+
+1. 只从当前有效安装路径中查找可直接运行的管理脚本。
+2. 根据当前脚本支持的参数动态构建参数 UI。
+3. 启动独立 PowerShell 控制台运行脚本，并记录 PID。
+4. 运行中可以点击“终止当前任务”，确认后递归终止当前 GUI 实例创建的进程树，不扫描或终止用户手动打开的终端。
+
+已安装 WebUI 搜索流程：
+
+1. 默认异步扫描固定磁盘，或由用户选择目录扫描。
+2. 以 `launch_*_installer.ps1` 作为特征文件识别项目类型。
+3. 将特征脚本父目录作为候选安装路径，并用该项目的管理脚本列表做轻量校验。
+4. 用户选择候选项后，写入 `CURRENT_PROJECT` 和对应项目 `INSTALL_PATH`，再刷新状态和脚本列表。
+
+### GUI 编译与验证
 
 GUI 发布流程：
 
@@ -99,7 +164,14 @@ GUI 发布流程：
 3. 编译器按 `gui/bootstrap.ps1` 中的模块顺序展开代码，并将 XAML 以 Base64 UTF-8 资源内嵌。
 4. Release 上传 `dist/installer_launcher_gui.ps1`；`install.ps1` 和 GUI 自更新都下载该编译产物。
 
-编译器使用方式、源码约束和常见坑记录在 `docs/gui-compiler.md`。
+修改 GUI 模块、XAML、编译器、安装脚本或 Release 流程后，至少需要完成：
+
+- 重新生成 `dist/installer_launcher_gui.ps1`。
+- 解析检查源码入口、所有 `gui/*.ps1`、`install.ps1` 和编译产物。
+- 解析检查源码 XAML 和编译产物中的内嵌 XAML。
+- 运行 `git diff --check`。
+
+触及 Bash 入口、`lib/`、`install.sh` 或共享文档中的命令时，还需要运行 Bash 侧的 `bash -n` 和 `shellcheck`。完整命令和 Windows 手动验证清单记录在 `docs/gui-compiler.md`。
 
 ## 模块职责
 

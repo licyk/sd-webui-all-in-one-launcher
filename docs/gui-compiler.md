@@ -111,18 +111,42 @@ https://gitee.com/licyk/sd-webui-all-in-one-launcher/releases/download/launcher/
 
 不要再让用户安装或自更新下载仓库根目录的源码入口脚本。
 
-## 验证命令
+## 验证步骤
 
-构建并做静态检查：
+GUI 代码现在采用“源码多文件、发布单文件”的模型。只要修改了 `installer_launcher_gui.ps1`、`gui/*.ps1`、`gui/xaml/*.xaml`、`tools/compile_gui.py`、`install.ps1` 或 Release 流程，就应按下面顺序验证。普通文档-only 修改至少运行 `git diff --check`。
+
+### 1. 编译器和单文件产物
+
+先确认 Python 编译器自身可解析，再生成单文件产物：
 
 ```bash
-python3 tools/compile_gui.py --output dist/installer_launcher_gui.ps1
 python3 -m py_compile tools/compile_gui.py
-pwsh -NoProfile -Command '$null = [scriptblock]::Create((Get-Content -LiteralPath ./dist/installer_launcher_gui.ps1 -Raw)); $null = [scriptblock]::Create((Get-Content -LiteralPath ./installer_launcher_gui.ps1 -Raw)); Get-ChildItem ./gui -Filter *.ps1 -Recurse | ForEach-Object { $null = [scriptblock]::Create((Get-Content -LiteralPath $_.FullName -Raw)) }; $null = [scriptblock]::Create((Get-Content -LiteralPath ./install.ps1 -Raw))'
-git diff --check
+python3 tools/compile_gui.py --output dist/installer_launcher_gui.ps1
 ```
 
-验证内嵌 XAML 能被 PowerShell 转为 XML：
+`dist/` 是生成目录，不需要提交。它用于本地验证和 Release artifact 生成。
+
+### 2. PowerShell 语法解析
+
+检查编译产物、源码入口、全部 GUI 模块和安装脚本都能被 PowerShell 解析：
+
+```bash
+pwsh -NoProfile -Command '$null = [scriptblock]::Create((Get-Content -LiteralPath ./dist/installer_launcher_gui.ps1 -Raw)); $null = [scriptblock]::Create((Get-Content -LiteralPath ./installer_launcher_gui.ps1 -Raw)); Get-ChildItem ./gui -Filter *.ps1 -Recurse | ForEach-Object { $null = [scriptblock]::Create((Get-Content -LiteralPath $_.FullName -Raw)) }; $null = [scriptblock]::Create((Get-Content -LiteralPath ./install.ps1 -Raw))'
+```
+
+这一步只做语法解析，不能代替 Windows WPF 运行验证。
+
+### 3. 源码 XAML 解析
+
+先验证源码 XAML 是合法 XML：
+
+```bash
+pwsh -NoProfile -Command 'Get-ChildItem ./gui/xaml -Filter *.xaml | ForEach-Object { [xml]$x = Get-Content -LiteralPath $_.FullName -Raw -Encoding UTF8; Write-Host "$($_.Name) => $($x.DocumentElement.Name)" }'
+```
+
+### 4. 内嵌 XAML 解析
+
+再验证编译产物中的内嵌 XAML 能被 PowerShell 解码并转为 XML：
 
 ```bash
 tmpdir=$(mktemp -d /tmp/gui-xaml-test.XXXXXX)
@@ -139,12 +163,50 @@ pwsh -NoProfile -Command "Get-ChildItem -LiteralPath '$tmpdir' -Filter *.xaml | 
 rm -rf "$tmpdir"
 ```
 
-Bash 侧仍需保持通过：
+如果这里失败，常见原因是 XAML 不是合法 XML、XAML 含 UTF-8 BOM 未被正确去除、或者编译器的 Base64 资源写入格式被破坏。
+
+### 5. Bash 侧静态检查
+
+触及 `install.sh`、`installer_launcher.sh`、`lib/*.sh`、Bash 文档命令或跨端项目注册表时，继续运行 Bash 检查：
 
 ```bash
 bash -n install.sh installer_launcher.sh lib/*.sh
 shellcheck install.sh installer_launcher.sh lib/*.sh
 ```
+
+### 6. Diff 检查
+
+提交前总是运行：
+
+```bash
+git diff --check
+```
+
+### 7. Windows 手动验证
+
+以下内容需要在 Windows 环境完成，Linux 上的 `pwsh` 解析检查无法覆盖 WPF 运行时差异：
+
+- 用 Windows PowerShell 5.1 启动 `dist/installer_launcher_gui.ps1`。
+- 用 PowerShell 7 启动 `dist/installer_launcher_gui.ps1`。
+- 将 `dist/installer_launcher_gui.ps1` 单独复制到空目录运行，确认不依赖 `gui/` 目录。
+- 首次启动时确认用户协议弹窗可显示、同意后写入配置、拒绝后退出。
+- 打开帮助、日志、倒计时确认和输入对话框，确认 XAML 都能加载。
+- 选择项目后确认一键启动模式、安装模式、高级选项、管理脚本参数和软件选择页能正常刷新。
+- 运行一个安装器或管理脚本，确认会打开独立 PowerShell 控制台并记录 PID。
+- 运行中点击“终止当前任务”，确认只终止当前 GUI 创建的进程树。
+- 手动检查更新和启动自动更新不能并发破坏缓存或脚本文件。
+- 创建快捷方式、启动器卸载、项目卸载、已安装 WebUI 搜索和多路径切换按预期工作。
+
+### 8. 触发完整验证的情况
+
+以下改动必须跑完整 GUI 验证链路，也就是第 1 到第 7 步中能在当前环境执行的全部项目：
+
+- 修改 `gui/xaml/*.xaml`。
+- 修改 `gui/ui-wpf.ps1`、`gui/ui-dialogs.ps1`、`gui/app.ps1` 或事件注册/导出逻辑。
+- 修改 `gui/runtime.ps1` 中的 Runspace、外部进程、终止任务、自更新、下载、快捷方式或卸载逻辑。
+- 修改 `tools/compile_gui.py`。
+- 修改 `install.ps1`、Release workflow 或 GUI 自更新 URL。
+- 修改项目注册表、参数构建或管理脚本列表。
 
 ## Release 接入
 
