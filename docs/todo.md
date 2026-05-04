@@ -535,6 +535,15 @@
 - [x] 调整 GUI 高级选项和设置页样式后运行 PowerShell 解析检查，覆盖 `dist/installer_launcher_gui.ps1`、源码入口、`gui/*.ps1` 和 `install.ps1`，通过。
 - [x] 调整 GUI 高级选项和设置页样式后解析 `gui/xaml/*.xaml`，全部可转换为 `Window`。
 - [x] 调整 GUI 高级选项和设置页样式后运行 `git diff --check`，通过。
+- [x] 修复 GUI Tab 选中横线与文字贴合问题，将 TabItem Header 模板拆成文字、间距、横线三行布局。
+- [x] GUI 启动日志新增 PowerShell 运行时版本、Edition、Host、CLR 和 OS 信息，便于排查 PS5.1 / PS7 差异。
+- [x] 修复 PowerShell 运行时版本日志变量命名撞到只读 `$PSEdition` 导致启动崩溃的问题，改用 `runtimeEdition/runtimeOs/runtimeClr`。
+- [x] 修复 GUI Tab 横线和 PowerShell 版本日志后运行 `python3 tools/compile_gui.py --output dist/installer_launcher_gui.ps1`，通过。
+- [x] 修复 GUI Tab 横线和 PowerShell 版本日志后运行 PowerShell 解析检查，覆盖 `dist/installer_launcher_gui.ps1`、源码入口、`gui/*.ps1` 和 `install.ps1`，通过。
+- [x] 修复 GUI Tab 横线和 PowerShell 版本日志后解析 `gui/xaml/*.xaml`，全部可转换为 `Window`。
+- [x] 修复 GUI Tab 横线和 PowerShell 版本日志后运行 `bash -n install.sh installer_launcher.sh lib/*.sh`，通过。
+- [x] 修复 GUI Tab 横线和 PowerShell 版本日志后运行 `shellcheck install.sh installer_launcher.sh lib/*.sh`，通过。
+- [x] 修复 GUI Tab 横线和 PowerShell 版本日志后运行 `git diff --check`，通过。
 - [ ] 在 Windows PowerShell 5.1 中运行 `installer_launcher_gui.ps1`，验证 WPF 界面可正常启动。
 - [ ] 在 Windows 中验证 GUI 首次启动会创建 AppData / LocalAppData 配置、缓存和日志目录。
 - [ ] 在 Windows 中验证 GUI 安装器下载重试、PowerShell 执行、安装检测、管理脚本运行和项目卸载流程。
