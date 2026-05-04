@@ -474,6 +474,7 @@ function Invoke-CreateLauncherShortcut {
                 $shortcut.Arguments = "-NoProfile -ExecutionPolicy Bypass -File `"$ScriptPath`""
                 $shortcut.WorkingDirectory = Split-Path -Parent $ScriptPath
                 $shortcut.IconLocation = $IconPath
+                $shortcut.WindowStyle = 7
                 $shortcut.Save()
             }
             return @($desktopShortcut, $programsShortcut)
