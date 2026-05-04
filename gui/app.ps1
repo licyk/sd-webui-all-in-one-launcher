@@ -44,7 +44,7 @@ function Start-App {
         MainBorder = $window.FindName("MainBorder"); StartPage = $window.FindName("StartPage"); AdvancedPage = $window.FindName("AdvancedPage"); SoftwarePage = $window.FindName("SoftwarePage"); SettingsPage = $window.FindName("SettingsPage"); AboutPage = $window.FindName("AboutPage"); MainTabs = $window.FindName("MainTabs"); ProjectList = $window.FindName("ProjectList"); ProjectStatusText = $window.FindName("ProjectStatusText"); BusyText = $window.FindName("BusyText"); HeroImage = $window.FindName("HeroImage"); HeroImageOverlay = $window.FindName("HeroImageOverlay"); AboutHeroImage = $window.FindName("AboutHeroImage"); AboutHeroOverlay = $window.FindName("AboutHeroOverlay"); TitleLogoBorder = $window.FindName("TitleLogoBorder"); TitleLogoImage = $window.FindName("TitleLogoImage"); TitleLogoText = $window.FindName("TitleLogoText")
         SelectedProjectHintText = $window.FindName("SelectedProjectHintText")
         PathPanel = $window.FindName("PathPanel"); ConfigPanel = $window.FindName("ConfigPanel")
-        DiscoverInstallsBtn = $window.FindName("DiscoverInstallsBtn"); DiscoverFolderInstallsBtn = $window.FindName("DiscoverFolderInstallsBtn"); DiscoveryStatusText = $window.FindName("DiscoveryStatusText"); DiscoveredInstallPanel = $window.FindName("DiscoveredInstallPanel")
+        DiscoverInstallsBtn = $window.FindName("DiscoverInstallsBtn"); DiscoverFolderInstallsBtn = $window.FindName("DiscoverFolderInstallsBtn"); CancelDiscoveryBtn = $window.FindName("CancelDiscoveryBtn"); DiscoveryProgressBar = $window.FindName("DiscoveryProgressBar"); DiscoveryProgressText = $window.FindName("DiscoveryProgressText"); DiscoveryStatusText = $window.FindName("DiscoveryStatusText"); DiscoveredInstallPanel = $window.FindName("DiscoveredInstallPanel")
         ScriptCombo = $window.FindName("ScriptCombo"); ScriptParamPanel = $window.FindName("ScriptParamPanel"); ScriptArgsBox = $window.FindName("ScriptArgsBox")
         StartModeTabs = $window.FindName("StartModeTabs"); LaunchScriptList = $window.FindName("LaunchScriptList"); UnifiedStartBtn = $window.FindName("UnifiedStartBtn"); UnifiedStartLabel = $window.FindName("UnifiedStartLabel"); StartProgressBar = $window.FindName("StartProgressBar"); TerminateOperationBtn = $window.FindName("TerminateOperationBtn"); StartHintText = $window.FindName("StartHintText"); InstallHintText = $window.FindName("InstallHintText")
         AutoUpdateCheck = $window.FindName("AutoUpdateCheck"); LogLevelCombo = $window.FindName("LogLevelCombo"); ProxyModeCombo = $window.FindName("ProxyModeCombo"); ManualProxyBox = $window.FindName("ManualProxyBox")
@@ -52,7 +52,7 @@ function Start-App {
         AboutSdAllInOneBtn = $window.FindName("AboutSdAllInOneBtn"); AboutLauncherBtn = $window.FindName("AboutLauncherBtn"); AboutAuthorBtn = $window.FindName("AboutAuthorBtn"); AboutBlogBtn = $window.FindName("AboutBlogBtn"); AboutBilibiliBtn = $window.FindName("AboutBilibiliBtn")
         LogBox = $window.FindName("LogBox")
     }
-    $State = [PSCustomObject]@{ CurrentOperation = $null; ConfigControls = @{}; ScriptParamControls = @{}; ProjectConfig = @{}; DiscoveredInstalls = @(); StatusRefreshTimer = $null; LastOneClickStatus = ""; IsRefreshing = $false; AutoSaveProjectConfig = $null; IsAutoSavingMainConfig = $false }
+    $State = [PSCustomObject]@{ CurrentOperation = $null; ConfigControls = @{}; ScriptParamControls = @{}; ProjectConfig = @{}; DiscoveredInstalls = @(); StatusRefreshTimer = $null; DiscoveryProgressTimer = $null; LastOneClickStatus = ""; IsRefreshing = $false; AutoSaveProjectConfig = $null; IsAutoSavingMainConfig = $false }
     $script:InstallerLauncherGuiUi = $UI
     $script:InstallerLauncherGuiState = $State
     $mainConfig = $script:MainConfig
@@ -136,6 +136,7 @@ function Start-App {
     $UI.UninstallLauncherBtn.Add_Click({ Invoke-UninstallLauncher $UI }.GetNewClosure())
     $UI.DiscoverInstallsBtn.Add_Click({ Invoke-DiscoverInstalledWebUis -UI $UI -State $State }.GetNewClosure())
     $UI.DiscoverFolderInstallsBtn.Add_Click({ Invoke-DiscoverInstalledWebUisInFolder $UI $State }.GetNewClosure())
+    $UI.CancelDiscoveryBtn.Add_Click({ Invoke-CancelDiscoverySearch $UI $State }.GetNewClosure())
     $UI.OneClickNavBtn.Add_Click({ Show-AppPage $UI "start" }.GetNewClosure())
     $UI.AdvancedNavBtn.Add_Click({ Show-AppPage $UI "advanced"; Select-RelevantMainTab $UI }.GetNewClosure())
     $UI.SoftwareNavBtn.Add_Click({ Show-AppPage $UI "software" }.GetNewClosure())

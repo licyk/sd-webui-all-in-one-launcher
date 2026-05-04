@@ -49,6 +49,7 @@
 - [x] `gui/ui-dialogs.ps1`：GUI 消息、确认、用户协议、帮助和日志窗口。
 - [x] `gui/ui-wpf.ps1`：GUI XAML 加载、主题资源、窗口效果、导航、动画、图标和头图。
 - [x] `gui/ui-pages.ps1`：GUI 页面刷新、动态配置 UI、管理脚本参数 UI 和已安装 WebUI 搜索。
+- [x] GUI 已安装 WebUI 搜索会显示不确定进度条和实时扫描状态，并提供搜索按钮旁边的独立停止搜索按钮。
 - [x] `gui/app.ps1`：GUI `Start-App`、主窗口控件收集和事件绑定。
 - [x] `gui/xaml/`：主窗口和对话框 XAML 文件。
 - [x] `tools/compile_gui.py`：GUI 单文件预处理器，按 `gui/bootstrap.ps1` 模块顺序展开源码，并将 XAML 以 Base64 UTF-8 内嵌到发布产物。

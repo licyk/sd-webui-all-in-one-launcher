@@ -175,9 +175,102 @@ function Apply-DiscoveredInstallTarget {
     Append-UiLog $UI "已切换管理目标: $projectKey -> $installPath"
 }
 
+function Set-DiscoverySearchBusy {
+    param($UI, $State, [bool]$Busy, [string]$Message = "")
+    foreach ($name in @("DiscoverInstallsBtn", "DiscoverFolderInstallsBtn")) {
+        $button = Get-UiControl $UI $name
+        if ($null -ne $button) { $button.IsEnabled = -not $Busy }
+    }
+    $cancelButton = Get-UiControl $UI "CancelDiscoveryBtn"
+    if ($null -ne $cancelButton) {
+        $cancelButton.Visibility = $(if ($Busy) { "Visible" } else { "Collapsed" })
+        $cancelButton.IsEnabled = $Busy
+    }
+    $progressBar = Get-UiControl $UI "DiscoveryProgressBar"
+    if ($null -ne $progressBar) {
+        $progressBar.IsIndeterminate = $true
+        $progressBar.Visibility = $(if ($Busy) { "Visible" } else { "Collapsed" })
+    }
+    $progressText = Get-UiControl $UI "DiscoveryProgressText"
+    if ($null -ne $progressText) {
+        $progressText.Text = $Message
+        $progressText.Visibility = $(if ($Busy -and -not [string]::IsNullOrWhiteSpace($Message)) { "Visible" } else { "Collapsed" })
+    }
+    if (-not $Busy -and $null -ne $State -and $null -ne (Get-ObjectPropertyValue $State "DiscoveryProgressTimer" $null)) {
+        try { $State.DiscoveryProgressTimer.Stop() } catch {}
+        $State.DiscoveryProgressTimer = $null
+    }
+}
+
+function Update-DiscoveryProgressUi {
+    param($UI, $State)
+    $operation = Get-ObjectPropertyValue $State "CurrentOperation" $null
+    if ($null -eq $operation -or [string](Get-ObjectPropertyValue $operation "Name" "") -ne "搜索已安装 WebUI") {
+        Set-DiscoverySearchBusy $UI $State $false
+        return
+    }
+    $control = Get-ObjectPropertyValue $operation "Control" $null
+    if ($null -eq $control) { return }
+    $scanned = [int]$control["ScannedDirectories"]
+    $found = [int]$control["FoundCount"]
+    $root = [string]$control["CurrentRoot"]
+    $message = "正在搜索，已扫描 $scanned 个目录，发现 $found 个实例。"
+    if (-not [string]::IsNullOrWhiteSpace($root)) { $message += " 当前范围: $root" }
+    $progressText = Get-UiControl $UI "DiscoveryProgressText"
+    if ($null -ne $progressText) {
+        $progressText.Text = $message
+        $progressText.Visibility = "Visible"
+    }
+}
+
+function Start-DiscoveryProgressTimer {
+    param($UI, $State)
+    if ($null -ne (Get-ObjectPropertyValue $State "DiscoveryProgressTimer" $null)) {
+        try { $State.DiscoveryProgressTimer.Stop() } catch {}
+    }
+    $timer = New-Object System.Windows.Threading.DispatcherTimer
+    $timer.Interval = [TimeSpan]::FromMilliseconds(500)
+    $timer.Add_Tick({
+        try {
+            Update-DiscoveryProgressUi $UI $State
+        } catch {
+            Write-Log WARN "discovery progress ui update failed: $($_.Exception.Message)"
+        }
+    }.GetNewClosure())
+    $State.DiscoveryProgressTimer = $timer
+    $timer.Start()
+}
+
+function Invoke-CancelDiscoverySearch {
+    param($UI, $State)
+    $operation = Get-ObjectPropertyValue $State "CurrentOperation" $null
+    if ($null -eq $operation -or [string](Get-ObjectPropertyValue $operation "Name" "") -ne "搜索已安装 WebUI") {
+        Show-Message "当前没有正在搜索的任务。" "无需停止" "Information"
+        return
+    }
+    $control = Get-ObjectPropertyValue $operation "Control" $null
+    if ($null -eq $control) { return }
+    $control["StopRequested"] = $true
+    $control["IsTerminating"] = $true
+    $cancelButton = Get-UiControl $UI "CancelDiscoveryBtn"
+    if ($null -ne $cancelButton) { $cancelButton.IsEnabled = $false }
+    $progressText = Get-UiControl $UI "DiscoveryProgressText"
+    if ($null -ne $progressText) {
+        $progressText.Text = "正在停止搜索，请稍候..."
+        $progressText.Visibility = "Visible"
+    }
+    $status = Get-UiControl $UI "DiscoveryStatusText"
+    if ($null -ne $status) { $status.Text = "正在停止搜索..." }
+    Append-UiLog $UI "已请求停止搜索已安装 WebUI。"
+}
+
 function Invoke-DiscoverInstalledWebUis {
     param($UI, $State, [string[]]$Roots)
     $State = Ensure-GuiState $State
+    if ($null -ne (Get-ObjectPropertyValue $State "CurrentOperation" $null)) {
+        Show-Message "已有任务正在运行，请等待当前任务完成。" "任务运行中" "Warning"
+        return
+    }
     if ($null -eq $Roots -or $Roots.Count -eq 0) {
         $Roots = @(Get-DefaultInstallDiscoveryRoots)
     }
@@ -190,10 +283,14 @@ function Invoke-DiscoverInstalledWebUis {
     if ($null -ne $statusText) {
         $statusText.Text = "正在搜索: $($Roots -join ', ')"
     }
+    Set-DiscoverySearchBusy $UI $State $true "正在搜索，已扫描 0 个目录，发现 0 个实例。"
     Append-UiLog $UI "开始搜索已安装 WebUI: $($Roots -join ', ')"
 
     $operation = {
         param($FeatureRows, [string[]]$Roots, $Control)
+        $Control["ScannedDirectories"] = 0
+        $Control["FoundCount"] = 0
+        $Control["CurrentRoot"] = ""
         $results = New-Object System.Collections.Generic.List[object]
         $attempts = New-Object System.Collections.Generic.List[string]
         $seen = @{}
@@ -205,19 +302,36 @@ function Invoke-DiscoverInstalledWebUis {
         foreach ($name in $skipNames) { $skipSet[$name.ToLowerInvariant()] = $true }
         $skipped = 0
         $errors = 0
+        $scanned = 0
+        $cancelled = $false
+        $stopwatch = [System.Diagnostics.Stopwatch]::StartNew()
 
         foreach ($root in @($Roots)) {
+            if ([bool]$Control["StopRequested"]) {
+                $cancelled = $true
+                break
+            }
             if ([string]::IsNullOrWhiteSpace($root)) { continue }
             if (-not (Test-Path -LiteralPath $root -PathType Container)) {
                 [void]$attempts.Add("ROOT missing: $root")
                 continue
             }
             $rootPath = [System.IO.Path]::GetFullPath($root)
+            $Control["CurrentRoot"] = $rootPath
             [void]$attempts.Add("ROOT scan: $rootPath")
             $stack = New-Object System.Collections.Generic.Stack[string]
             $stack.Push($rootPath)
             while ($stack.Count -gt 0) {
+                if ([bool]$Control["StopRequested"]) {
+                    $cancelled = $true
+                    break
+                }
                 $dir = $stack.Pop()
+                $scanned++
+                if (($scanned % 25) -eq 0) {
+                    $Control["ScannedDirectories"] = $scanned
+                    $Control["FoundCount"] = $results.Count
+                }
                 try {
                     foreach ($row in @($FeatureRows)) {
                         $featureScript = [string]$row.FeatureScript
@@ -247,6 +361,7 @@ function Invoke-DiscoverInstalledWebUis {
                             ManagementScripts = @($availableScripts.ToArray())
                         })
                         [void]$attempts.Add("HIT project=$projectKey path=$normalizedDir feature=$featureScript scripts=$($availableScripts.Count)")
+                        $Control["FoundCount"] = $results.Count
                     }
 
                     foreach ($child in [System.IO.Directory]::EnumerateDirectories($dir)) {
@@ -271,18 +386,33 @@ function Invoke-DiscoverInstalledWebUis {
                     if ($errors -le 50) { [void]$attempts.Add("DIR error: $dir -> $($_.Exception.Message)") }
                 }
             }
+            if ($cancelled) { break }
         }
-        [void]$attempts.Add("SUMMARY results=$($results.Count) skipped=$skipped errors=$errors")
+        $stopwatch.Stop()
+        $Control["ScannedDirectories"] = $scanned
+        $Control["FoundCount"] = $results.Count
+        [void]$attempts.Add("SUMMARY results=$($results.Count) scanned=$scanned skipped=$skipped errors=$errors cancelled=$cancelled elapsed_ms=$($stopwatch.ElapsedMilliseconds)")
+        if ($cancelled) {
+            return [PSCustomObject]@{
+                Success = $false
+                Cancelled = $true
+                Results = @($results.ToArray())
+                Attempts = @($attempts.ToArray())
+                Message = "搜索已取消，已扫描 $scanned 个目录，发现 $($results.Count) 个实例。"
+            }
+        }
         return [PSCustomObject]@{
             Success = $true
+            Cancelled = $false
             Results = @($results.ToArray())
             Attempts = @($attempts.ToArray())
-            Message = "搜索完成，发现 $($results.Count) 个安装实例。"
+            Message = "搜索完成，扫描 $scanned 个目录，发现 $($results.Count) 个安装实例。"
         }
     }
 
     Start-GuiOperation -UI $UI -State $State -Name "搜索已安装 WebUI" -ScriptBlock $operation -Arguments @($featureRows, @($Roots)) -CanTerminate $false -OnComplete {
         param($result, $streamErrors)
+        Set-DiscoverySearchBusy $UI $State $false
         $item = $result | Select-Object -First 1
         if ($null -eq $item) {
             Append-UiLog $UI "搜索已安装 WebUI 没有返回结果。"
@@ -293,6 +423,12 @@ function Invoke-DiscoverInstalledWebUis {
         foreach ($attempt in @($item.Attempts)) {
             Write-Log DEBUG "install discovery: $attempt"
         }
+        if ([bool](Get-ObjectPropertyValue $item "Cancelled" $false)) {
+            Append-UiLog $UI $item.Message
+            $status = Get-UiControl $UI "DiscoveryStatusText"
+            if ($null -ne $status) { $status.Text = "搜索已取消，已保留当前发现列表，未写入配置。" }
+            return
+        }
         $State.DiscoveredInstalls = @($item.Results)
         Refresh-DiscoveredInstallList $UI $State
         Append-UiLog $UI $item.Message
@@ -301,6 +437,7 @@ function Invoke-DiscoverInstalledWebUis {
             if ($null -ne $status) { $status.Text = "未发现已安装实例。可以选择更靠近安装目录的父目录再搜索一次。" }
         }
     }.GetNewClosure()
+    Start-DiscoveryProgressTimer $UI $State
 }
 
 function Invoke-DiscoverInstalledWebUisInFolder {
