@@ -51,6 +51,7 @@
 - [x] `gui/ui-pages.ps1`：GUI 页面刷新、动态配置 UI、管理脚本参数 UI 和已安装 WebUI 搜索。
 - [x] GUI 已安装 WebUI 搜索会显示不确定进度条和实时扫描状态，并提供搜索按钮旁边的独立停止搜索按钮。
 - [x] GUI 已安装 WebUI 搜索改为每个目录枚举一层文件/文件夹后在内存中匹配特征脚本，减少重复 `Test-Path` 文件系统查询。
+- [x] GUI 已安装 WebUI 搜索结果会标记非当前软件类型，并提示先切换到对应 WebUI / 工具后再选择路径。
 - [x] `gui/app.ps1`：GUI `Start-App`、主窗口控件收集和事件绑定。
 - [x] `gui/xaml/`：主窗口和对话框 XAML 文件。
 - [x] `tools/compile_gui.py`：GUI 单文件预处理器，按 `gui/bootstrap.ps1` 模块顺序展开源码，并将 XAML 以 Base64 UTF-8 内嵌到发布产物。

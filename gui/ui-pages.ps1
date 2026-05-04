@@ -87,11 +87,18 @@ function Refresh-DiscoveredInstallList {
         $projectCount = @($items | Select-Object -ExpandProperty ProjectKey -Unique).Count
         $statusText.Text = "已发现 $($items.Count) 个安装实例，覆盖 $projectCount 种 WebUI / 工具。"
     }
+    $currentProjectKey = Get-CurrentProjectKey
     $groups = @($items | Sort-Object ProjectName, InstallPath | Group-Object ProjectKey)
     foreach ($group in $groups) {
         $first = @($group.Group | Select-Object -First 1)[0]
+        $groupProjectKey = [string](Get-ObjectPropertyValue $first "ProjectKey" "")
+        $isCurrentProjectGroup = (-not [string]::IsNullOrWhiteSpace($currentProjectKey) -and $groupProjectKey -eq $currentProjectKey)
         $header = New-Object System.Windows.Controls.TextBlock
-        $header.Text = $first.ProjectName
+        if ($isCurrentProjectGroup) {
+            $header.Text = "$($first.ProjectName)（当前软件类型）"
+        } else {
+            $header.Text = "$($first.ProjectName)（需先切换软件类型）"
+        }
         $header.FontSize = 15
         $header.FontWeight = "SemiBold"
         $header.Margin = "0,14,0,8"
@@ -109,22 +116,34 @@ function Refresh-DiscoveredInstallList {
             $left = New-Object System.Windows.Controls.ColumnDefinition
             $left.Width = New-Object System.Windows.GridLength(1, [System.Windows.GridUnitType]::Star)
             $right = New-Object System.Windows.Controls.ColumnDefinition
-            $right.Width = New-Object System.Windows.GridLength(150)
+            $right.Width = New-Object System.Windows.GridLength(170)
             $grid.ColumnDefinitions.Add($left) | Out-Null
             $grid.ColumnDefinitions.Add($right) | Out-Null
 
             $text = New-Object System.Windows.Controls.TextBlock
-            $text.Text = "$($item.InstallPath)`n特征脚本: $($item.FeatureScript)    可用管理脚本: $($item.ManagementScriptCount)    状态: $($item.Status)"
+            $projectKey = [string](Get-ObjectPropertyValue $item "ProjectKey" "")
+            $isCurrentProjectItem = (-not [string]::IsNullOrWhiteSpace($currentProjectKey) -and $projectKey -eq $currentProjectKey)
+            $itemText = "$($item.InstallPath)`n特征脚本: $($item.FeatureScript)    可用管理脚本: $($item.ManagementScriptCount)    状态: $($item.Status)"
+            if (-not $isCurrentProjectItem) {
+                $itemText += "`n提示: 请先在软件选择中切换到 $($item.ProjectName)，再选择这个路径。"
+            }
+            $text.Text = $itemText
             $text.TextWrapping = "Wrap"
             $text.Margin = "0,0,14,0"
             [System.Windows.Controls.Grid]::SetColumn($text, 0)
             $grid.Children.Add($text) | Out-Null
 
             $button = New-Object System.Windows.Controls.Button
-            $button.Content = "设为当前管理目标"
+            if ($isCurrentProjectItem) {
+                $button.Content = "设为当前管理目标"
+                $button.IsEnabled = $true
+            } else {
+                $button.Content = "先切换软件类型"
+                $button.IsEnabled = $false
+            }
             $button.Tag = $item
             $button.VerticalAlignment = "Center"
-            if ($null -ne $UI.Window.Resources["PrimaryButton"]) {
+            if ($isCurrentProjectItem -and $null -ne $UI.Window.Resources["PrimaryButton"]) {
                 $button.Style = $UI.Window.Resources["PrimaryButton"]
             }
             [System.Windows.Controls.Grid]::SetColumn($button, 1)
@@ -147,6 +166,12 @@ function Apply-DiscoveredInstallTarget {
     $installPath = [string](Get-ObjectPropertyValue $InstallTarget "InstallPath" "")
     if ([string]::IsNullOrWhiteSpace($projectKey) -or -not $script:Projects.Contains($projectKey)) {
         Show-Message "发现结果中的项目类型无效，无法应用。" "无法应用" "Warning"
+        return
+    }
+    $currentProjectKey = Get-CurrentProjectKey
+    if ([string]::IsNullOrWhiteSpace($currentProjectKey) -or $currentProjectKey -ne $projectKey) {
+        $projectName = [string](Get-ObjectPropertyValue $InstallTarget "ProjectName" $projectKey)
+        Show-Message "这个发现结果属于 $projectName。`n`n请先在软件选择中切换到对应软件类型，再选择这个路径。" "请先切换软件类型" "Information"
         return
     }
     if ([string]::IsNullOrWhiteSpace($installPath)) {
