@@ -52,6 +52,9 @@
 - [x] GUI 已安装 WebUI 搜索会显示不确定进度条和实时扫描状态，并提供搜索按钮旁边的独立停止搜索按钮。
 - [x] GUI 已安装 WebUI 搜索改为每个目录枚举一层文件/文件夹后在内存中匹配特征脚本，减少重复 `Test-Path` 文件系统查询。
 - [x] GUI 已安装 WebUI 搜索结果会标记非当前软件类型，并提示先切换到对应 WebUI / 工具后再选择路径。
+- [x] GUI runtime 已抽出 runspace worker 公共 helper，安装器和管理脚本共用可终止 PowerShell 控制台执行流程，快捷方式和自更新共用基础下载尝试逻辑。
+- [x] GUI runtime 完成回调会按预期属性筛选后台任务结果，避免 runspace 杂散输出导致管理脚本结果对象识别失败。
+- [x] GUI runtime 的 worker prelude 改为包裹业务脚本执行，保持后台脚本块 `param(...)` 参数绑定正常。
 - [x] `gui/app.ps1`：GUI `Start-App`、主窗口控件收集和事件绑定。
 - [x] `gui/xaml/`：主窗口和对话框 XAML 文件。
 - [x] `tools/compile_gui.py`：GUI 单文件预处理器，按 `gui/bootstrap.ps1` 模块顺序展开源码，并将 XAML 以 Base64 UTF-8 内嵌到发布产物。
