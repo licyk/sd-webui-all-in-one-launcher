@@ -146,6 +146,17 @@
         </Setter.Value>
       </Setter>
     </Style>
+    <Style x:Key="SettingsActionButton" TargetType="Button" BasedOn="{StaticResource AboutLinkCardButton}">
+      <Setter Property="Width" Value="250"/>
+      <Setter Property="MinHeight" Value="74"/>
+      <Setter Property="Padding" Value="14"/>
+      <Setter Property="Margin" Value="0,0,12,12"/>
+    </Style>
+    <Style x:Key="SettingsDangerActionButton" TargetType="Button" BasedOn="{StaticResource SettingsActionButton}">
+      <Setter Property="Background" Value="#22E53935"/>
+      <Setter Property="BorderBrush" Value="{DynamicResource DangerBrush}"/>
+      <Setter Property="Foreground" Value="{DynamicResource TextMainBrush}"/>
+    </Style>
     <Style TargetType="TextBox">
       <Setter Property="Background" Value="{DynamicResource InputBGBrush}"/>
       <Setter Property="Foreground" Value="{DynamicResource TextMainBrush}"/>
@@ -587,7 +598,7 @@
               </Button>
               <Button Name="SoftwareNavBtn" Width="72" Height="72" Padding="4" Margin="0,0,0,10" BorderThickness="1" HorizontalAlignment="Center">
                 <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center">
-                  <TextBlock Name="SoftwareNavIcon" Text="▣" FontSize="20" HorizontalAlignment="Center" Margin="0,0,0,4"/>
+                  <TextBlock Name="SoftwareNavIcon" Text="⌘" FontSize="20" HorizontalAlignment="Center" Margin="0,0,0,4"/>
                   <TextBlock Name="SoftwareNavLabel" Text="软件选择" FontSize="12" HorizontalAlignment="Center"/>
                 </StackPanel>
               </Button>
@@ -858,15 +869,110 @@
                     </Grid>
                   </Border>
 
-                  <TextBlock Text="操作" FontSize="18" FontWeight="SemiBold" Margin="0,0,0,14"/>
+                  <TextBlock Text="操作" FontSize="18" FontWeight="SemiBold" Margin="0,0,0,12"/>
+                  <TextBlock Text="这些操作不会改变当前 WebUI 安装目录；它们只管理启动器自身、日志、缓存和快捷方式。" Foreground="{DynamicResource TextSecBrush}" TextWrapping="Wrap" Margin="0,0,0,14"/>
+
+                  <TextBlock Text="更新与日志" FontWeight="SemiBold" Margin="0,0,0,8"/>
+                  <WrapPanel Margin="0,0,0,8">
+                    <Button Name="CheckUpdateBtn" Style="{StaticResource SettingsActionButton}">
+                      <Grid>
+                        <Grid.ColumnDefinitions>
+                          <ColumnDefinition Width="Auto"/>
+                          <ColumnDefinition Width="*"/>
+                        </Grid.ColumnDefinitions>
+                        <TextBlock Text="↻" FontSize="22" Foreground="{DynamicResource PrimaryBrush}" VerticalAlignment="Center" Margin="0,0,12,0"/>
+                        <StackPanel Grid.Column="1">
+                          <TextBlock Text="检查更新" FontWeight="SemiBold"/>
+                          <TextBlock Text="立即检查启动器新版" Foreground="{DynamicResource TextSecBrush}" TextWrapping="Wrap" Margin="0,5,0,0"/>
+                        </StackPanel>
+                      </Grid>
+                    </Button>
+                    <Button Name="ShowLogBtn" Style="{StaticResource SettingsActionButton}">
+                      <Grid>
+                        <Grid.ColumnDefinitions>
+                          <ColumnDefinition Width="Auto"/>
+                          <ColumnDefinition Width="*"/>
+                        </Grid.ColumnDefinitions>
+                        <TextBlock Text="☰" FontSize="22" Foreground="{DynamicResource PrimaryBrush}" VerticalAlignment="Center" Margin="0,0,12,0"/>
+                        <StackPanel Grid.Column="1">
+                          <TextBlock Text="查看最近日志" FontWeight="SemiBold"/>
+                          <TextBlock Text="打开最近运行记录" Foreground="{DynamicResource TextSecBrush}" TextWrapping="Wrap" Margin="0,5,0,0"/>
+                        </StackPanel>
+                      </Grid>
+                    </Button>
+                  </WrapPanel>
+
+                  <TextBlock Text="文件夹" FontWeight="SemiBold" Margin="0,6,0,8"/>
+                  <WrapPanel Margin="0,0,0,8">
+                    <Button Name="OpenConfigFolderBtn" Style="{StaticResource SettingsActionButton}">
+                      <Grid>
+                        <Grid.ColumnDefinitions>
+                          <ColumnDefinition Width="Auto"/>
+                          <ColumnDefinition Width="*"/>
+                        </Grid.ColumnDefinitions>
+                        <TextBlock Text="⚙" FontSize="22" Foreground="{DynamicResource PrimaryBrush}" VerticalAlignment="Center" Margin="0,0,12,0"/>
+                        <StackPanel Grid.Column="1">
+                          <TextBlock Text="打开配置文件夹" FontWeight="SemiBold"/>
+                          <TextBlock Text="查看主配置和项目配置" Foreground="{DynamicResource TextSecBrush}" TextWrapping="Wrap" Margin="0,5,0,0"/>
+                        </StackPanel>
+                      </Grid>
+                    </Button>
+                    <Button Name="OpenLogFolderBtn" Style="{StaticResource SettingsActionButton}">
+                      <Grid>
+                        <Grid.ColumnDefinitions>
+                          <ColumnDefinition Width="Auto"/>
+                          <ColumnDefinition Width="*"/>
+                        </Grid.ColumnDefinitions>
+                        <TextBlock Text="✎" FontSize="22" Foreground="{DynamicResource PrimaryBrush}" VerticalAlignment="Center" Margin="0,0,12,0"/>
+                        <StackPanel Grid.Column="1">
+                          <TextBlock Text="打开日志文件夹" FontWeight="SemiBold"/>
+                          <TextBlock Text="查看完整日志文件" Foreground="{DynamicResource TextSecBrush}" TextWrapping="Wrap" Margin="0,5,0,0"/>
+                        </StackPanel>
+                      </Grid>
+                    </Button>
+                    <Button Name="OpenCacheFolderBtn" Style="{StaticResource SettingsActionButton}">
+                      <Grid>
+                        <Grid.ColumnDefinitions>
+                          <ColumnDefinition Width="Auto"/>
+                          <ColumnDefinition Width="*"/>
+                        </Grid.ColumnDefinitions>
+                        <TextBlock Text="⌂" FontSize="22" Foreground="{DynamicResource PrimaryBrush}" VerticalAlignment="Center" Margin="0,0,12,0"/>
+                        <StackPanel Grid.Column="1">
+                          <TextBlock Text="打开缓存文件夹" FontWeight="SemiBold"/>
+                          <TextBlock Text="查看下载和更新缓存" Foreground="{DynamicResource TextSecBrush}" TextWrapping="Wrap" Margin="0,5,0,0"/>
+                        </StackPanel>
+                      </Grid>
+                    </Button>
+                  </WrapPanel>
+
+                  <TextBlock Text="快捷方式与卸载" FontWeight="SemiBold" Margin="0,6,0,8"/>
                   <WrapPanel Margin="0,0,0,18">
-                    <Button Name="CheckUpdateBtn" Content="检查更新"/>
-                    <Button Name="ShowLogBtn" Content="查看最近日志"/>
-                    <Button Name="OpenConfigFolderBtn" Content="打开配置文件夹"/>
-                    <Button Name="OpenLogFolderBtn" Content="打开日志文件夹"/>
-                    <Button Name="OpenCacheFolderBtn" Content="打开缓存文件夹"/>
-                    <Button Name="CreateShortcutBtn" Content="创建快捷方式"/>
-                    <Button Name="UninstallLauncherBtn" Content="卸载启动器" Background="#FFE53935" Foreground="White" BorderThickness="0"/>
+                    <Button Name="CreateShortcutBtn" Style="{StaticResource SettingsActionButton}">
+                      <Grid>
+                        <Grid.ColumnDefinitions>
+                          <ColumnDefinition Width="Auto"/>
+                          <ColumnDefinition Width="*"/>
+                        </Grid.ColumnDefinitions>
+                        <TextBlock Text="□" FontSize="22" Foreground="{DynamicResource PrimaryBrush}" VerticalAlignment="Center" Margin="0,0,12,0"/>
+                        <StackPanel Grid.Column="1">
+                          <TextBlock Text="创建快捷方式" FontWeight="SemiBold"/>
+                          <TextBlock Text="添加桌面和开始菜单入口" Foreground="{DynamicResource TextSecBrush}" TextWrapping="Wrap" Margin="0,5,0,0"/>
+                        </StackPanel>
+                      </Grid>
+                    </Button>
+                    <Button Name="UninstallLauncherBtn" Style="{StaticResource SettingsDangerActionButton}">
+                      <Grid>
+                        <Grid.ColumnDefinitions>
+                          <ColumnDefinition Width="Auto"/>
+                          <ColumnDefinition Width="*"/>
+                        </Grid.ColumnDefinitions>
+                        <TextBlock Text="!" FontSize="22" Foreground="{DynamicResource DangerBrush}" VerticalAlignment="Center" Margin="0,0,12,0"/>
+                        <StackPanel Grid.Column="1">
+                          <TextBlock Text="卸载启动器" FontWeight="SemiBold" Foreground="{DynamicResource DangerBrush}"/>
+                          <TextBlock Text="删除启动器配置和快捷方式" Foreground="{DynamicResource TextSecBrush}" TextWrapping="Wrap" Margin="0,5,0,0"/>
+                        </StackPanel>
+                      </Grid>
+                    </Button>
                   </WrapPanel>
                 </StackPanel>
               </ScrollViewer>
