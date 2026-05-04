@@ -75,7 +75,7 @@ function Export-GuiEventFunctions {
     $names = @(
         "Append-UiLog", "Get-GuiXamlPath", "Load-GuiXamlWindow", "Set-ThemeResources", "Apply-DiscoveredInstallTarget", "Apply-HeroImage", "AutoSave-MainConfigFromUi", "Ensure-GuiState", "Get-CurrentProjectKey", "Get-DefaultInstallDiscoveryRoots", "Get-EffectiveInstallPath", "Get-InstallDiscoveryFeatureRows", "Get-ObjectPropertyValue", "Get-ProjectConfig",
         "Get-SelectedScriptName", "Get-UiControl", "Get-UpdateCheckSemaphore", "Invoke-CreateLauncherShortcut", "Invoke-DiscoverInstalledWebUis", "Invoke-DiscoverInstalledWebUisInFolder", "Invoke-OneClickAction", "Invoke-TerminateCurrentOperation", "Invoke-UninstallLauncher",
-        "Invoke-UninstallProject", "Invoke-UpdateCheck", "Open-CacheFolder", "Open-ConfigFolder", "Open-ExternalUrl", "Open-LogFolder", "Refresh-MainConfigUi",
+        "Invoke-OpenTaggedUrl", "Invoke-UninstallProject", "Invoke-UpdateCheck", "Open-CacheFolder", "Open-ConfigFolder", "Open-ExternalUrl", "Open-LogFolder", "Refresh-MainConfigUi",
         "Refresh-DiscoveredInstallList", "Refresh-ProjectConfigUi", "Refresh-ScriptParamUi", "Refresh-Status", "Release-UpdateCheckLock", "Report-UiError",
         "Save-CurrentProjectConfigFromUi", "Save-MainConfig", "Save-MainConfigFromUi", "Save-ProjectConfig",
         "Select-FolderPath", "Select-RelevantMainTab", "Set-UiBusy", "Show-AppPage",
@@ -679,18 +679,47 @@ function Open-LogFolder {
 
 function Open-ExternalUrl {
     param([string]$Url)
-    if ([string]::IsNullOrWhiteSpace($Url)) { return }
+    if ([string]::IsNullOrWhiteSpace($Url)) {
+        Write-Log WARN "open external url skipped: empty url"
+        return
+    }
+    $Url = $Url.Trim()
+    Write-Log DEBUG "open external url requested: $Url"
     try {
         $startInfo = New-Object System.Diagnostics.ProcessStartInfo
         $startInfo.FileName = $Url
         $startInfo.UseShellExecute = $true
         [System.Diagnostics.Process]::Start($startInfo) | Out-Null
+        Write-Log INFO "open external url dispatched: $Url"
+        return
     } catch {
+        $shellError = $_.Exception.Message
+        Write-Log WARN "shell open url failed: $Url error=$shellError"
         try {
             Start-Process -FilePath "explorer.exe" -ArgumentList @($Url) | Out-Null
+            Write-Log INFO "open external url dispatched via explorer: $Url"
+            return
         } catch {
-            Write-Log WARN "failed to open external url: $Url error=$($_.Exception.Message)"
-            Show-Message "无法打开链接: $Url`n$($_.Exception.Message)" "打开链接失败" "Warning"
+            $explorerError = $_.Exception.Message
+            Write-Log WARN "explorer open url failed: $Url error=$explorerError"
+            try {
+                Start-Process -FilePath "rundll32.exe" -ArgumentList @("url.dll,FileProtocolHandler", $Url) | Out-Null
+                Write-Log INFO "open external url dispatched via rundll32: $Url"
+                return
+            } catch {
+                $rundllError = $_.Exception.Message
+                Write-Log WARN "failed to open external url: $Url shell=$shellError explorer=$explorerError rundll32=$rundllError"
+                Show-Message "无法打开链接: $Url`n$shellError`n$explorerError`n$rundllError" "打开链接失败" "Warning"
+            }
         }
     }
+}
+
+function Invoke-OpenTaggedUrl {
+    param($Sender)
+    $url = ""
+    if ($null -ne $Sender -and $null -ne $Sender.Tag) {
+        $url = [string]$Sender.Tag
+    }
+    Open-ExternalUrl $url
 }

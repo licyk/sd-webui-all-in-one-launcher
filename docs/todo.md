@@ -556,6 +556,8 @@
 - [x] 新增 GUI 日志/缓存目录按钮后运行 `git diff --check`，通过。
 - [x] 阅读在线启动器 GUI 说明页和 SD Note 教程首页，确认 GUI 说明需要突出“借助 installer 安装/修复，借助管理脚本启动/维护”，并引导用户到 SD Note 学习 WebUI 使用。
 - [x] GUI 左上角 `?` 帮助入口已改为独立帮助窗口，包含启动器说明、推荐流程、日志说明，以及“打开启动器说明”和“打开 WebUI 教程”按钮。
+- [x] 修复 GUI 帮助窗口中“打开启动器说明”和“打开 WebUI 教程”按钮点击无反应的问题，按钮 URL 改为绑定到 `Tag` 并通过导出的 `Invoke-OpenTaggedUrl` 读取 sender 打开。
+- [x] `Open-ExternalUrl` 已增强打开链接日志和 fallback，依次尝试 ShellExecute、`explorer.exe` 和 `rundll32 url.dll,FileProtocolHandler`。
 - [x] GUI 一键启动、高级选项、软件选择、设置页和运行状态提示已润色，强调先选软件、确认安装路径和 installer 参数、未安装时运行安装器、已安装后使用管理脚本。
 - [x] 优化 GUI 文字说明和帮助窗口后运行 `python3 tools/compile_gui.py --output dist/installer_launcher_gui.ps1`，通过。
 - [x] 优化 GUI 文字说明和帮助窗口后运行 PowerShell 解析检查，覆盖 `dist/installer_launcher_gui.ps1`、源码入口、`gui/*.ps1` 和 `install.ps1`，通过。
@@ -564,6 +566,14 @@
 - [x] 优化 GUI 文字说明和帮助窗口后运行 `shellcheck install.sh installer_launcher.sh lib/*.sh`，通过。
 - [x] 优化 GUI 文字说明和帮助窗口后运行 `git diff --check`，通过。
 - [x] 完善 GUI 架构文档和编译器验证文档后运行 `git diff --check`，通过。
+- [x] 修复 GUI 帮助窗口链接按钮后运行 `python3 -m py_compile tools/compile_gui.py`，通过。
+- [x] 修复 GUI 帮助窗口链接按钮后运行 `python3 tools/compile_gui.py --output dist/installer_launcher_gui.ps1`，通过。
+- [x] 修复 GUI 帮助窗口链接按钮后运行 PowerShell 解析检查，覆盖 `dist/installer_launcher_gui.ps1`、源码入口、`gui/*.ps1` 和 `install.ps1`，通过。
+- [x] 修复 GUI 帮助窗口链接按钮后解析 `gui/xaml/*.xaml`，全部可转换为 `Window`。
+- [x] 修复 GUI 帮助窗口链接按钮后解包并解析编译产物内嵌 XAML，全部可转换为 `Window`。
+- [x] 修复 GUI 帮助窗口链接按钮后运行 `bash -n install.sh installer_launcher.sh lib/*.sh`，通过。
+- [x] 修复 GUI 帮助窗口链接按钮后运行 `shellcheck install.sh installer_launcher.sh lib/*.sh`，通过。
+- [x] 修复 GUI 帮助窗口链接按钮后运行 `git diff --check`，通过。
 - [ ] 在 Windows PowerShell 5.1 中运行 `installer_launcher_gui.ps1`，验证 WPF 界面可正常启动。
 - [ ] 在 Windows 中验证 GUI 首次启动会创建 AppData / LocalAppData 配置、缓存和日志目录。
 - [ ] 在 Windows 中验证 GUI 安装器下载重试、PowerShell 执行、安装检测、管理脚本运行和项目卸载流程。

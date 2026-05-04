@@ -161,12 +161,30 @@ function Show-InputDialog {
 
 function Show-HelpWindow {
     $window = Load-GuiXamlWindow "help_window.xaml"
-    $window.FindName("OpenLauncherDocBtn").Add_Click({
-        Open-ExternalUrl $script:LAUNCHER_GUI_DOC_URL
-    }.GetNewClosure())
-    $window.FindName("OpenSdNoteBtn").Add_Click({
-        Open-ExternalUrl $script:SDNOTE_URL
-    }.GetNewClosure())
+    $launcherDocVar = Get-Variable -Name LAUNCHER_GUI_DOC_URL -Scope Script -ErrorAction SilentlyContinue
+    $launcherDocUrl = ""
+    if ($null -ne $launcherDocVar) { $launcherDocUrl = [string]$launcherDocVar.Value }
+    if ([string]::IsNullOrWhiteSpace($launcherDocUrl)) {
+        $launcherDocUrl = "https://licyk.github.io/sd-webui-all-in-one/tools/launcher-gui"
+    }
+    $sdNoteVar = Get-Variable -Name SDNOTE_URL -Scope Script -ErrorAction SilentlyContinue
+    $sdNoteUrl = ""
+    if ($null -ne $sdNoteVar) { $sdNoteUrl = [string]$sdNoteVar.Value }
+    if ([string]::IsNullOrWhiteSpace($sdNoteUrl)) {
+        $sdNoteUrl = "https://licyk.github.io/SDNote"
+    }
+    $openLauncherDocBtn = $window.FindName("OpenLauncherDocBtn")
+    $openLauncherDocBtn.Tag = $launcherDocUrl
+    $openLauncherDocBtn.Add_Click({
+        param($sender, $eventArgs)
+        Invoke-OpenTaggedUrl $sender
+    })
+    $openSdNoteBtn = $window.FindName("OpenSdNoteBtn")
+    $openSdNoteBtn.Tag = $sdNoteUrl
+    $openSdNoteBtn.Add_Click({
+        param($sender, $eventArgs)
+        Invoke-OpenTaggedUrl $sender
+    })
     $window.FindName("CloseBtn").Add_Click({
         $window.Close()
     }.GetNewClosure())
