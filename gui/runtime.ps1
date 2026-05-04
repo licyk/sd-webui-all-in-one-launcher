@@ -543,24 +543,9 @@ function Start-LauncherUninstallWorker {
     $shortcutName = "SD WebUI All In One Launcher.lnk"
     $scriptContent = @"
 `$ErrorActionPreference = 'SilentlyContinue'
-Start-Sleep -Milliseconds 500
+try { Set-Location -LiteralPath ([System.IO.Path]::GetTempPath()) } catch {}
+Start-Sleep -Milliseconds 200
 `$parentPid = $ParentPid
-if (`$parentPid -gt 0) {
-    try {
-        `$parent = Get-Process -Id `$parentPid -ErrorAction SilentlyContinue
-        if (`$null -ne `$parent) {
-            `$parent.WaitForExit(3000) | Out-Null
-            `$parent = Get-Process -Id `$parentPid -ErrorAction SilentlyContinue
-            if (`$null -ne `$parent) {
-                Stop-Process -Id `$parentPid -Force -ErrorAction SilentlyContinue
-                for (`$wait = 0; `$wait -lt 20; `$wait++) {
-                    if (`$null -eq (Get-Process -Id `$parentPid -ErrorAction SilentlyContinue)) { break }
-                    Start-Sleep -Milliseconds 250
-                }
-            }
-        }
-    } catch {}
-}
 `$selfPath = $(ConvertTo-SingleQuotedLiteral $SelfPath)
 `$configHome = $(ConvertTo-SingleQuotedLiteral $script:ConfigHome)
 `$localHome = $(ConvertTo-SingleQuotedLiteral $script:LocalHome)
@@ -568,6 +553,54 @@ if (`$parentPid -gt 0) {
 `$shortcutName = $(ConvertTo-SingleQuotedLiteral $shortcutName)
 `$desktop = [System.Environment]::GetFolderPath('Desktop')
 `$programs = Join-Path ([System.Environment]::GetFolderPath('ApplicationData')) 'Microsoft\Windows\Start Menu\Programs'
+
+function Wait-LauncherProcessExitOrStop {
+    param([int]`$ProcessId)
+    if (`$ProcessId -le 0 -or `$ProcessId -eq [int]`$PID) { return }
+    try {
+        `$parent = Get-Process -Id `$ProcessId -ErrorAction SilentlyContinue
+        if (`$null -ne `$parent) {
+            `$parent.WaitForExit(1000) | Out-Null
+            `$parent = Get-Process -Id `$ProcessId -ErrorAction SilentlyContinue
+            if (`$null -ne `$parent) {
+                Stop-Process -Id `$ProcessId -Force -ErrorAction SilentlyContinue
+                for (`$wait = 0; `$wait -lt 20; `$wait++) {
+                    if (`$null -eq (Get-Process -Id `$ProcessId -ErrorAction SilentlyContinue)) { break }
+                    Start-Sleep -Milliseconds 250
+                }
+            }
+        }
+    } catch {}
+}
+
+function Stop-LauncherProcessesUsingScriptPath {
+    param([string]`$ScriptPath, [int[]]`$ExcludePids)
+    if ([string]::IsNullOrWhiteSpace(`$ScriptPath)) { return }
+    `$needle = `$ScriptPath.ToLowerInvariant()
+    `$processItems = @()
+    try {
+        `$processItems = @(Get-CimInstance Win32_Process -ErrorAction Stop)
+    } catch {
+        try { `$processItems = @(Get-WmiObject Win32_Process -ErrorAction Stop) } catch { `$processItems = @() }
+    }
+    foreach (`$item in `$processItems) {
+        `$processId = [int]`$item.ProcessId
+        if (`$processId -le 0 -or `$processId -eq [int]`$PID -or (`$ExcludePids -contains `$processId)) { continue }
+        `$commandLine = [string]`$item.CommandLine
+        if ([string]::IsNullOrWhiteSpace(`$commandLine)) { continue }
+        if (-not `$commandLine.ToLowerInvariant().Contains(`$needle)) { continue }
+        try {
+            Stop-Process -Id `$processId -Force -ErrorAction SilentlyContinue
+            for (`$wait = 0; `$wait -lt 20; `$wait++) {
+                if (`$null -eq (Get-Process -Id `$processId -ErrorAction SilentlyContinue)) { break }
+                Start-Sleep -Milliseconds 250
+            }
+        } catch {}
+    }
+}
+
+Wait-LauncherProcessExitOrStop -ProcessId `$parentPid
+Stop-LauncherProcessesUsingScriptPath -ScriptPath `$selfPath -ExcludePids @([int]`$PID)
 
 function Remove-LauncherPath {
     param([string]`$Path, [switch]`$Recurse)
@@ -614,8 +647,9 @@ Remove-Item -LiteralPath `$PSCommandPath -Force
 "@
     Set-Content -LiteralPath $tempScript -Encoding UTF8 -Value $scriptContent
     $launcherPath = (Get-Process -Id $PID).Path
-    $cmdArgs = "/d /c start `"`" /min `"$launcherPath`" -NoProfile -ExecutionPolicy Bypass -File `"$tempScript`""
-    Start-Process -FilePath "cmd.exe" -ArgumentList $cmdArgs -WindowStyle Hidden | Out-Null
+    $workerDirectory = [System.IO.Path]::GetTempPath()
+    $argumentLine = Join-ProcessArguments @("-NoLogo", "-NoProfile", "-ExecutionPolicy", "Bypass", "-File", $tempScript)
+    Start-Process -FilePath $launcherPath -ArgumentList $argumentLine -WorkingDirectory $workerDirectory -WindowStyle Hidden | Out-Null
 }
 
 function Invoke-UninstallLauncher {
