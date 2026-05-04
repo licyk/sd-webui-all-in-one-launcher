@@ -333,10 +333,34 @@ function Invoke-DiscoverInstalledWebUis {
                     $Control["FoundCount"] = $results.Count
                 }
                 try {
+                    $fileSet = @{}
+                    $directoryInfo = New-Object System.IO.DirectoryInfo($dir)
+                    foreach ($entry in $directoryInfo.EnumerateFileSystemInfos()) {
+                        try {
+                            if (($entry.Attributes -band [System.IO.FileAttributes]::Directory) -ne 0) {
+                                if (($entry.Attributes -band [System.IO.FileAttributes]::ReparsePoint) -ne 0) {
+                                    $skipped++
+                                    continue
+                                }
+                                if ($skipSet.ContainsKey($entry.Name.ToLowerInvariant())) {
+                                    $skipped++
+                                    continue
+                                }
+                                $stack.Push($entry.FullName)
+                            } else {
+                                $fileSet[$entry.Name.ToLowerInvariant()] = $entry.FullName
+                            }
+                        } catch {
+                            $errors++
+                            if ($errors -le 50) { [void]$attempts.Add("ENTRY skip: $($entry.FullName) -> $($_.Exception.Message)") }
+                        }
+                    }
+
                     foreach ($row in @($FeatureRows)) {
                         $featureScript = [string]$row.FeatureScript
-                        $featurePath = Join-Path $dir $featureScript
-                        if (-not (Test-Path -LiteralPath $featurePath -PathType Leaf)) { continue }
+                        $featureKey = $featureScript.ToLowerInvariant()
+                        if (-not $fileSet.ContainsKey($featureKey)) { continue }
+                        $featurePath = [string]$fileSet[$featureKey]
                         $projectKey = [string]$row.ProjectKey
                         $normalizedDir = [System.IO.Path]::GetFullPath($dir).TrimEnd('\')
                         $dedupeKey = ("{0}|{1}" -f $projectKey, $normalizedDir).ToLowerInvariant()
@@ -344,7 +368,8 @@ function Invoke-DiscoverInstalledWebUis {
                         $seen[$dedupeKey] = $true
                         $availableScripts = New-Object System.Collections.Generic.List[string]
                         foreach ($scriptName in @($row.ManagementScripts)) {
-                            if (Test-Path -LiteralPath (Join-Path $dir ([string]$scriptName)) -PathType Leaf) {
+                            $scriptKey = ([string]$scriptName).ToLowerInvariant()
+                            if ($fileSet.ContainsKey($scriptKey)) {
                                 [void]$availableScripts.Add([string]$scriptName)
                             }
                         }
@@ -362,24 +387,6 @@ function Invoke-DiscoverInstalledWebUis {
                         })
                         [void]$attempts.Add("HIT project=$projectKey path=$normalizedDir feature=$featureScript scripts=$($availableScripts.Count)")
                         $Control["FoundCount"] = $results.Count
-                    }
-
-                    foreach ($child in [System.IO.Directory]::EnumerateDirectories($dir)) {
-                        try {
-                            $info = New-Object System.IO.DirectoryInfo($child)
-                            if (($info.Attributes -band [System.IO.FileAttributes]::ReparsePoint) -ne 0) {
-                                $skipped++
-                                continue
-                            }
-                            if ($skipSet.ContainsKey($info.Name.ToLowerInvariant())) {
-                                $skipped++
-                                continue
-                            }
-                            $stack.Push($info.FullName)
-                        } catch {
-                            $errors++
-                            if ($errors -le 50) { [void]$attempts.Add("DIR skip: $child -> $($_.Exception.Message)") }
-                        }
                     }
                 } catch {
                     $errors++
