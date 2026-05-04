@@ -21,6 +21,7 @@
 - [x] 支持卸载启动器自身，卸载时移除命令注册、配置目录和缓存目录。
 - [x] `AGENTS.md` 已创建，用于记录项目约定、编码风格和验证规则。
 - [x] `README.md` 已创建，用于面向用户说明安装、TUI/CLI 使用、配置、下载策略和卸载。
+- [x] `README.md` 已按用户阅读路径重构，整理为入口选择、快速安装、首次使用、TUI/CLI、配置日志、更新卸载和开发文档等清晰分区。
 - [x] 已新增 Windows PowerShell WPF GUI 版启动器，入口为 `installer_launcher_gui.ps1`。
 - [x] GUI 已拆分为入口脚本、`gui/*.ps1` 模块和 `gui/xaml/*.xaml` 外置视图文件。
 - [x] GUI 发布链路已切换为源码多文件、发布单文件：通过 `tools/compile_gui.py` 生成 `dist/installer_launcher_gui.ps1`。
