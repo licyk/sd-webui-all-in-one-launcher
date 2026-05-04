@@ -245,15 +245,16 @@ function Show-InstallWindow {
     $form.Controls.Add($pathLabel)
 
     $script:InstallStatusLabel = New-Object System.Windows.Forms.Label
-    $script:InstallStatusLabel.Text = "准备安装..."
+    $script:InstallStatusLabel.Text = "请确认安装路径，然后点击「开始安装」。"
     $script:InstallStatusLabel.AutoEllipsis = $true
     $script:InstallStatusLabel.Location = New-Object System.Drawing.Point(24, 122)
     $script:InstallStatusLabel.Size = New-Object System.Drawing.Size(655, 24)
     $form.Controls.Add($script:InstallStatusLabel)
 
     $script:InstallProgressBar = New-Object System.Windows.Forms.ProgressBar
-    $script:InstallProgressBar.Style = "Marquee"
-    $script:InstallProgressBar.MarqueeAnimationSpeed = 25
+    $script:InstallProgressBar.Style = "Blocks"
+    $script:InstallProgressBar.MarqueeAnimationSpeed = 0
+    $script:InstallProgressBar.Value = 0
     $script:InstallProgressBar.Location = New-Object System.Drawing.Point(24, 152)
     $script:InstallProgressBar.Size = New-Object System.Drawing.Size(655, 18)
     $form.Controls.Add($script:InstallProgressBar)
@@ -271,7 +272,7 @@ function Show-InstallWindow {
 
     $closeButton = New-Object System.Windows.Forms.Button
     $closeButton.Text = "关闭"
-    $closeButton.Enabled = $false
+    $closeButton.Enabled = $true
     $closeButton.Size = New-Object System.Drawing.Size(96, 34)
     $closeButton.Location = New-Object System.Drawing.Point(583, 426)
     $closeButton.Add_Click({ $form.Close() })
@@ -292,8 +293,38 @@ function Show-InstallWindow {
     })
     $form.Controls.Add($openButton)
 
-    $form.Add_Shown({
+    $installButton = New-Object System.Windows.Forms.Button
+    $installButton.Text = "开始安装"
+    $installButton.Enabled = $true
+    $installButton.Size = New-Object System.Drawing.Size(96, 34)
+    $installButton.Location = New-Object System.Drawing.Point(367, 426)
+    $installButton.Add_Click({
+        $message = @"
+即将安装 $DisplayName。
+
+安装目录:
+$InstallDir
+
+将会执行:
+- 联网下载最新 GUI 脚本
+- 联网下载最新图标
+- 创建桌面和开始菜单快捷方式
+- 注册当前用户卸载信息
+
+是否继续安装？
+"@
+        $confirm = [System.Windows.Forms.MessageBox]::Show($message, "确认安装", "YesNo", "Question")
+        if ($confirm -ne [System.Windows.Forms.DialogResult]::Yes) {
+            Write-Step "用户取消安装。"
+            return
+        }
         try {
+            $installButton.Enabled = $false
+            $closeButton.Enabled = $false
+            $openButton.Enabled = $false
+            $script:InstallProgressBar.Style = "Marquee"
+            $script:InstallProgressBar.MarqueeAnimationSpeed = 25
+            $script:InstallStatusLabel.Text = "正在安装..."
             Invoke-InstallMain
             $script:InstallStatusLabel.Text = "安装完成。"
             $script:InstallProgressBar.Style = "Blocks"
@@ -306,12 +337,14 @@ function Show-InstallWindow {
             $script:InstallStatusLabel.Text = "安装失败。"
             $script:InstallProgressBar.Style = "Blocks"
             $script:InstallProgressBar.Value = 0
+            $installButton.Enabled = $true
             [System.Windows.Forms.MessageBox]::Show("安装失败:`n$message", "启动器安装", "OK", "Error") | Out-Null
         } finally {
             $script:InstallProgressBar.MarqueeAnimationSpeed = 0
             $closeButton.Enabled = $true
         }
     })
+    $form.Controls.Add($installButton)
 
     [void]$form.ShowDialog()
 }

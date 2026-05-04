@@ -575,6 +575,7 @@
 - [x] 修复 GUI 帮助窗口链接按钮后运行 `shellcheck install.sh installer_launcher.sh lib/*.sh`，通过。
 - [x] 修复 GUI 帮助窗口链接按钮后运行 `git diff --check`，通过。
 - [x] GUI 设置页操作区已拆分为“更新与日志 / 文件夹 / 快捷方式与卸载”三类，并改为参考关于页链接卡片的小卡片按钮样式，修复按钮换行后两行贴在一起的问题。
+- [x] `install.ps1` GUI 安装模式不再打开窗口后自动安装；用户需要先确认安装目录并点击“开始安装”，随后在确认框中再次确认安装路径和将执行的操作。
 - [x] 优化 GUI 设置页操作按钮后运行 `python3 -m py_compile tools/compile_gui.py`，通过。
 - [x] 优化 GUI 设置页操作按钮后运行 `python3 tools/compile_gui.py --output dist/installer_launcher_gui.ps1`，通过。
 - [x] 优化 GUI 设置页操作按钮后运行 PowerShell 解析检查，覆盖 `dist/installer_launcher_gui.ps1`、源码入口、`gui/*.ps1` 和 `install.ps1`，通过。
@@ -583,6 +584,14 @@
 - [x] 优化 GUI 设置页操作按钮后运行 `bash -n install.sh installer_launcher.sh lib/*.sh`，通过。
 - [x] 优化 GUI 设置页操作按钮后运行 `shellcheck install.sh installer_launcher.sh lib/*.sh`，通过。
 - [x] 优化 GUI 设置页操作按钮后运行 `git diff --check`，通过。
+- [x] 修改 `install.ps1` GUI 安装确认后运行 `python3 -m py_compile tools/compile_gui.py`，通过。
+- [x] 修改 `install.ps1` GUI 安装确认后运行 `python3 tools/compile_gui.py --output dist/installer_launcher_gui.ps1`，通过。
+- [x] 修改 `install.ps1` GUI 安装确认后运行 PowerShell 解析检查，覆盖 `dist/installer_launcher_gui.ps1`、源码入口、`gui/*.ps1` 和 `install.ps1`，通过。
+- [x] 修改 `install.ps1` GUI 安装确认后解析 `gui/xaml/*.xaml`，全部可转换为 `Window`。
+- [x] 修改 `install.ps1` GUI 安装确认后解包并解析编译产物内嵌 XAML，全部可转换为 `Window`。
+- [x] 修改 `install.ps1` GUI 安装确认后运行 `bash -n install.sh installer_launcher.sh lib/*.sh`，通过。
+- [x] 修改 `install.ps1` GUI 安装确认后运行 `shellcheck install.sh installer_launcher.sh lib/*.sh`，通过。
+- [x] 修改 `install.ps1` GUI 安装确认后运行 `git diff --check`，通过。
 - [ ] 在 Windows PowerShell 5.1 中运行 `installer_launcher_gui.ps1`，验证 WPF 界面可正常启动。
 - [ ] 在 Windows 中验证 GUI 首次启动会创建 AppData / LocalAppData 配置、缓存和日志目录。
 - [ ] 在 Windows 中验证 GUI 安装器下载重试、PowerShell 执行、安装检测、管理脚本运行和项目卸载流程。
