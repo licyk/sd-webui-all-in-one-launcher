@@ -630,7 +630,7 @@
 - [x] GUI 长路径支持提示不会迁移 `configure_env.bat` 中的 PowerShell 执行策略修改；用户取消后继续运行，下次启动仍会在未启用时提醒。
 - [x] GUI 项目卸载已改为确认后通过 runspace 后台删除安装目录，避免 `Remove-Item -Recurse` 阻塞 WPF UI。
 - [x] GUI 一键启动的“终止当前任务”按钮不再在 UI 线程同步扫描/结束进程树，只发送终止请求并由后台 worker 结束当前任务进程树。
-- [x] GUI 卸载按钮和终止按钮已加入加载图标与运行中文案，卸载中显示“正在卸载...”，终止请求后显示“正在终止...”。
+- [x] GUI 卸载按钮和终止按钮已加入贴在按钮下方的 indeterminate 加载条与运行中文案，卸载中显示“正在卸载...”，终止请求后显示“正在终止...”。
 - [x] GUI 卸载和终止异步优化后运行 `python3 -m py_compile tools/compile_gui.py`，通过。
 - [x] GUI 卸载和终止异步优化后运行 `python3 tools/compile_gui.py --output dist/installer_launcher_gui.ps1`，通过。
 - [x] GUI 卸载和终止异步优化后运行 PowerShell 解析检查，覆盖 `dist/installer_launcher_gui.ps1`、源码入口、`gui/*.ps1` 和 `install.ps1`，通过。
@@ -641,6 +641,12 @@
 - [x] 修复 GUI 异步卸载完成回调作用域问题后运行 PowerShell 解析检查，覆盖 `dist/installer_launcher_gui.ps1`、源码入口、`gui/*.ps1` 和 `install.ps1`，通过。
 - [x] 修复 GUI 异步卸载完成回调作用域问题后解析 `gui/xaml/*.xaml`，全部 XML 有效。
 - [x] 修复 GUI 异步卸载完成回调作用域问题后运行 `git diff --check`，通过。
+- [x] GUI 卸载和终止按钮的加载状态改为按钮下沿贴底加载条，和一键启动运行安装器时的加载样式保持一致。
+- [x] GUI 贴底加载条调整后运行 `python3 -m py_compile tools/compile_gui.py`，通过。
+- [x] GUI 贴底加载条调整后运行 `python3 tools/compile_gui.py --output dist/installer_launcher_gui.ps1`，通过。
+- [x] GUI 贴底加载条调整后运行 PowerShell 解析检查，覆盖 `dist/installer_launcher_gui.ps1`、源码入口、`gui/*.ps1` 和 `install.ps1`，通过。
+- [x] GUI 贴底加载条调整后解析 `gui/xaml/*.xaml`，全部 XML 有效。
+- [x] GUI 贴底加载条调整后运行 `git diff --check`，通过。
 - [x] 新增长路径支持检测后运行 `python3 -m py_compile tools/compile_gui.py`，通过。
 - [x] 新增长路径支持检测后运行 `python3 tools/compile_gui.py --output dist/installer_launcher_gui.ps1`，通过。
 - [x] 新增长路径支持检测后运行 PowerShell 解析检查，覆盖 `dist/installer_launcher_gui.ps1`、源码入口、`gui/*.ps1` 和 `install.ps1`，通过。

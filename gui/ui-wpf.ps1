@@ -122,7 +122,6 @@ function Set-ButtonLoadingState {
     param(
         $UI,
         [string]$NormalIconName,
-        [string]$BusyIconName,
         [string]$LabelName,
         [bool]$Busy,
         [string]$NormalText,
@@ -130,11 +129,7 @@ function Set-ButtonLoadingState {
     )
     $normalIcon = Get-UiControl $UI $NormalIconName
     if ($null -ne $normalIcon) {
-        $normalIcon.Visibility = $(if ($Busy) { "Collapsed" } else { "Visible" })
-    }
-    $busyIcon = Get-UiControl $UI $BusyIconName
-    if ($null -ne $busyIcon) {
-        $busyIcon.Visibility = $(if ($Busy) { "Visible" } else { "Collapsed" })
+        $normalIcon.Visibility = "Visible"
     }
     $label = Get-UiControl $UI $LabelName
     if ($null -ne $label) {
@@ -156,11 +151,19 @@ function Set-UiBusy {
         $terminateButton.Visibility = $(if ($Busy -and $CanTerminate) { "Visible" } else { "Collapsed" })
         $terminateButton.IsEnabled = ($Busy -and $CanTerminate -and (-not $isTerminating))
     }
-    Set-ButtonLoadingState -UI $UI -NormalIconName "TerminateStopIcon" -BusyIconName "TerminateBusyIcon" -LabelName "TerminateOperationLabel" -Busy $isTerminating -NormalText "终止当前任务" -BusyText "正在终止..."
-    Set-ButtonLoadingState -UI $UI -NormalIconName "UninstallIcon" -BusyIconName "UninstallBusyIcon" -LabelName "UninstallLabel" -Busy $isUninstalling -NormalText "卸载已安装软件" -BusyText "正在卸载..."
+    Set-ButtonLoadingState -UI $UI -NormalIconName "TerminateStopIcon" -LabelName "TerminateOperationLabel" -Busy $isTerminating -NormalText "终止当前任务" -BusyText "正在终止..."
+    Set-ButtonLoadingState -UI $UI -NormalIconName "UninstallIcon" -LabelName "UninstallLabel" -Busy $isUninstalling -NormalText "卸载已安装软件" -BusyText "正在卸载..."
     $progressBar = Get-UiControl $UI "StartProgressBar"
     if ($null -ne $progressBar) {
-        $progressBar.Visibility = $(if ($Busy -and $CanTerminate) { "Visible" } else { "Collapsed" })
+        $progressBar.Visibility = $(if ($Busy -and $CanTerminate -and (-not $isTerminating)) { "Visible" } else { "Collapsed" })
+    }
+    $terminateProgressBar = Get-UiControl $UI "TerminateProgressBar"
+    if ($null -ne $terminateProgressBar) {
+        $terminateProgressBar.Visibility = $(if ($isTerminating) { "Visible" } else { "Collapsed" })
+    }
+    $uninstallProgressBar = Get-UiControl $UI "UninstallProgressBar"
+    if ($null -ne $uninstallProgressBar) {
+        $uninstallProgressBar.Visibility = $(if ($isUninstalling) { "Visible" } else { "Collapsed" })
     }
     $busyText = Get-UiControl $UI "BusyText"
     if ($null -ne $busyText) { $busyText.Text = $Message }

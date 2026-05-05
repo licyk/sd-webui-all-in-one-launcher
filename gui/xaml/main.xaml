@@ -704,10 +704,10 @@
                   <Button Name="TerminateOperationBtn" Style="{StaticResource DangerButton}" Padding="18,12" FontSize="16" HorizontalAlignment="Stretch" Margin="0,10,0,0" Visibility="Collapsed" IsEnabled="False">
                     <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" VerticalAlignment="Center">
                       <TextBlock Name="TerminateStopIcon" Text="■" Foreground="White" Margin="0,0,8,0"/>
-                      <TextBlock Name="TerminateBusyIcon" Text="⟳" Foreground="White" Margin="0,0,8,0" Visibility="Collapsed"/>
                       <TextBlock Name="TerminateOperationLabel" Text="终止当前任务" Foreground="White"/>
                     </StackPanel>
                   </Button>
+                  <ProgressBar Name="TerminateProgressBar" IsIndeterminate="True" HorizontalAlignment="Stretch" Margin="0,0,8,0" Visibility="Collapsed"/>
                 </StackPanel>
               </Grid>
             </Border>
@@ -732,13 +732,15 @@
                 <TabItem Header="安装路径">
                   <DockPanel Margin="2,14,2,0">
                     <StackPanel DockPanel.Dock="Bottom" Orientation="Horizontal" Margin="0,14,0,0">
-                      <Button Name="UninstallBtn">
-                        <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" VerticalAlignment="Center">
-                          <TextBlock Name="UninstallIcon" Text="×" Margin="0,0,8,0"/>
-                          <TextBlock Name="UninstallBusyIcon" Text="⟳" Margin="0,0,8,0" Visibility="Collapsed"/>
-                          <TextBlock Name="UninstallLabel" Text="卸载已安装软件"/>
-                        </StackPanel>
-                      </Button>
+                      <StackPanel>
+                        <Button Name="UninstallBtn">
+                          <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" VerticalAlignment="Center">
+                            <TextBlock Name="UninstallIcon" Text="×" Margin="0,0,8,0"/>
+                            <TextBlock Name="UninstallLabel" Text="卸载已安装软件"/>
+                          </StackPanel>
+                        </Button>
+                        <ProgressBar Name="UninstallProgressBar" IsIndeterminate="True" HorizontalAlignment="Stretch" Margin="0,0,8,0" Visibility="Collapsed"/>
+                      </StackPanel>
                     </StackPanel>
                     <ScrollViewer VerticalScrollBarVisibility="Auto">
                       <StackPanel>
