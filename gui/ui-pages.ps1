@@ -734,10 +734,22 @@ function Refresh-ProjectConfigUi {
         $hint.TextWrapping = "Wrap"
         $UI.PathPanel.Children.Add($hint) | Out-Null
     }
-    if (Test-ProjectParam $project "InstallBranch") { Add-ConfigComboBox $UI.ConfigPanel $State "INSTALL_BRANCH" "安装分支" $project.Branches (Get-InstallerConfigValue $project $config "INSTALL_BRANCH") }
-    if (Test-ProjectParam $project "CorePrefix") { Add-ConfigTextBox $UI.ConfigPanel $State "CORE_PREFIX" "内核路径前缀" (Get-InstallerConfigValue $project $config "CORE_PREFIX") }
-    if (Test-ProjectParam $project "PyTorchMirrorType") { Add-ConfigTextBox $UI.ConfigPanel $State "PYTORCH_MIRROR_TYPE" "PyTorch 镜像类型" (Get-InstallerConfigValue $project $config "PYTORCH_MIRROR_TYPE") }
-    if (Test-ProjectParam $project "InstallPythonVersion") { Add-ConfigTextBox $UI.ConfigPanel $State "PYTHON_VERSION" "Python 版本" (Get-InstallerConfigValue $project $config "PYTHON_VERSION") }
+    if (Test-ProjectParam $project "InstallBranch") {
+        $spec = Get-InstallerParamSpec $project "InstallBranch"
+        Add-ConfigComboBox $UI.ConfigPanel $State "INSTALL_BRANCH" (Get-ScriptParamLabel "InstallBranch" $spec) $project.Branches (Get-InstallerConfigValue $project $config "INSTALL_BRANCH")
+    }
+    if (Test-ProjectParam $project "CorePrefix") {
+        $spec = Get-InstallerParamSpec $project "CorePrefix"
+        Add-ConfigTextBox $UI.ConfigPanel $State "CORE_PREFIX" (Get-ScriptParamLabel "CorePrefix" $spec) (Get-InstallerConfigValue $project $config "CORE_PREFIX")
+    }
+    if (Test-ProjectParam $project "PyTorchMirrorType") {
+        $spec = Get-InstallerParamSpec $project "PyTorchMirrorType"
+        Add-ConfigTextBox $UI.ConfigPanel $State "PYTORCH_MIRROR_TYPE" (Get-ScriptParamLabel "PyTorchMirrorType" $spec) (Get-InstallerConfigValue $project $config "PYTORCH_MIRROR_TYPE")
+    }
+    if (Test-ProjectParam $project "InstallPythonVersion") {
+        $spec = Get-InstallerParamSpec $project "InstallPythonVersion"
+        Add-ConfigTextBox $UI.ConfigPanel $State "PYTHON_VERSION" (Get-ScriptParamLabel "InstallPythonVersion" $spec) (Get-InstallerConfigValue $project $config "PYTHON_VERSION")
+    }
     if (Test-ProjectParam $project "UseCustomProxy") { Add-ConfigTextBox $UI.ConfigPanel $State "PROXY" "安装器自定义代理 -UseCustomProxy" (Get-InstallerConfigValue $project $config "PROXY") }
     if (Test-ProjectParam $project "UseCustomGithubMirror") { Add-ConfigTextBox $UI.ConfigPanel $State "GITHUB_MIRROR" "Github 镜像 -UseCustomGithubMirror" (Get-InstallerConfigValue $project $config "GITHUB_MIRROR") }
     if (Test-ProjectParam $project "UseCustomHuggingFaceMirror") { Add-ConfigTextBox $UI.ConfigPanel $State "HUGGINGFACE_MIRROR" "HuggingFace 镜像 -UseCustomHuggingFaceMirror" (Get-InstallerConfigValue $project $config "HUGGINGFACE_MIRROR") }
