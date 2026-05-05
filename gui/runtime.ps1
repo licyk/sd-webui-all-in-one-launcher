@@ -617,19 +617,8 @@ function Invoke-TerminateCurrentOperation {
     Append-UiLog $UI "正在终止当前任务: $name pid=$processId"
     if ($processId -le 0) {
         Append-UiLog $UI "任务进程尚未创建，已记录终止请求。"
-        return
-    }
-    $process = Get-Process -Id $processId -ErrorAction SilentlyContinue
-    if ($null -eq $process) {
-        Append-UiLog $UI "任务进程已结束。"
-        return
-    }
-    $errors = @(Stop-LauncherProcessTree -RootPid $processId)
-    if ($errors.Count -gt 0) {
-        Append-UiLog $UI "部分进程终止失败，请手动关闭残留控制台。$($errors -join '; ')"
-        Show-Message "部分进程终止失败，请手动关闭残留控制台。`n`n$($errors -join [Environment]::NewLine)" "终止未完全成功" "Warning"
     } else {
-        Append-UiLog $UI "已发送终止请求。"
+        Append-UiLog $UI "已发送终止请求，正在等待后台任务结束进程树。"
     }
 }
 
@@ -1033,7 +1022,7 @@ function Invoke-UninstallProject {
         Show-Message "卸载路径不安全，已拒绝: $path" "拒绝卸载" "Error"
         return
     }
-    if (-not (Test-Path $path)) {
+    if (-not (Test-Path -LiteralPath $path)) {
         Show-Message "未找到安装目录: $path" "无法卸载" "Warning"
         return
     }
@@ -1044,15 +1033,70 @@ function Invoke-UninstallProject {
         Write-Log INFO "project uninstall canceled at countdown confirmation project=$key path=$path"
         return
     }
-    try {
-        Remove-Item -LiteralPath $path -Recurse -Force
-        Append-UiLog $UI "已卸载 $($project.Name): $path"
-        Show-Message "已卸载: $path" "卸载完成"
-    } catch {
-        Append-UiLog $UI "卸载失败: $($_.Exception.Message)"
-        Show-Message "卸载失败:`n$($_.Exception.Message)" "卸载失败" "Error"
+    $projectName = [string]$project.Name
+    $operation = {
+        param([string]$ProjectName, [string]$InstallPath, [hashtable]$Control)
+        try {
+            if ([string]::IsNullOrWhiteSpace($InstallPath)) {
+                throw "卸载路径为空"
+            }
+            if (-not (Test-Path -LiteralPath $InstallPath)) {
+                return [PSCustomObject]@{
+                    Success = $true
+                    Path = $InstallPath
+                    ProjectName = $ProjectName
+                    Message = "安装目录已不存在，视为已卸载。"
+                }
+            }
+            Remove-Item -LiteralPath $InstallPath -Recurse -Force -ErrorAction Stop
+            return [PSCustomObject]@{
+                Success = $true
+                Path = $InstallPath
+                ProjectName = $ProjectName
+                Message = "已卸载: $InstallPath"
+            }
+        } catch {
+            return [PSCustomObject]@{
+                Success = $false
+                Path = $InstallPath
+                ProjectName = $ProjectName
+                Message = $_.Exception.Message
+            }
+        }
     }
-    Refresh-Status $UI $State
+    Append-UiLog $UI "开始卸载 ${projectName}: $path"
+    Start-GuiOperation -UI $UI -State $State -Name "卸载已安装软件" -ScriptBlock $operation -Arguments @($projectName, $path) -CanTerminate $false -OnComplete {
+        param($result, $streamErrors)
+        foreach ($streamError in @($streamErrors)) {
+            if (-not [string]::IsNullOrWhiteSpace($streamError)) {
+                Write-Log WARN "project uninstall stream error: $streamError"
+            }
+        }
+        $item = Select-GuiOperationResultItem -Result $result -PreferredProperties @("Path", "ProjectName", "Success", "Message")
+        if ($null -eq $item) {
+            Append-UiLog $UI "卸载任务没有返回结果。"
+            Show-Message "卸载任务没有返回结果。" "卸载失败" "Error"
+            Refresh-Status $UI $State
+            return
+        }
+        $resultPath = [string](Get-ObjectPropertyValue $item "Path" "")
+        $resultProjectName = [string](Get-ObjectPropertyValue $item "ProjectName" "当前项目")
+        $resultMessage = [string](Get-ObjectPropertyValue $item "Message" "")
+        if ([string]::IsNullOrWhiteSpace($resultProjectName)) { $resultProjectName = "当前项目" }
+        if ([bool](Get-ObjectPropertyValue $item "Success" $false)) {
+            Append-UiLog $UI "已卸载 ${resultProjectName}: $resultPath"
+            if ([string]::IsNullOrWhiteSpace($resultMessage)) {
+                $resultMessage = "卸载已完成。"
+                if (-not [string]::IsNullOrWhiteSpace($resultPath)) { $resultMessage = "已卸载: $resultPath" }
+            }
+            Show-Message $resultMessage "卸载完成"
+        } else {
+            if ([string]::IsNullOrWhiteSpace($resultMessage)) { $resultMessage = "未知错误" }
+            Append-UiLog $UI "卸载失败: $resultMessage"
+            Show-Message "卸载失败:`n$resultMessage" "卸载失败" "Error"
+        }
+        Refresh-Status $UI $State
+    }
 }
 
 function Invoke-UpdateCheck {

@@ -78,7 +78,7 @@ function Export-GuiEventFunctions {
         "Invoke-OpenTaggedUrl", "Invoke-UninstallProject", "Invoke-UpdateCheck", "Open-CacheFolder", "Open-ConfigFolder", "Open-ExternalUrl", "Open-LogFolder", "Refresh-MainConfigUi",
         "Refresh-DiscoveredInstallList", "Refresh-ProjectConfigUi", "Refresh-ScriptParamUi", "Refresh-Status", "Release-UpdateCheckLock", "Report-UiError",
         "Invoke-WindowsLongPathsStartupCheck", "Join-ProcessArguments", "Quote-ProcessArgument", "Resolve-PowerShellCommand", "Save-CurrentProjectConfigFromUi", "Save-MainConfig", "Save-MainConfigFromUi", "Save-ProjectConfig", "Select-GuiOperationResultItem",
-        "Select-FolderPath", "Select-RelevantMainTab", "Set-DiscoverySearchBusy", "Set-UiBusy", "Show-AppPage",
+        "Select-FolderPath", "Select-RelevantMainTab", "Set-ButtonLoadingState", "Set-DiscoverySearchBusy", "Set-UiBusy", "Show-AppPage",
         "Show-CountdownConfirmDialog", "Show-HelpWindow", "Show-LogWindow", "Show-Message", "Show-UserAgreementDialog", "Start-HeroImageDownload", "Start-LauncherIconDownload", "Start-TabTransition",
         "Start-DiscoveryProgressTimer", "Test-DictionaryKey", "Test-WindowsLongPathsEnabled", "Toggle-CustomMaximizeWindow", "Update-DiscoveryProgressUi", "Update-OneClickModeUi", "Write-Log", "Write-TrackedScriptResultDebug"
     )
@@ -118,9 +118,35 @@ function Append-UiLog {
     Write-Log INFO $Text
 }
 
+function Set-ButtonLoadingState {
+    param(
+        $UI,
+        [string]$NormalIconName,
+        [string]$BusyIconName,
+        [string]$LabelName,
+        [bool]$Busy,
+        [string]$NormalText,
+        [string]$BusyText
+    )
+    $normalIcon = Get-UiControl $UI $NormalIconName
+    if ($null -ne $normalIcon) {
+        $normalIcon.Visibility = $(if ($Busy) { "Collapsed" } else { "Visible" })
+    }
+    $busyIcon = Get-UiControl $UI $BusyIconName
+    if ($null -ne $busyIcon) {
+        $busyIcon.Visibility = $(if ($Busy) { "Visible" } else { "Collapsed" })
+    }
+    $label = Get-UiControl $UI $LabelName
+    if ($null -ne $label) {
+        $label.Text = $(if ($Busy) { $BusyText } else { $NormalText })
+    }
+}
+
 function Set-UiBusy {
     param($UI, [bool]$Busy, [string]$Message, [bool]$CanTerminate = $true)
     $enabled = -not $Busy
+    $isTerminating = $Busy -and $CanTerminate -and ($Message -match "正在终止")
+    $isUninstalling = $Busy -and ($Message -match "卸载")
     foreach ($name in @("UninstallBtn", "CheckUpdateBtn", "UnifiedStartBtn", "OpenConfigFolderBtn", "OpenLogFolderBtn", "OpenCacheFolderBtn", "ShowLogBtn", "CreateShortcutBtn", "UninstallLauncherBtn")) {
         $button = Get-UiControl $UI $name
         if ($null -ne $button) { $button.IsEnabled = $enabled }
@@ -128,8 +154,10 @@ function Set-UiBusy {
     $terminateButton = Get-UiControl $UI "TerminateOperationBtn"
     if ($null -ne $terminateButton) {
         $terminateButton.Visibility = $(if ($Busy -and $CanTerminate) { "Visible" } else { "Collapsed" })
-        $terminateButton.IsEnabled = $Busy -and $CanTerminate -and ($Message -notmatch "正在终止")
+        $terminateButton.IsEnabled = ($Busy -and $CanTerminate -and (-not $isTerminating))
     }
+    Set-ButtonLoadingState -UI $UI -NormalIconName "TerminateStopIcon" -BusyIconName "TerminateBusyIcon" -LabelName "TerminateOperationLabel" -Busy $isTerminating -NormalText "终止当前任务" -BusyText "正在终止..."
+    Set-ButtonLoadingState -UI $UI -NormalIconName "UninstallIcon" -BusyIconName "UninstallBusyIcon" -LabelName "UninstallLabel" -Busy $isUninstalling -NormalText "卸载已安装软件" -BusyText "正在卸载..."
     $progressBar = Get-UiControl $UI "StartProgressBar"
     if ($null -ne $progressBar) {
         $progressBar.Visibility = $(if ($Busy -and $CanTerminate) { "Visible" } else { "Collapsed" })
