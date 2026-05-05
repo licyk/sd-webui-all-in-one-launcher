@@ -5,6 +5,8 @@ set -u
 HOMEBREW_INSTALL_URL="https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh"
 POWERSHELL_MACOS_DOC="https://learn.microsoft.com/en-us/powershell/scripting/install/install-powershell-on-macos"
 POWERSHELL_LINUX_DOC="https://learn.microsoft.com/en-us/powershell/scripting/install/installing-powershell-on-linux"
+LAUNCHER_REPO_URL="https://github.com/licyk/sd-webui-all-in-one-launcher.git"
+LAUNCHER_ARCHIVE_URL="https://github.com/licyk/sd-webui-all-in-one-launcher/archive/refs/heads/main.tar.gz"
 DRY_RUN="${INSTALLER_LAUNCHER_INSTALL_DRY_RUN:-0}"
 
 info() {
@@ -213,6 +215,47 @@ detect_repo_root() {
     esac
   done
   cd -P "$(dirname "$script_path")" && pwd
+}
+
+launcher_source_is_complete() {
+  local source_dir="$1"
+  [ -f "$source_dir/installer_launcher.sh" ] && [ -f "$source_dir/lib/bootstrap.sh" ]
+}
+
+download_launcher_source_for_bootstrap() {
+  local target_dir="$1" archive_path
+  mkdir -p "$(dirname "$target_dir")"
+
+  if have_cmd git; then
+    info "正在获取启动器临时源码..."
+    if run_cmd git clone --depth 1 "$LAUNCHER_REPO_URL" "$target_dir"; then
+      return 0
+    fi
+    warn "git clone 启动器源码失败，改用源码压缩包下载。"
+    rm -rf "$target_dir"
+  fi
+
+  if ! have_cmd tar; then
+    error "未找到 git 或 tar，无法获取启动器源码。"
+    return 1
+  fi
+
+  mkdir -p "$target_dir"
+  archive_path="${target_dir}.tar.gz"
+  info "正在下载启动器源码压缩包..."
+  if ! download_file "$LAUNCHER_ARCHIVE_URL" "$archive_path"; then
+    rm -f "$archive_path"
+    error "启动器源码下载失败: $LAUNCHER_ARCHIVE_URL"
+    return 1
+  fi
+
+  info "正在解压启动器源码..."
+  if ! run_cmd tar -xzf "$archive_path" --strip-components=1 -C "$target_dir"; then
+    rm -f "$archive_path"
+    error "启动器源码解压失败。"
+    return 1
+  fi
+  rm -f "$archive_path"
 }
 
 install_homebrew_if_needed() {
@@ -511,7 +554,7 @@ install_linux_dependencies() {
 }
 
 install_launcher_noninteractive() {
-  local repo_root="$1" bash_cmd_file bash_cmd
+  local repo_root="$1" bash_cmd_file bash_cmd source_dir temp_dir status
   bash_cmd_file="${TMPDIR:-/tmp}/installer-launcher-bash-cmd.$$"
   if [ -f "$bash_cmd_file" ]; then
     bash_cmd="$(cat "$bash_cmd_file")"
@@ -519,8 +562,32 @@ install_launcher_noninteractive() {
   else
     bash_cmd="$(command -v bash)"
   fi
+  source_dir="$repo_root"
+  temp_dir=""
+  if launcher_source_is_complete "$source_dir"; then
+    info "启动器源码目录: $source_dir"
+  else
+    info "当前目录没有完整启动器源码，将使用临时源码执行安装。"
+    temp_dir="$(mktemp -d "${TMPDIR:-/tmp}/installer-launcher-bootstrap.XXXXXX")" || return 1
+    source_dir="$temp_dir/source"
+    if ! download_launcher_source_for_bootstrap "$source_dir"; then
+      rm -rf "$temp_dir"
+      return 1
+    fi
+    if [ "$DRY_RUN" != "1" ] && ! launcher_source_is_complete "$source_dir"; then
+      rm -rf "$temp_dir"
+      error "启动器临时源码不完整，无法继续安装。"
+      return 1
+    fi
+  fi
+
   info "正在安装 installer launcher..."
-  run_cmd "$bash_cmd" "$repo_root/installer_launcher.sh" install-launcher --yes || return 1
+  run_cmd "$bash_cmd" "$source_dir/installer_launcher.sh" install-launcher --yes
+  status=$?
+  if [ -n "$temp_dir" ]; then
+    rm -rf "$temp_dir"
+  fi
+  [ "$status" -eq 0 ] || return "$status"
   info "installer launcher 安装完成。"
   info "命令路径: $HOME/.local/bin/installer-launcher"
   info "如果当前终端还不能直接运行 installer-launcher，请重新打开终端，或 source 当前 shell 的配置文件。"
@@ -534,7 +601,7 @@ main() {
   }
   os_name="$(uname -s 2>/dev/null || printf unknown)"
   info "Installer Launcher bootstrap"
-  info "仓库目录: $repo_root"
+  info "启动目录: $repo_root"
   auto_configure_system_proxy
 
   case "$os_name" in
