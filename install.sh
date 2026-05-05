@@ -554,7 +554,7 @@ install_linux_dependencies() {
 }
 
 install_launcher_noninteractive() {
-  local repo_root="$1" bash_cmd_file bash_cmd source_dir temp_dir status
+  local repo_root="$1" bash_cmd_file bash_cmd source_dir temp_dir status reuse_bootstrap_source
   bash_cmd_file="${TMPDIR:-/tmp}/installer-launcher-bash-cmd.$$"
   if [ -f "$bash_cmd_file" ]; then
     bash_cmd="$(cat "$bash_cmd_file")"
@@ -564,6 +564,7 @@ install_launcher_noninteractive() {
   fi
   source_dir="$repo_root"
   temp_dir=""
+  reuse_bootstrap_source=0
   if launcher_source_is_complete "$source_dir"; then
     info "启动器源码目录: $source_dir"
   else
@@ -579,10 +580,15 @@ install_launcher_noninteractive() {
       error "启动器临时源码不完整，无法继续安装。"
       return 1
     fi
+    reuse_bootstrap_source=1
   fi
 
   info "正在安装 installer launcher..."
-  run_cmd "$bash_cmd" "$source_dir/installer_launcher.sh" install-launcher --yes
+  if [ "$reuse_bootstrap_source" = "1" ]; then
+    run_cmd env INSTALLER_LAUNCHER_BOOTSTRAP_SOURCE="$source_dir" "$bash_cmd" "$source_dir/installer_launcher.sh" install-launcher --yes
+  else
+    run_cmd "$bash_cmd" "$source_dir/installer_launcher.sh" install-launcher --yes
+  fi
   status=$?
   if [ -n "$temp_dir" ]; then
     rm -rf "$temp_dir"

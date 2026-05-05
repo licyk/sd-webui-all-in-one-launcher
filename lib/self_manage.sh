@@ -56,6 +56,11 @@ download_launcher_source() {
   log_info "launcher source download success with archive: target=$target_dir"
 }
 
+launcher_source_is_complete() {
+  local source_dir="$1"
+  [[ -f "$source_dir/installer_launcher.sh" && -f "$source_dir/lib/bootstrap.sh" ]]
+}
+
 install_launcher_files() {
   local source_dir="$1" stage_dir backup_dir
   stage_dir="${SELF_INSTALL_DIR}.tmp.$$"
@@ -169,8 +174,35 @@ ${confirm_text}
 EOF
 }
 
+install_launcher_from_existing_source() {
+  local source_dir="$1"
+  if ! launcher_source_is_complete "$source_dir"; then
+    log_error "launcher install existing source incomplete: source=$source_dir"
+    return 1
+  fi
+
+  log_info "launcher install from existing source start: source=$source_dir"
+  launcher_progress "使用已获取的启动器源码安装..."
+  if ! install_launcher_files "$source_dir"; then
+    log_error "launcher install failed while installing files"
+    return 1
+  fi
+  if ! register_launcher_command; then
+    log_error "launcher install failed while registering command"
+    return 1
+  fi
+  log_info "launcher install from existing source finished"
+  launcher_progress "启动器安装/更新流程完成。"
+}
+
 install_launcher_from_source() {
-  local temp_dir source_dir
+  local temp_dir source_dir bootstrap_source
+  bootstrap_source="${INSTALLER_LAUNCHER_BOOTSTRAP_SOURCE:-}"
+  if [[ -n "$bootstrap_source" ]]; then
+    install_launcher_from_existing_source "$bootstrap_source"
+    return $?
+  fi
+
   temp_dir="$(mktemp -d "${TMPDIR:-/tmp}/installer-launcher-src.XXXXXX")" || return 1
   source_dir="$temp_dir/source"
   log_info "launcher install from source start: temp=$temp_dir"

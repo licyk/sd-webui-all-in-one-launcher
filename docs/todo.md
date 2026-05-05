@@ -246,6 +246,7 @@
 - [x] `install.sh` 会尽量安装 `dialog` 和 `git`，失败时提示可手动安装。
 - [x] `install.sh` 最后调用 `installer_launcher.sh install-launcher --yes` 自动安装并注册启动器。
 - [x] `install.sh` 通过标准输入运行时会自动获取临时启动器源码，避免把当前目录误当成源码目录。
+- [x] `install.sh` 会将已获取的临时源码传给自安装流程复用，避免重复下载启动器源码。
 
 ## 文档
 
@@ -420,6 +421,9 @@
 - [x] 修复 `install.sh` 标准输入运行路径后运行 `shellcheck install.sh installer_launcher.sh lib/*.sh`，通过。
 - [x] 验证 `install.sh` dry-run 从标准输入运行时会获取临时源码并调用临时 `installer_launcher.sh install-launcher --yes`。
 - [x] 验证 `install.sh` dry-run 在本地源码目录运行时继续使用本地 `installer_launcher.sh install-launcher --yes`。
+- [x] 优化 `install.sh` 临时源码复用后运行 `bash -n install.sh installer_launcher.sh lib/*.sh`，通过。
+- [x] 优化 `install.sh` 临时源码复用后运行 `shellcheck install.sh installer_launcher.sh lib/*.sh`，通过。
+- [x] 验证 `install-launcher --yes` 在收到 `INSTALLER_LAUNCHER_BOOTSTRAP_SOURCE` 时会直接安装已有源码，不再重新下载。
 - [x] 新增 Windows GUI 后再次运行 `bash -n install.sh installer_launcher.sh lib/*.sh`，通过。
 - [x] 新增 Windows GUI 后再次运行 `shellcheck install.sh installer_launcher.sh lib/*.sh`，通过。
 - [x] 当前 Linux 环境可使用 `pwsh` 做 PowerShell 语法解析，但无法启动 Windows WPF GUI，Windows 运行验证待补跑。
