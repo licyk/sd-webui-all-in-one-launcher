@@ -198,18 +198,30 @@ function Start-App {
             $State.StatusRefreshTimer = $statusRefreshTimer
             $statusRefreshTimer.Start()
 
-            $startupUpdateTimer = New-Object System.Windows.Threading.DispatcherTimer
-            $startupUpdateTimer.Interval = [TimeSpan]::FromMilliseconds(1200)
-            $startupUpdateTimer.Add_Tick({
-                $startupUpdateTimer.Stop()
+            $longPathsStartupTimer = New-Object System.Windows.Threading.DispatcherTimer
+            $longPathsStartupTimer.Interval = [TimeSpan]::FromMilliseconds(700)
+            $longPathsStartupTimer.Add_Tick({
+                $longPathsStartupTimer.Stop()
                 try {
-                    Invoke-UpdateCheck $UI $State $false
+                    Invoke-WindowsLongPathsStartupCheck $UI
                 } catch {
-                    Report-UiError -Context "启动时自动更新检查" -ErrorObject $_ -ShowDialog $false
-                    Append-UiLog $UI "启动时自动更新检查失败，已继续运行当前版本。"
+                    Report-UiError -Context "启动时检查 Windows 长路径支持" -ErrorObject $_ -ShowDialog $false
+                    Append-UiLog $UI "启动时检查 Windows 长路径支持失败，已继续运行当前版本。"
                 }
+                $startupUpdateTimer = New-Object System.Windows.Threading.DispatcherTimer
+                $startupUpdateTimer.Interval = [TimeSpan]::FromMilliseconds(1200)
+                $startupUpdateTimer.Add_Tick({
+                    $startupUpdateTimer.Stop()
+                    try {
+                        Invoke-UpdateCheck $UI $State $false
+                    } catch {
+                        Report-UiError -Context "启动时自动更新检查" -ErrorObject $_ -ShowDialog $false
+                        Append-UiLog $UI "启动时自动更新检查失败，已继续运行当前版本。"
+                    }
+                }.GetNewClosure())
+                $startupUpdateTimer.Start()
             }.GetNewClosure())
-            $startupUpdateTimer.Start()
+            $longPathsStartupTimer.Start()
         } catch {
             Report-UiError -Context "GUI 初始化" -ErrorObject $_ -ShowDialog $true
         }

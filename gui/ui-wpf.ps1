@@ -73,14 +73,14 @@ function Set-ThemeResources {
 
 function Export-GuiEventFunctions {
     $names = @(
-        "Append-UiLog", "Get-GuiXamlPath", "Load-GuiXamlWindow", "Set-ThemeResources", "Apply-DiscoveredInstallTarget", "Apply-HeroImage", "AutoSave-MainConfigFromUi", "Ensure-GuiState", "Get-CurrentProjectKey", "Get-DefaultInstallDiscoveryRoots", "Get-EffectiveInstallPath", "Get-InstallDiscoveryFeatureRows", "Get-ObjectPropertyValue", "Get-ProjectConfig",
+        "Append-UiLog", "Confirm-Message", "Enable-WindowsLongPathsElevated", "Get-CurrentPowerShellExecutable", "Get-GuiXamlPath", "Load-GuiXamlWindow", "Set-ThemeResources", "Apply-DiscoveredInstallTarget", "Apply-HeroImage", "AutoSave-MainConfigFromUi", "Ensure-GuiState", "Get-CurrentProjectKey", "Get-DefaultInstallDiscoveryRoots", "Get-EffectiveInstallPath", "Get-InstallDiscoveryFeatureRows", "Get-ObjectPropertyValue", "Get-ProjectConfig",
         "Get-SelectedScriptName", "Get-UiControl", "Get-UpdateCheckSemaphore", "Handle-TrackedScriptTermination", "Invoke-CancelDiscoverySearch", "Invoke-CreateLauncherShortcut", "Invoke-DiscoverInstalledWebUis", "Invoke-DiscoverInstalledWebUisInFolder", "Invoke-OneClickAction", "Invoke-TerminateCurrentOperation", "Invoke-UninstallLauncher",
         "Invoke-OpenTaggedUrl", "Invoke-UninstallProject", "Invoke-UpdateCheck", "Open-CacheFolder", "Open-ConfigFolder", "Open-ExternalUrl", "Open-LogFolder", "Refresh-MainConfigUi",
         "Refresh-DiscoveredInstallList", "Refresh-ProjectConfigUi", "Refresh-ScriptParamUi", "Refresh-Status", "Release-UpdateCheckLock", "Report-UiError",
-        "Save-CurrentProjectConfigFromUi", "Save-MainConfig", "Save-MainConfigFromUi", "Save-ProjectConfig", "Select-GuiOperationResultItem",
+        "Invoke-WindowsLongPathsStartupCheck", "Join-ProcessArguments", "Quote-ProcessArgument", "Resolve-PowerShellCommand", "Save-CurrentProjectConfigFromUi", "Save-MainConfig", "Save-MainConfigFromUi", "Save-ProjectConfig", "Select-GuiOperationResultItem",
         "Select-FolderPath", "Select-RelevantMainTab", "Set-DiscoverySearchBusy", "Set-UiBusy", "Show-AppPage",
         "Show-CountdownConfirmDialog", "Show-HelpWindow", "Show-LogWindow", "Show-Message", "Show-UserAgreementDialog", "Start-HeroImageDownload", "Start-LauncherIconDownload", "Start-TabTransition",
-        "Start-DiscoveryProgressTimer", "Test-DictionaryKey", "Toggle-CustomMaximizeWindow", "Update-DiscoveryProgressUi", "Update-OneClickModeUi", "Write-Log", "Write-TrackedScriptResultDebug"
+        "Start-DiscoveryProgressTimer", "Test-DictionaryKey", "Test-WindowsLongPathsEnabled", "Toggle-CustomMaximizeWindow", "Update-DiscoveryProgressUi", "Update-OneClickModeUi", "Write-Log", "Write-TrackedScriptResultDebug"
     )
     foreach ($name in $names) {
         $command = Get-Command -Name $name -CommandType Function -ErrorAction Stop

@@ -50,6 +50,7 @@
 - Windows PowerShell 5.1 或 PowerShell 7+。
 - Windows WPF / .NET 桌面环境。
 - `pwsh` 或 `powershell`，用于执行上游安装器和管理脚本。
+- GUI 启动后会检测 Windows 长路径支持；未启用时会推荐通过管理员权限启用，以减少安装路径过长导致的问题。
 
 ### Bash TUI/CLI 要求
 

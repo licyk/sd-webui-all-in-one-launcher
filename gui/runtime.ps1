@@ -29,6 +29,128 @@ function Resolve-PowerShellCommand {
     return ""
 }
 
+function Get-CurrentPowerShellExecutable {
+    try {
+        $process = Get-Process -Id $PID -ErrorAction Stop
+        $path = [string]$process.Path
+        if (-not [string]::IsNullOrWhiteSpace($path) -and (Test-Path -LiteralPath $path -PathType Leaf)) {
+            return $path
+        }
+    } catch {
+        Write-Log DEBUG "current powershell executable lookup failed: $($_.Exception.Message)"
+    }
+    return (Resolve-PowerShellCommand)
+}
+
+function Test-WindowsLongPathsEnabled {
+    try {
+        $reg = Get-ItemProperty -Path "HKLM:\SYSTEM\CurrentControlSet\Control\FileSystem" -Name "LongPathsEnabled" -ErrorAction Stop
+        $property = $reg.PSObject.Properties["LongPathsEnabled"]
+        if ($null -eq $property) {
+            Write-Log DEBUG "windows long path registry value is missing"
+            return $false
+        }
+        $enabled = ([int]$property.Value -eq 1)
+        Write-Log DEBUG "windows long path support enabled=$enabled value=$($property.Value)"
+        return $enabled
+    } catch {
+        Write-Log WARN "failed to read windows long path support registry value: $($_.Exception.Message)"
+        return $false
+    }
+}
+
+function Enable-WindowsLongPathsElevated {
+    $id = [guid]::NewGuid().ToString("N")
+    $tempDir = [System.IO.Path]::GetTempPath()
+    $workerPath = Join-Path $tempDir "installer-launcher-enable-long-paths-$id.ps1"
+    $statusPath = Join-Path $tempDir "installer-launcher-enable-long-paths-$id.status"
+    $workerScript = @'
+param(
+    [Parameter(Mandatory=$true)][string]$StatusPath
+)
+$ErrorActionPreference = "Stop"
+try {
+    New-ItemProperty -Path 'HKLM:\SYSTEM\CurrentControlSet\Control\FileSystem' -Name 'LongPathsEnabled' -Value 1 -PropertyType DWORD -Force | Out-Null
+    Set-Content -LiteralPath $StatusPath -Encoding UTF8 -Value "SUCCESS"
+    exit 0
+} catch {
+    $message = $_.Exception.Message
+    try { Set-Content -LiteralPath $StatusPath -Encoding UTF8 -Value ("FAILURE`n" + $message) } catch {}
+    exit 1
+}
+'@
+    try {
+        Set-Content -LiteralPath $workerPath -Encoding UTF8 -Value $workerScript
+        $command = Get-CurrentPowerShellExecutable
+        if ([string]::IsNullOrWhiteSpace($command)) { throw "未找到当前 PowerShell 可执行文件。" }
+        $argumentLine = Join-ProcessArguments @("-NoLogo", "-NoProfile", "-ExecutionPolicy", "Bypass", "-File", $workerPath, "-StatusPath", $statusPath)
+        Write-Log INFO "requesting elevated permission to enable windows long path support command=$command"
+        $process = Start-Process -FilePath $command -ArgumentList $argumentLine -Verb RunAs -Wait -PassThru -WindowStyle Hidden -ErrorAction Stop
+        $exitCode = -1
+        if ($null -ne $process) { $exitCode = [int]$process.ExitCode }
+        $statusLines = @()
+        if (Test-Path -LiteralPath $statusPath -PathType Leaf) {
+            $statusLines = @(Get-Content -LiteralPath $statusPath -Encoding UTF8 -ErrorAction SilentlyContinue)
+        }
+        if (Test-WindowsLongPathsEnabled) {
+            Write-Log INFO "windows long path support enabled successfully exit_code=$exitCode"
+            return [PSCustomObject]@{ Success = $true; Canceled = $false; Message = "Windows 长路径支持已启用。"; ExitCode = $exitCode }
+        }
+        $message = "管理员进程未能启用 Windows 长路径支持。退出代码: $exitCode"
+        if ($statusLines.Count -gt 0) { $message = ($statusLines -join " ") }
+        Write-Log WARN "windows long path support enable failed: $message"
+        return [PSCustomObject]@{ Success = $false; Canceled = $false; Message = $message; ExitCode = $exitCode }
+    } catch {
+        $exception = $_.Exception
+        $isCanceled = $false
+        if ($exception -is [System.ComponentModel.Win32Exception] -and $exception.NativeErrorCode -eq 1223) { $isCanceled = $true }
+        if ($exception.Message -match "cancel|取消") { $isCanceled = $true }
+        if ($isCanceled) {
+            Write-Log INFO "windows long path support enable canceled by user"
+            return [PSCustomObject]@{ Success = $false; Canceled = $true; Message = "用户取消了管理员权限请求。"; ExitCode = -1 }
+        }
+        Write-Log WARN "windows long path support enable launch failed: $($exception.Message)"
+        return [PSCustomObject]@{ Success = $false; Canceled = $false; Message = $exception.Message; ExitCode = -1 }
+    } finally {
+        Remove-Item -LiteralPath $workerPath -Force -ErrorAction SilentlyContinue
+        Remove-Item -LiteralPath $statusPath -Force -ErrorAction SilentlyContinue
+    }
+}
+
+function Invoke-WindowsLongPathsStartupCheck {
+    param($UI = $null)
+    if (Test-WindowsLongPathsEnabled) {
+        Write-Log DEBUG "windows long path support startup check passed"
+        return
+    }
+
+    Write-Log INFO "windows long path support is not enabled"
+    if ($null -ne $UI) {
+        Append-UiLog $UI "检测到 Windows 长路径支持未启用，建议启用以避免安装路径过长导致问题。"
+    }
+    $message = "检测到当前系统尚未启用 Windows 长路径支持。`n`n安装 AI WebUI / 训练工具时，依赖文件和模型目录可能很深，未启用时可能出现路径过长导致的下载、解压或安装失败。`n`n是否现在以管理员权限启用长路径支持？"
+    if (-not (Confirm-Message $message "启用 Windows 长路径支持")) {
+        Write-Log INFO "user declined windows long path support enable prompt"
+        if ($null -ne $UI) { Append-UiLog $UI "已跳过启用 Windows 长路径支持；如果系统仍未启用，下次启动会再次提醒。" }
+        return
+    }
+
+    if ($null -ne $UI) { Append-UiLog $UI "正在请求管理员权限以启用 Windows 长路径支持。" }
+    $result = Enable-WindowsLongPathsElevated
+    if ($result.Success) {
+        if ($null -ne $UI) { Append-UiLog $UI "Windows 长路径支持已启用。" }
+        Show-Message "Windows 长路径支持已启用。`n`n部分程序可能需要重新启动后才能完全识别该系统设置。" "启用完成" "Information"
+        return
+    }
+    if ($result.Canceled) {
+        if ($null -ne $UI) { Append-UiLog $UI "管理员权限请求已取消，Windows 长路径支持未启用。" }
+        Show-Message "未获得管理员权限，Windows 长路径支持尚未启用。`n`n启动器会继续运行；如果系统仍未启用，下次启动会再次提醒。" "未启用长路径支持" "Warning"
+        return
+    }
+    if ($null -ne $UI) { Append-UiLog $UI "启用 Windows 长路径支持失败: $($result.Message)" }
+    Show-Message "启用 Windows 长路径支持失败。`n`n$($result.Message)`n`n启动器会继续运行，请查看日志了解详情: $($script:LogFile)" "启用失败" "Warning"
+}
+
 function New-ConsoleWrapperScript {
     $path = Join-Path $env:TEMP ("installer-launcher-wrapper-{0}.ps1" -f ([guid]::NewGuid().ToString("N")))
     @'

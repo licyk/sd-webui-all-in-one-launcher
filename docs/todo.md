@@ -626,9 +626,16 @@
 - [x] 参数配置 v2 重构后运行 `git diff --check`，通过。
 - [x] 修复 GUI 安装器设置页前几个输入项未显示 PowerShell 参数名的问题，改为复用参数元数据 label。
 - [x] 修复 GUI 安装器参数名显示后运行 PowerShell 解析检查和 `tools/compile_gui.py`，通过。
+- [x] GUI 启动完成后会检测 Windows 长路径支持；未启用时提示用户，并可通过 UAC 提权写入 `LongPathsEnabled=1`。
+- [x] GUI 长路径支持提示不会迁移 `configure_env.bat` 中的 PowerShell 执行策略修改；用户取消后继续运行，下次启动仍会在未启用时提醒。
+- [x] 新增长路径支持检测后运行 `python3 -m py_compile tools/compile_gui.py`，通过。
+- [x] 新增长路径支持检测后运行 `python3 tools/compile_gui.py --output dist/installer_launcher_gui.ps1`，通过。
+- [x] 新增长路径支持检测后运行 PowerShell 解析检查，覆盖 `dist/installer_launcher_gui.ps1`、源码入口、`gui/*.ps1` 和 `install.ps1`，通过。
+- [x] 新增长路径支持检测后运行 `git diff --check`，通过。
 - [ ] 在 Windows PowerShell 5.1 中运行 `installer_launcher_gui.ps1`，验证 WPF 界面可正常启动。
 - [ ] 在 Windows 中验证 GUI 首次启动会创建 AppData / LocalAppData 配置、缓存和日志目录。
 - [ ] 在 Windows 中验证 GUI 安装器下载重试、PowerShell 执行、安装检测、管理脚本运行和项目卸载流程。
+- [ ] 在 Windows 中验证 GUI 长路径支持提示：已启用不提示、未启用提示、批准 UAC 后写入成功、取消 UAC 后继续运行。
 
 ## 待办
 
