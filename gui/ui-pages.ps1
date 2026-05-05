@@ -3,25 +3,32 @@
 function Collect-ProjectConfigFromUi {
     param($State)
     $config = $State.ProjectConfig
+    $project = $null
+    $projectKey = Get-CurrentProjectKey
+    if (-not [string]::IsNullOrWhiteSpace($projectKey) -and $script:Projects.Contains($projectKey)) {
+        $project = $script:Projects[$projectKey]
+    }
     foreach ($key in $State.ConfigControls.Keys) {
         $control = $State.ConfigControls[$key]
+        $value = $null
         if ($control -is [System.Windows.Controls.CheckBox]) {
-            $config[$key] = [bool]$control.IsChecked
+            $value = [bool]$control.IsChecked
         } elseif ($control -is [System.Windows.Controls.ComboBox]) {
             if ($null -ne $control.SelectedItem -and $control.SelectedItem -is [System.Windows.Controls.ComboBoxItem]) {
-                $config[$key] = [string]$control.SelectedItem.Tag
+                $value = [string]$control.SelectedItem.Tag
             } elseif ($null -ne $control.SelectedItem -and $null -ne $control.SelectedItem.PSObject.Properties["Key"]) {
-                $config[$key] = [string]$control.SelectedItem.PSObject.Properties["Key"].Value
+                $value = [string]$control.SelectedItem.PSObject.Properties["Key"].Value
             } elseif ($null -ne $control.SelectedValue) {
-                $config[$key] = [string]$control.SelectedValue
+                $value = [string]$control.SelectedValue
             } elseif ($null -ne $control.Text) {
-                $config[$key] = [string]$control.Text
+                $value = [string]$control.Text
             } else {
-                $config[$key] = ""
+                $value = ""
             }
         } elseif ($control -is [System.Windows.Controls.TextBox]) {
-            $config[$key] = $control.Text
+            $value = $control.Text
         }
+        if ($null -ne $project) { Set-InstallerConfigValue $project $config $key $value }
     }
     return $config
 }
@@ -182,7 +189,7 @@ function Apply-DiscoveredInstallTarget {
     Save-MainConfig
 
     $config = Get-ProjectConfig $projectKey
-    $config["INSTALL_PATH"] = $installPath
+    Set-InstallerConfigValue $script:Projects[$projectKey] $config "INSTALL_PATH" $installPath
     Save-ProjectConfig $projectKey $config
 
     $projectList = Get-UiControl $UI "ProjectList"
@@ -640,19 +647,14 @@ function Refresh-ScriptParamUi {
     if ([string]::IsNullOrWhiteSpace($key) -or $null -eq $UI.ScriptCombo.SelectedItem) { return }
     $scriptName = Get-SelectedScriptName $UI.ScriptCombo
     $config = Get-ProjectConfig $key
-    $scriptParams = @{}
-    if ($config.Contains("ScriptParams") -and $null -ne $config["ScriptParams"] -and (Test-DictionaryKey $config["ScriptParams"] $scriptName)) {
-        $scriptParams = $config["ScriptParams"][$scriptName]
-    }
     $scriptState = [PSCustomObject]@{ ConfigControls = @{} }
-    foreach ($paramName in (Get-ManagementScriptParams $key $scriptName)) {
-        if ($paramName -eq "NoPause") { continue }
-        $value = ""
-        if ($null -ne $scriptParams -and (Test-DictionaryKey $scriptParams $paramName)) { $value = $scriptParams[$paramName] }
-        if (Test-ScriptParamIsFlag $paramName) {
-            Add-ConfigCheckBox $UI.ScriptParamPanel $scriptState $paramName (Get-ScriptParamLabel $paramName) ([bool]$value)
+    foreach ($spec in (Get-ManagementScriptParamSpecs $key $scriptName)) {
+        if (-not [bool]$spec.Visible) { continue }
+        $value = Get-ScriptParamValue $config $scriptName $spec.Name
+        if (Test-ScriptParamIsFlag $spec.Name $spec) {
+            Add-ConfigCheckBox $UI.ScriptParamPanel $scriptState $spec.Name (Get-ScriptParamLabel $spec.Name $spec) ([bool]$value)
         } else {
-            Add-ConfigTextBox $UI.ScriptParamPanel $scriptState $paramName (Get-ScriptParamLabel $paramName) ([string]$value)
+            Add-ConfigTextBox $UI.ScriptParamPanel $scriptState $spec.Name (Get-ScriptParamLabel $spec.Name $spec) ([string]$value)
         }
     }
     $State.ScriptParamControls = $scriptState.ConfigControls
@@ -664,29 +666,25 @@ function Refresh-ScriptParamUi {
 function Save-ScriptParamUi {
     param($UI, $State, [System.Collections.IDictionary]$Config)
     if ($null -eq $UI.ScriptCombo -or $null -eq $UI.ScriptCombo.SelectedItem) { return }
-    if ($null -eq $Config["ScriptParams"]) { $Config["ScriptParams"] = @{} }
     $scriptName = Get-SelectedScriptName $UI.ScriptCombo
     if ([string]::IsNullOrWhiteSpace($scriptName)) { return }
-    $values = @{}
     foreach ($paramName in $State.ScriptParamControls.Keys) {
         $control = $State.ScriptParamControls[$paramName]
         if ($control -is [System.Windows.Controls.CheckBox]) {
-            $values[$paramName] = [bool]$control.IsChecked
+            Set-ScriptParamValue $Config $scriptName $paramName ([bool]$control.IsChecked)
         } elseif ($control -is [System.Windows.Controls.TextBox]) {
-            $values[$paramName] = $control.Text
+            Set-ScriptParamValue $Config $scriptName $paramName $control.Text
         }
     }
-    $Config["ScriptParams"][$scriptName] = $values
 }
 
 function Collect-ProjectAndScriptConfigFromUi {
     param($UI, $State)
     $config = Collect-ProjectConfigFromUi $State
     if ($null -ne $UI.ScriptCombo -and $null -ne $UI.ScriptCombo.SelectedItem) {
-        if ($null -eq $config["ScriptArgs"]) { $config["ScriptArgs"] = @{} }
         $scriptName = Get-SelectedScriptName $UI.ScriptCombo
         if (-not [string]::IsNullOrWhiteSpace($scriptName)) {
-            $config["ScriptArgs"][$scriptName] = $UI.ScriptArgsBox.Text
+            Set-ScriptExtraArgs $config $scriptName $UI.ScriptArgsBox.Text
             Save-ScriptParamUi $UI $State $config
         }
     }
@@ -729,21 +727,21 @@ function Refresh-ProjectConfigUi {
     $config = Get-ProjectConfig $key
     $State.ProjectConfig = $config
     if (Test-ProjectParam $project "InstallPath") {
-        Add-ConfigTextBox $UI.PathPanel $State "INSTALL_PATH" "安装路径（留空使用默认: $(Get-EffectiveInstallPath $project $config)）" $config["INSTALL_PATH"]
+        Add-ConfigTextBox $UI.PathPanel $State "INSTALL_PATH" "安装路径（留空使用默认: $(Get-EffectiveInstallPath $project $config)）" (Get-InstallerConfigValue $project $config "INSTALL_PATH")
     } else {
         $hint = New-Object System.Windows.Controls.TextBlock
         $hint.Text = "当前项目不支持自定义安装路径。"
         $hint.TextWrapping = "Wrap"
         $UI.PathPanel.Children.Add($hint) | Out-Null
     }
-    if (Test-ProjectParam $project "InstallBranch") { Add-ConfigComboBox $UI.ConfigPanel $State "INSTALL_BRANCH" "安装分支" $project.Branches $config["INSTALL_BRANCH"] }
-    if (Test-ProjectParam $project "CorePrefix") { Add-ConfigTextBox $UI.ConfigPanel $State "CORE_PREFIX" "内核路径前缀" $config["CORE_PREFIX"] }
-    if (Test-ProjectParam $project "PyTorchMirrorType") { Add-ConfigTextBox $UI.ConfigPanel $State "PYTORCH_MIRROR_TYPE" "PyTorch 镜像类型" $config["PYTORCH_MIRROR_TYPE"] }
-    if (Test-ProjectParam $project "InstallPythonVersion") { Add-ConfigTextBox $UI.ConfigPanel $State "PYTHON_VERSION" "Python 版本" $config["PYTHON_VERSION"] }
-    if (Test-ProjectParam $project "UseCustomProxy") { Add-ConfigTextBox $UI.ConfigPanel $State "PROXY" "安装器自定义代理 -UseCustomProxy" $config["PROXY"] }
-    if (Test-ProjectParam $project "UseCustomGithubMirror") { Add-ConfigTextBox $UI.ConfigPanel $State "GITHUB_MIRROR" "Github 镜像 -UseCustomGithubMirror" $config["GITHUB_MIRROR"] }
-    if (Test-ProjectParam $project "UseCustomHuggingFaceMirror") { Add-ConfigTextBox $UI.ConfigPanel $State "HUGGINGFACE_MIRROR" "HuggingFace 镜像 -UseCustomHuggingFaceMirror" $config["HUGGINGFACE_MIRROR"] }
-    Add-ConfigTextBox $UI.ConfigPanel $State "EXTRA_INSTALL_ARGS" "安装器自定义参数（追加到结构化参数之后）" $config["EXTRA_INSTALL_ARGS"]
+    if (Test-ProjectParam $project "InstallBranch") { Add-ConfigComboBox $UI.ConfigPanel $State "INSTALL_BRANCH" "安装分支" $project.Branches (Get-InstallerConfigValue $project $config "INSTALL_BRANCH") }
+    if (Test-ProjectParam $project "CorePrefix") { Add-ConfigTextBox $UI.ConfigPanel $State "CORE_PREFIX" "内核路径前缀" (Get-InstallerConfigValue $project $config "CORE_PREFIX") }
+    if (Test-ProjectParam $project "PyTorchMirrorType") { Add-ConfigTextBox $UI.ConfigPanel $State "PYTORCH_MIRROR_TYPE" "PyTorch 镜像类型" (Get-InstallerConfigValue $project $config "PYTORCH_MIRROR_TYPE") }
+    if (Test-ProjectParam $project "InstallPythonVersion") { Add-ConfigTextBox $UI.ConfigPanel $State "PYTHON_VERSION" "Python 版本" (Get-InstallerConfigValue $project $config "PYTHON_VERSION") }
+    if (Test-ProjectParam $project "UseCustomProxy") { Add-ConfigTextBox $UI.ConfigPanel $State "PROXY" "安装器自定义代理 -UseCustomProxy" (Get-InstallerConfigValue $project $config "PROXY") }
+    if (Test-ProjectParam $project "UseCustomGithubMirror") { Add-ConfigTextBox $UI.ConfigPanel $State "GITHUB_MIRROR" "Github 镜像 -UseCustomGithubMirror" (Get-InstallerConfigValue $project $config "GITHUB_MIRROR") }
+    if (Test-ProjectParam $project "UseCustomHuggingFaceMirror") { Add-ConfigTextBox $UI.ConfigPanel $State "HUGGINGFACE_MIRROR" "HuggingFace 镜像 -UseCustomHuggingFaceMirror" (Get-InstallerConfigValue $project $config "HUGGINGFACE_MIRROR") }
+    Add-ConfigTextBox $UI.ConfigPanel $State "EXTRA_INSTALL_ARGS" "安装器自定义参数（追加到结构化参数之后）" (Get-InstallerConfigValue $project $config "EXTRA_INSTALL_ARGS")
     $flags = @(
         [PSCustomObject]@{ Key = "DISABLE_PYPI_MIRROR"; Label = "禁用 PyPI 镜像 -DisablePyPIMirror"; Param = "DisablePyPIMirror" },
         [PSCustomObject]@{ Key = "DISABLE_PROXY"; Label = "禁用安装器自动代理 -DisableProxy"; Param = "DisableProxy" },
@@ -759,7 +757,7 @@ function Refresh-ProjectConfigUi {
         [PSCustomObject]@{ Key = "DISABLE_ENV_CHECK"; Label = "禁用环境检查 -DisableEnvCheck"; Param = "DisableEnvCheck" }
     )
     foreach ($flag in $flags) {
-        if (Test-ProjectParam $project $flag.Param) { Add-ConfigCheckBox $UI.ConfigPanel $State $flag.Key $flag.Label ([bool]$config[$flag.Key]) }
+        if (Test-ProjectParam $project $flag.Param) { Add-ConfigCheckBox $UI.ConfigPanel $State $flag.Key $flag.Label ([bool](Get-InstallerConfigValue $project $config $flag.Key)) }
     }
     } finally {
         $State.IsRefreshing = $false

@@ -64,7 +64,7 @@ configure_script_args() {
     local menu_args=()
     while IFS= read -r param; do
       [[ -n "$param" ]] || continue
-      [[ "$param" == "NoPause" ]] && continue
+      management_script_param_is_visible "$key" "$script_name" "$param" || continue
       value="$(get_script_param_value "$script_name" "$param")"
       if script_param_is_flag "$param"; then
         menu_args+=("$param" "$(script_param_label "$param"): $(flag_state "${value:-0}")")

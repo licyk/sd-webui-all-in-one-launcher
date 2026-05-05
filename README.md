@@ -417,6 +417,8 @@ GUI 脚本: %APPDATA%\installer-launcher\installer_launcher_gui.ps1
 
 GUI 支持项目选择、动态安装器配置、搜索当前系统中已安装的 WebUI 并切换管理路径、管理脚本运行、项目卸载、日志、代理模式、关于页和 GUI 自更新。GUI 不会注册 Bash 命令，也不会执行 Linux / macOS 依赖引导或 shell rc 清理。
 
+当前仍是测试版，项目配置采用 v2 参数存储结构：安装器参数和每个管理脚本参数分开保存。旧项目配置不会迁移，启动器检测到旧格式时会重建默认配置。
+
 ### Bash TUI/CLI 路径
 
 ```text
@@ -427,6 +429,8 @@ GUI 支持项目选择、动态安装器配置、搜索当前系统中已安装�
 启动器安装目录: ${XDG_DATA_HOME:-$HOME/.local/share}/installer-launcher
 命令链接: $HOME/.local/bin/installer-launcher
 ```
+
+Bash TUI/CLI 项目配置同样使用 v2 结构，安装器参数保存为 `INSTALLER_PARAM_*`，管理脚本参数保存为 `SCRIPT_PARAM_<SCRIPT>_*`。旧格式项目配置会被重建为默认值。
 
 ### 日志
 

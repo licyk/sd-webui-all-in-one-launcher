@@ -219,6 +219,16 @@ quote_config() {
   printf '%q' "$1"
 }
 
+param_var_token() {
+  printf '%s' "$1" | sed -E 's/([a-z0-9])([A-Z])/\1_\2/g' | tr '[:lower:]-' '[:upper:]_'
+}
+
+installer_param_var_name() {
+  local param_safe
+  param_safe="$(param_var_token "$1")"
+  printf 'INSTALLER_PARAM_%s' "$param_safe"
+}
+
 script_arg_var_name() {
   local safe
   safe="$(printf '%s' "$1" | tr '[:lower:].-' '[:upper:]__' | tr -c 'A-Z0-9_' '_')"
@@ -228,7 +238,7 @@ script_arg_var_name() {
 script_param_var_name() {
   local script_safe param_safe
   script_safe="$(printf '%s' "$1" | tr '[:lower:].-' '[:upper:]__' | tr -c 'A-Z0-9_' '_')"
-  param_safe="$(printf '%s' "$2" | sed -E 's/([a-z0-9])([A-Z])/\1_\2/g' | tr '[:lower:]-' '[:upper:]_')"
+  param_safe="$(param_var_token "$2")"
   printf 'SCRIPT_PARAM_%s_%s' "$script_safe" "$param_safe"
 }
 

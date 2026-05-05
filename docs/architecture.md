@@ -105,7 +105,7 @@ Windows GUI 数据路径：
 日志目录: %LOCALAPPDATA%\installer-launcher\logs\
 ```
 
-配置目录还会缓存 GUI 头图、快捷方式图标和已安装的 GUI 脚本本体。项目的当前管理目标仍由项目配置中的 `INSTALL_PATH` 决定；已安装 WebUI 搜索结果只是运行时选择列表，用户点击“设为当前管理目标”后才会写入对应项目配置。
+配置目录还会缓存 GUI 头图、快捷方式图标和已安装的 GUI 脚本本体。项目配置使用 `SchemaVersion = 2`，安装器参数保存在 `Installer.Params`，管理脚本参数保存在 `Scripts.<script>.Params`。项目的当前管理目标由 `Installer.Params.InstallPath` 决定；已安装 WebUI 搜索结果只是运行时选择列表，用户点击“设为当前管理目标”后才会写入对应项目配置。
 
 ### GUI 启动流程
 
@@ -329,7 +329,7 @@ ${XDG_CONFIG_HOME:-$HOME/.config}/installer-launcher/projects/<project>.conf
 - `MANUAL_PROXY`
 - `AUTO_UPDATE_LAST_CHECK`
 
-项目配置保存安装路径、分支、镜像、代理、额外参数和子脚本默认参数。
+项目配置使用 `CONFIG_SCHEMA_VERSION=2`。安装器参数以 `INSTALLER_PARAM_*` 保存，安装器额外参数以 `INSTALLER_EXTRA_ARGS` 保存；管理脚本参数以 `SCRIPT_PARAM_<SCRIPT>_*` 保存，管理脚本额外参数以 `SCRIPT_ARGS_<SCRIPT>` 保存。测试版不兼容旧项目配置，缺少 v2 schema 的项目配置会被重建为默认值。
 
 ### `lib/ui.sh`
 

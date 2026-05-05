@@ -92,6 +92,7 @@
 - [x] TUI 配置界面按当前项目支持的参数动态显示字段。
 - [x] 构建安装器参数时只传递当前项目支持的参数。
 - [x] `set-project` 会拒绝设置当前项目不支持的结构化配置项。
+- [x] `sd_trainer_script` installer 参数表不再包含 `-EnableShortcut`；其他仍支持该参数的 `launch.ps1` 管理脚本继续保留该选项。
 - [x] `NoPause` 不再作为用户配置项；运行安装器和管理脚本时始终自动追加 `-NoPause`，并避免重复添加。
 - [x] 运行安装器时显式传入 `-InstallPath`，未配置时使用 `$HOME/<项目默认目录>`。
 - [x] `EXTRA_INSTALL_ARGS` 会追加到结构化安装器参数之后。
@@ -605,6 +606,15 @@
 - [x] 修改 `install.ps1` GUI 安装确认后运行 `bash -n install.sh installer_launcher.sh lib/*.sh`，通过。
 - [x] 修改 `install.ps1` GUI 安装确认后运行 `shellcheck install.sh installer_launcher.sh lib/*.sh`，通过。
 - [x] 修改 `install.ps1` GUI 安装确认后运行 `git diff --check`，通过。
+- [x] GUI/TUI installer 参数配置改为 v2：安装器参数与每个管理脚本参数按项目独立登记和保存，旧项目配置检测到非 v2 schema 时直接重建默认配置。
+- [x] `sd_trainer_script` 不再继承其他项目的 `launch.ps1` 参数；主安装器不包含 `-EnableShortcut`，`train.ps1` 不再自动追加 `-NoPause`。
+- [x] 其他支持快捷方式的项目仍在 `launch.ps1` 管理脚本中保留 `-EnableShortcut`，避免再次误伤。
+- [x] README 和架构文档补充 v2 项目配置结构及测试版不兼容旧配置说明。
+- [x] 参数配置 v2 重构后运行 `bash -n install.sh installer_launcher.sh lib/*.sh`，通过。
+- [x] 参数配置 v2 重构后运行 `shellcheck install.sh installer_launcher.sh lib/*.sh`，通过。
+- [x] 参数配置 v2 重构后运行 PowerShell 解析检查，覆盖源码入口和 `gui/*.ps1`，通过。
+- [x] 参数配置 v2 重构后运行 `tools/compile_gui.py`，通过。
+- [x] 参数配置 v2 重构后运行 `git diff --check`，通过。
 - [ ] 在 Windows PowerShell 5.1 中运行 `installer_launcher_gui.ps1`，验证 WPF 界面可正常启动。
 - [ ] 在 Windows 中验证 GUI 首次启动会创建 AppData / LocalAppData 配置、缓存和日志目录。
 - [ ] 在 Windows 中验证 GUI 安装器下载重试、PowerShell 执行、安装检测、管理脚本运行和项目卸载流程。

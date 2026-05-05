@@ -864,8 +864,7 @@ function Invoke-RunManagementScript {
         Show-Message "未找到管理脚本:`n$scriptPath`n`n请先运行安装器，或检查安装路径。" "脚本不存在" "Error"
         return
     }
-    if ($null -eq $config["ScriptArgs"]) { $config["ScriptArgs"] = @{} }
-    $config["ScriptArgs"][$scriptName] = $UI.ScriptArgsBox.Text
+    Set-ScriptExtraArgs $config $scriptName $UI.ScriptArgsBox.Text
     Save-ScriptParamUi $UI $State $config
     Save-ProjectConfig $key $config
     $scriptArgs = @(Build-ManagementScriptArgs $key $scriptName $config)

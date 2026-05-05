@@ -15,31 +15,27 @@ function Get-DefaultMainConfig {
 function Get-DefaultProjectConfig {
     param([string]$ProjectKey)
     $project = $script:Projects[$ProjectKey]
-    [ordered]@{
-        INSTALL_PATH = ""
-        INSTALL_BRANCH = $project.DefaultBranch
-        CORE_PREFIX = ""
-        PYTORCH_MIRROR_TYPE = ""
-        PYTHON_VERSION = ""
-        PROXY = ""
-        GITHUB_MIRROR = ""
-        HUGGINGFACE_MIRROR = ""
-        EXTRA_INSTALL_ARGS = ""
-        DISABLE_PYPI_MIRROR = $false
-        DISABLE_PROXY = $false
-        DISABLE_UV = $false
-        DISABLE_GITHUB_MIRROR = $false
-        DISABLE_MODEL_MIRROR = $false
-        DISABLE_HUGGINGFACE_MIRROR = $false
-        DISABLE_CUDA_MALLOC = $false
-        DISABLE_ENV_CHECK = $false
-        NO_PRE_DOWNLOAD_EXTENSION = $false
-        NO_PRE_DOWNLOAD_NODE = $false
-        NO_PRE_DOWNLOAD_MODEL = $false
-        NO_CLEAN_CACHE = $false
-        ScriptParams = @{}
-        ScriptArgs = @{}
+    $config = [ordered]@{
+        SchemaVersion = 2
+        Installer = [ordered]@{
+            Params = [ordered]@{}
+            ExtraArgs = ""
+        }
+        Scripts = [ordered]@{}
     }
+    foreach ($spec in (Get-InstallerParamSpecs $project)) {
+        $config.Installer.Params[$spec.Name] = Get-DefaultParamValue $spec $project
+    }
+    foreach ($scriptName in @($project.Scripts.Keys)) {
+        $config.Scripts[$scriptName] = [ordered]@{
+            Params = [ordered]@{}
+            ExtraArgs = ""
+        }
+        foreach ($spec in (Get-ManagementScriptParamSpecs $ProjectKey $scriptName)) {
+            $config.Scripts[$scriptName].Params[$spec.Name] = Get-DefaultParamValue $spec $project
+        }
+    }
+    return $config
 }
 
 function Copy-Dictionary {
@@ -49,6 +45,138 @@ function Copy-Dictionary {
         $copy[$key] = $Source[$key]
     }
     return $copy
+}
+
+function Get-DefaultParamValue {
+    param($Spec, $Project)
+    if ($Spec.Name -eq "InstallBranch") { return [string]$Project.DefaultBranch }
+    if ($Spec.Kind -eq "flag") { return $false }
+    return ""
+}
+
+function Get-InstallerParamSpecs {
+    param($Project)
+    if ($null -ne $Project -and $Project.Contains("Installer") -and $null -ne $Project.Installer -and $Project.Installer.Contains("Params")) {
+        return @($Project.Installer.Params)
+    }
+    return @()
+}
+
+function Get-InstallerParamSpec {
+    param($Project, [string]$ParamName)
+    foreach ($spec in (Get-InstallerParamSpecs $Project)) {
+        if ($spec.Name -eq $ParamName) { return $spec }
+    }
+    return $null
+}
+
+function Get-InstallerParamSpecByConfigKey {
+    param($Project, [string]$ConfigKey)
+    foreach ($spec in (Get-InstallerParamSpecs $Project)) {
+        if ($spec.ConfigKey -eq $ConfigKey) { return $spec }
+    }
+    return $null
+}
+
+function Get-ManagementScriptParamSpecs {
+    param([string]$ProjectKey, [string]$ScriptName)
+    if ([string]::IsNullOrWhiteSpace($ProjectKey) -or -not $script:Projects.Contains($ProjectKey)) { return @() }
+    $project = $script:Projects[$ProjectKey]
+    if ($null -eq $project -or -not $project.Contains("ScriptParams") -or $null -eq $project.ScriptParams) { return @() }
+    if (-not (Test-DictionaryKey $project.ScriptParams $ScriptName)) { return @() }
+    return @($project.ScriptParams[$ScriptName])
+}
+
+function Get-ManagementScriptParamSpec {
+    param([string]$ProjectKey, [string]$ScriptName, [string]$ParamName)
+    foreach ($spec in (Get-ManagementScriptParamSpecs $ProjectKey $ScriptName)) {
+        if ($spec.Name -eq $ParamName) { return $spec }
+    }
+    return $null
+}
+
+function Get-InstallerParamsTable {
+    param([System.Collections.IDictionary]$Config)
+    if ($null -eq $Config["Installer"] -or -not ($Config["Installer"] -is [System.Collections.IDictionary])) { $Config["Installer"] = [ordered]@{} }
+    if (-not $Config["Installer"].Contains("Params") -or $null -eq $Config["Installer"]["Params"] -or -not ($Config["Installer"]["Params"] -is [System.Collections.IDictionary])) { $Config["Installer"]["Params"] = [ordered]@{} }
+    if (-not $Config["Installer"].Contains("ExtraArgs") -or $null -eq $Config["Installer"]["ExtraArgs"]) { $Config["Installer"]["ExtraArgs"] = "" }
+    return $Config["Installer"]["Params"]
+}
+
+function Get-ScriptConfigTable {
+    param([System.Collections.IDictionary]$Config, [string]$ScriptName)
+    if ($null -eq $Config["Scripts"] -or -not ($Config["Scripts"] -is [System.Collections.IDictionary])) { $Config["Scripts"] = [ordered]@{} }
+    if (-not (Test-DictionaryKey $Config["Scripts"] $ScriptName) -or $null -eq $Config["Scripts"][$ScriptName] -or -not ($Config["Scripts"][$ScriptName] -is [System.Collections.IDictionary])) {
+        $Config["Scripts"][$ScriptName] = [ordered]@{ Params = [ordered]@{}; ExtraArgs = "" }
+    }
+    if (-not $Config["Scripts"][$ScriptName].Contains("Params") -or $null -eq $Config["Scripts"][$ScriptName]["Params"] -or -not ($Config["Scripts"][$ScriptName]["Params"] -is [System.Collections.IDictionary])) {
+        $Config["Scripts"][$ScriptName]["Params"] = [ordered]@{}
+    }
+    if (-not $Config["Scripts"][$ScriptName].Contains("ExtraArgs") -or $null -eq $Config["Scripts"][$ScriptName]["ExtraArgs"]) {
+        $Config["Scripts"][$ScriptName]["ExtraArgs"] = ""
+    }
+    return $Config["Scripts"][$ScriptName]
+}
+
+function Get-InstallerParamValue {
+    param([System.Collections.IDictionary]$Config, [string]$ParamName)
+    $params = Get-InstallerParamsTable $Config
+    if (Test-DictionaryKey $params $ParamName) { return $params[$ParamName] }
+    return ""
+}
+
+function Set-InstallerParamValue {
+    param([System.Collections.IDictionary]$Config, [string]$ParamName, $Value)
+    $params = Get-InstallerParamsTable $Config
+    $params[$ParamName] = $Value
+}
+
+function Get-InstallerConfigValue {
+    param($Project, [System.Collections.IDictionary]$Config, [string]$ConfigKey)
+    if ($ConfigKey -eq "EXTRA_INSTALL_ARGS") {
+        [void](Get-InstallerParamsTable $Config)
+        return [string]$Config["Installer"]["ExtraArgs"]
+    }
+    $spec = Get-InstallerParamSpecByConfigKey $Project $ConfigKey
+    if ($null -eq $spec) { return "" }
+    return (Get-InstallerParamValue $Config $spec.Name)
+}
+
+function Set-InstallerConfigValue {
+    param($Project, [System.Collections.IDictionary]$Config, [string]$ConfigKey, $Value)
+    if ($ConfigKey -eq "EXTRA_INSTALL_ARGS") {
+        [void](Get-InstallerParamsTable $Config)
+        $Config["Installer"]["ExtraArgs"] = [string]$Value
+        return
+    }
+    $spec = Get-InstallerParamSpecByConfigKey $Project $ConfigKey
+    if ($null -eq $spec) { return }
+    Set-InstallerParamValue $Config $spec.Name $Value
+}
+
+function Get-ScriptParamValue {
+    param([System.Collections.IDictionary]$Config, [string]$ScriptName, [string]$ParamName)
+    $scriptConfig = Get-ScriptConfigTable $Config $ScriptName
+    if (Test-DictionaryKey $scriptConfig.Params $ParamName) { return $scriptConfig.Params[$ParamName] }
+    return ""
+}
+
+function Set-ScriptParamValue {
+    param([System.Collections.IDictionary]$Config, [string]$ScriptName, [string]$ParamName, $Value)
+    $scriptConfig = Get-ScriptConfigTable $Config $ScriptName
+    $scriptConfig.Params[$ParamName] = $Value
+}
+
+function Get-ScriptExtraArgs {
+    param([System.Collections.IDictionary]$Config, [string]$ScriptName)
+    $scriptConfig = Get-ScriptConfigTable $Config $ScriptName
+    return [string]$scriptConfig.ExtraArgs
+}
+
+function Set-ScriptExtraArgs {
+    param([System.Collections.IDictionary]$Config, [string]$ScriptName, [string]$Value)
+    $scriptConfig = Get-ScriptConfigTable $Config $ScriptName
+    $scriptConfig.ExtraArgs = $Value
 }
 
 function Read-JsonConfig {
@@ -84,6 +212,59 @@ function Read-JsonConfig {
     }
 }
 
+function Read-ProjectJsonConfig {
+    param([string]$Path, [System.Collections.IDictionary]$Default)
+    if (-not (Test-Path $Path -PathType Leaf)) {
+        return (Copy-Dictionary $Default)
+    }
+    try {
+        $raw = Get-Content -LiteralPath $Path -Raw -Encoding UTF8
+        if ([string]::IsNullOrWhiteSpace($raw)) {
+            Save-JsonConfig -Path $Path -Config $Default
+            return (Copy-Dictionary $Default)
+        }
+        $loaded = ConvertTo-PlainHashtable ($raw | ConvertFrom-Json)
+        if (-not $loaded.Contains("SchemaVersion") -or [int]$loaded["SchemaVersion"] -ne 2) {
+            Write-Log WARN "project config schema reset to v2: path=$Path"
+            Save-JsonConfig -Path $Path -Config $Default
+            return (Copy-Dictionary $Default)
+        }
+        $merged = Copy-Dictionary $Default
+        if ($loaded.Contains("Installer") -and $null -ne $loaded["Installer"]) {
+            if (-not ($loaded["Installer"] -is [System.Collections.IDictionary])) { $loaded["Installer"] = ConvertTo-PlainHashtable $loaded["Installer"] }
+            if ($loaded["Installer"].Contains("ExtraArgs")) { $merged["Installer"]["ExtraArgs"] = [string]$loaded["Installer"]["ExtraArgs"] }
+            if ($loaded["Installer"].Contains("Params") -and $null -ne $loaded["Installer"]["Params"]) {
+                if (-not ($loaded["Installer"]["Params"] -is [System.Collections.IDictionary])) { $loaded["Installer"]["Params"] = ConvertTo-PlainHashtable $loaded["Installer"]["Params"] }
+                foreach ($paramName in @($loaded["Installer"]["Params"].Keys)) {
+                    $merged["Installer"]["Params"][$paramName] = $loaded["Installer"]["Params"][$paramName]
+                }
+            }
+        }
+        if ($loaded.Contains("Scripts") -and $null -ne $loaded["Scripts"]) {
+            if (-not ($loaded["Scripts"] -is [System.Collections.IDictionary])) { $loaded["Scripts"] = ConvertTo-PlainHashtable $loaded["Scripts"] }
+            foreach ($scriptName in @($loaded["Scripts"].Keys)) {
+                if ([string]::IsNullOrWhiteSpace($scriptName)) { continue }
+                $scriptConfig = Get-ScriptConfigTable $merged $scriptName
+                $loadedScript = $loaded["Scripts"][$scriptName]
+                if ($null -eq $loadedScript) { continue }
+                if (-not ($loadedScript -is [System.Collections.IDictionary])) { $loadedScript = ConvertTo-PlainHashtable $loadedScript }
+                if ($loadedScript.Contains("ExtraArgs")) { $scriptConfig["ExtraArgs"] = [string]$loadedScript["ExtraArgs"] }
+                if ($loadedScript.Contains("Params") -and $null -ne $loadedScript["Params"]) {
+                    if (-not ($loadedScript["Params"] -is [System.Collections.IDictionary])) { $loadedScript["Params"] = ConvertTo-PlainHashtable $loadedScript["Params"] }
+                    foreach ($paramName in @($loadedScript["Params"].Keys)) {
+                        $scriptConfig["Params"][$paramName] = $loadedScript["Params"][$paramName]
+                    }
+                }
+            }
+        }
+        return $merged
+    } catch {
+        Write-Log WARN "failed to read project config, reset to defaults: path=$Path error=$($_.Exception.Message)"
+        Save-JsonConfig -Path $Path -Config $Default
+        return (Copy-Dictionary $Default)
+    }
+}
+
 function Save-JsonConfig {
     param([string]$Path, [System.Collections.IDictionary]$Config)
     New-Item -ItemType Directory -Force -Path (Split-Path -Parent $Path) | Out-Null
@@ -97,7 +278,7 @@ function Get-ProjectConfigPath {
 
 function Get-ProjectConfig {
     param([string]$ProjectKey)
-    Read-JsonConfig -Path (Get-ProjectConfigPath $ProjectKey) -Default (Get-DefaultProjectConfig $ProjectKey)
+    Read-ProjectJsonConfig -Path (Get-ProjectConfigPath $ProjectKey) -Default (Get-DefaultProjectConfig $ProjectKey)
 }
 
 function Save-ProjectConfig {
@@ -184,35 +365,23 @@ function Configure-ProxyFromMainConfig {
 
 function Test-ProjectParam {
     param($Project, [string]$ParamName)
-    return @($Project.Params) -contains $ParamName
+    return $null -ne (Get-InstallerParamSpec $Project $ParamName)
 }
 
 function Get-ManagementScriptParams {
     param([string]$ProjectKey, [string]$ScriptName)
-    switch ($ScriptName) {
-        "launch.ps1" { return @("CorePrefix", "BuildMode", "DisablePyPIMirror", "DisableUpdate", "DisableProxy", "UseCustomProxy", "DisableHuggingFaceMirror", "UseCustomHuggingFaceMirror", "DisableGithubMirror", "UseCustomGithubMirror", "DisableUV", "LaunchArg", "EnableShortcut", "DisableCUDAMalloc", "DisableEnvCheck", "NoPause") }
-        "download_models.ps1" { return @("CorePrefix", "BuildMode", "BuildWithModel", "DisableProxy", "UseCustomProxy", "DisableUpdate", "DisableModelMirror", "NoPause") }
-        "reinstall_pytorch.ps1" { return @("CorePrefix", "BuildMode", "BuildWithTorch", "BuildWithTorchReinstall", "DisablePyPIMirror", "DisableUpdate", "DisableUV", "DisableProxy", "UseCustomProxy", "NoPause") }
-        "settings.ps1" { return @("CorePrefix", "DisableProxy", "UseCustomProxy", "NoPause") }
-        "switch_branch.ps1" { return @("CorePrefix", "BuildMode", "BuildWithBranch", "DisableUpdate", "DisableProxy", "UseCustomProxy", "DisableGithubMirror", "UseCustomGithubMirror", "NoPause") }
-        "version_manager.ps1" { return @("CorePrefix", "DisableUpdate", "DisableProxy", "UseCustomProxy", "DisableGithubMirror", "UseCustomGithubMirror", "NoPause") }
-        "update.ps1" {
-            if ($ProjectKey -eq "invokeai") { return @("CorePrefix", "BuildMode", "DisableUpdate", "DisableProxy", "UseCustomProxy", "DisablePyPIMirror", "DisableUV", "NoPause") }
-            return @("CorePrefix", "BuildMode", "DisableUpdate", "DisableProxy", "UseCustomProxy", "DisableGithubMirror", "UseCustomGithubMirror", "NoPause")
-        }
-        { $_ -in @("update_node.ps1", "update_extension.ps1") } { return @("CorePrefix", "BuildMode", "DisableUpdate", "DisableProxy", "UseCustomProxy", "DisableGithubMirror", "UseCustomGithubMirror", "NoPause") }
-        default { return @("NoPause") }
-    }
+    return @((Get-ManagementScriptParamSpecs $ProjectKey $ScriptName) | ForEach-Object { $_.Name })
 }
 
 function Test-ManagementScriptParam {
     param([string]$ProjectKey, [string]$ScriptName, [string]$ParamName)
-    return @((Get-ManagementScriptParams $ProjectKey $ScriptName)) -contains $ParamName
+    return $null -ne (Get-ManagementScriptParamSpec $ProjectKey $ScriptName $ParamName)
 }
 
 function Test-ScriptParamIsFlag {
-    param([string]$ParamName)
-    return $ParamName -in @("BuildMode", "DisablePyPIMirror", "DisableUpdate", "DisableProxy", "DisableHuggingFaceMirror", "DisableGithubMirror", "DisableUV", "EnableShortcut", "DisableCUDAMalloc", "DisableEnvCheck", "DisableModelMirror", "BuildWithTorchReinstall")
+    param([string]$ParamName, $Spec = $null)
+    if ($null -ne $Spec) { return $Spec.Kind -eq "flag" }
+    return (Get-LauncherParamKind $ParamName) -eq "flag"
 }
 
 function Get-SelectedScriptName {
@@ -225,35 +394,15 @@ function Get-SelectedScriptName {
 }
 
 function Get-ScriptParamLabel {
-    param([string]$ParamName)
-    switch ($ParamName) {
-        "CorePrefix" { "内核路径前缀 -CorePrefix"; break }
-        "BuildMode" { "构建模式 -BuildMode"; break }
-        "BuildWithModel" { "构建后下载模型编号 -BuildWithModel"; break }
-        "BuildWithTorch" { "PyTorch 版本编号 -BuildWithTorch"; break }
-        "BuildWithTorchReinstall" { "强制重装 PyTorch -BuildWithTorchReinstall"; break }
-        "BuildWithBranch" { "构建分支 -BuildWithBranch"; break }
-        "DisablePyPIMirror" { "禁用 PyPI 镜像 -DisablePyPIMirror"; break }
-        "DisableUpdate" { "禁用更新检查 -DisableUpdate"; break }
-        "DisableProxy" { "禁用自动代理 -DisableProxy"; break }
-        "UseCustomProxy" { "自定义代理 -UseCustomProxy"; break }
-        "DisableHuggingFaceMirror" { "禁用 HuggingFace 镜像 -DisableHuggingFaceMirror"; break }
-        "UseCustomHuggingFaceMirror" { "自定义 HuggingFace 镜像 -UseCustomHuggingFaceMirror"; break }
-        "DisableGithubMirror" { "禁用 Github 镜像 -DisableGithubMirror"; break }
-        "UseCustomGithubMirror" { "自定义 Github 镜像 -UseCustomGithubMirror"; break }
-        "DisableUV" { "禁用 uv -DisableUV"; break }
-        "LaunchArg" { "启动参数 -LaunchArg"; break }
-        "EnableShortcut" { "创建快捷方式 -EnableShortcut"; break }
-        "DisableCUDAMalloc" { "禁用 CUDA 内存分配器 -DisableCUDAMalloc"; break }
-        "DisableEnvCheck" { "禁用环境检查 -DisableEnvCheck"; break }
-        "DisableModelMirror" { "禁用模型镜像 -DisableModelMirror"; break }
-        default { $ParamName; break }
-    }
+    param([string]$ParamName, $Spec = $null)
+    if ($null -ne $Spec -and -not [string]::IsNullOrWhiteSpace($Spec.Label)) { return [string]$Spec.Label }
+    return (Get-LauncherParamLabel $ParamName)
 }
 
 function Get-EffectiveInstallPath {
     param($Project, [System.Collections.IDictionary]$Config)
-    if (-not [string]::IsNullOrWhiteSpace($Config["INSTALL_PATH"])) { return $Config["INSTALL_PATH"] }
+    $installPath = [string](Get-InstallerParamValue $Config "InstallPath")
+    if (-not [string]::IsNullOrWhiteSpace($installPath)) { return $installPath }
     return (Join-Path ([Environment]::GetFolderPath("UserProfile")) $Project.DefaultDir)
 }
 
@@ -267,58 +416,59 @@ function Get-InstallerCachePath {
 function Build-InstallerArgs {
     param($Project, [System.Collections.IDictionary]$Config)
     $args = New-Object System.Collections.Generic.List[string]
-    if (Test-ProjectParam $Project "InstallPath") { $args.Add("-InstallPath"); $args.Add((Get-EffectiveInstallPath $Project $Config)) }
-    if ((Test-ProjectParam $Project "CorePrefix") -and -not [string]::IsNullOrWhiteSpace($Config["CORE_PREFIX"])) { $args.Add("-CorePrefix"); $args.Add($Config["CORE_PREFIX"]) }
-    if ((Test-ProjectParam $Project "PyTorchMirrorType") -and -not [string]::IsNullOrWhiteSpace($Config["PYTORCH_MIRROR_TYPE"])) { $args.Add("-PyTorchMirrorType"); $args.Add($Config["PYTORCH_MIRROR_TYPE"]) }
-    if ((Test-ProjectParam $Project "InstallPythonVersion") -and -not [string]::IsNullOrWhiteSpace($Config["PYTHON_VERSION"])) { $args.Add("-InstallPythonVersion"); $args.Add($Config["PYTHON_VERSION"]) }
-    if ((Test-ProjectParam $Project "InstallBranch") -and -not [string]::IsNullOrWhiteSpace($Config["INSTALL_BRANCH"])) { $args.Add("-InstallBranch"); $args.Add($Config["INSTALL_BRANCH"]) }
-    if ((Test-ProjectParam $Project "DisablePyPIMirror") -and $Config["DISABLE_PYPI_MIRROR"]) { $args.Add("-DisablePyPIMirror") }
-    if ((Test-ProjectParam $Project "DisableProxy") -and $Config["DISABLE_PROXY"]) { $args.Add("-DisableProxy") }
-    if ((Test-ProjectParam $Project "UseCustomProxy") -and -not [string]::IsNullOrWhiteSpace($Config["PROXY"])) { $args.Add("-UseCustomProxy"); $args.Add($Config["PROXY"]) }
-    if ((Test-ProjectParam $Project "DisableUV") -and $Config["DISABLE_UV"]) { $args.Add("-DisableUV") }
-    if ((Test-ProjectParam $Project "DisableGithubMirror") -and $Config["DISABLE_GITHUB_MIRROR"]) { $args.Add("-DisableGithubMirror") }
-    if ((Test-ProjectParam $Project "UseCustomGithubMirror") -and -not [string]::IsNullOrWhiteSpace($Config["GITHUB_MIRROR"])) { $args.Add("-UseCustomGithubMirror"); $args.Add($Config["GITHUB_MIRROR"]) }
-    if ((Test-ProjectParam $Project "NoPreDownloadExtension") -and $Config["NO_PRE_DOWNLOAD_EXTENSION"]) { $args.Add("-NoPreDownloadExtension") }
-    if ((Test-ProjectParam $Project "NoPreDownloadNode") -and $Config["NO_PRE_DOWNLOAD_NODE"]) { $args.Add("-NoPreDownloadNode") }
-    if ((Test-ProjectParam $Project "NoPreDownloadModel") -and $Config["NO_PRE_DOWNLOAD_MODEL"]) { $args.Add("-NoPreDownloadModel") }
-    if ((Test-ProjectParam $Project "NoCleanCache") -and $Config["NO_CLEAN_CACHE"]) { $args.Add("-NoCleanCache") }
-    if ((Test-ProjectParam $Project "DisableModelMirror") -and $Config["DISABLE_MODEL_MIRROR"]) { $args.Add("-DisableModelMirror") }
-    if ((Test-ProjectParam $Project "DisableHuggingFaceMirror") -and $Config["DISABLE_HUGGINGFACE_MIRROR"]) { $args.Add("-DisableHuggingFaceMirror") }
-    if ((Test-ProjectParam $Project "UseCustomHuggingFaceMirror") -and -not [string]::IsNullOrWhiteSpace($Config["HUGGINGFACE_MIRROR"])) { $args.Add("-UseCustomHuggingFaceMirror"); $args.Add($Config["HUGGINGFACE_MIRROR"]) }
-    if ((Test-ProjectParam $Project "DisableCUDAMalloc") -and $Config["DISABLE_CUDA_MALLOC"]) { $args.Add("-DisableCUDAMalloc") }
-    if ((Test-ProjectParam $Project "DisableEnvCheck") -and $Config["DISABLE_ENV_CHECK"]) { $args.Add("-DisableEnvCheck") }
-    if (-not [string]::IsNullOrWhiteSpace($Config["EXTRA_INSTALL_ARGS"])) {
-        foreach ($arg in (Split-Shlex $Config["EXTRA_INSTALL_ARGS"])) { $args.Add($arg) }
+    $autoAppendSpecs = @()
+    foreach ($spec in (Get-InstallerParamSpecs $Project)) {
+        if ($spec.AutoAppend) {
+            $autoAppendSpecs += $spec
+            continue
+        }
+        if ($spec.Name -eq "InstallPath") {
+            $args.Add("-InstallPath")
+            $args.Add((Get-EffectiveInstallPath $Project $Config))
+            continue
+        }
+        $value = Get-InstallerParamValue $Config $spec.Name
+        if ($spec.Kind -eq "flag") {
+            if ([bool]$value) { $args.Add("-$($spec.Name)") }
+        } elseif (-not [string]::IsNullOrWhiteSpace([string]$value)) {
+            $args.Add("-$($spec.Name)")
+            $args.Add([string]$value)
+        }
     }
-    if (-not (Test-ArgsContains @($args) "-NoPause")) { $args.Add("-NoPause") }
+    $extraArgs = [string]$Config["Installer"]["ExtraArgs"]
+    if (-not [string]::IsNullOrWhiteSpace($extraArgs)) {
+        foreach ($arg in (Split-Shlex $extraArgs)) { $args.Add($arg) }
+    }
+    foreach ($spec in $autoAppendSpecs) {
+        if (-not (Test-ArgsContains @($args) "-$($spec.Name)")) { $args.Add("-$($spec.Name)") }
+    }
     return @($args)
 }
 
 function Build-ManagementScriptArgs {
     param([string]$ProjectKey, [string]$ScriptName, [System.Collections.IDictionary]$Config)
     $args = New-Object System.Collections.Generic.List[string]
-    $scriptParams = @{}
-    if ($Config.Contains("ScriptParams") -and $null -ne $Config["ScriptParams"] -and (Test-DictionaryKey $Config["ScriptParams"] $ScriptName)) {
-        $scriptParams = $Config["ScriptParams"][$ScriptName]
-    }
-    foreach ($paramName in (Get-ManagementScriptParams $ProjectKey $ScriptName)) {
-        if ($paramName -eq "NoPause") { continue }
-        $value = ""
-        if ($null -ne $scriptParams -and (Test-DictionaryKey $scriptParams $paramName)) { $value = $scriptParams[$paramName] }
-        if (Test-ScriptParamIsFlag $paramName) {
-            if ([bool]$value) { $args.Add("-$paramName") }
+    $autoAppendSpecs = @()
+    foreach ($spec in (Get-ManagementScriptParamSpecs $ProjectKey $ScriptName)) {
+        if ($spec.AutoAppend) {
+            $autoAppendSpecs += $spec
+            continue
+        }
+        $value = Get-ScriptParamValue $Config $ScriptName $spec.Name
+        if ($spec.Kind -eq "flag") {
+            if ([bool]$value) { $args.Add("-$($spec.Name)") }
         } elseif (-not [string]::IsNullOrWhiteSpace([string]$value)) {
-            $args.Add("-$paramName")
+            $args.Add("-$($spec.Name)")
             $args.Add([string]$value)
         }
     }
-    if ($Config.Contains("ScriptArgs") -and $null -ne $Config["ScriptArgs"] -and (Test-DictionaryKey $Config["ScriptArgs"] $ScriptName)) {
-        $argsText = [string]$Config["ScriptArgs"][$ScriptName]
-        if (-not [string]::IsNullOrWhiteSpace($argsText)) {
-            foreach ($arg in (Split-Shlex $argsText)) { $args.Add($arg) }
-        }
+    $argsText = Get-ScriptExtraArgs $Config $ScriptName
+    if (-not [string]::IsNullOrWhiteSpace($argsText)) {
+        foreach ($arg in (Split-Shlex $argsText)) { $args.Add($arg) }
     }
-    if ((Test-ManagementScriptParam $ProjectKey $ScriptName "NoPause") -and -not (Test-ArgsContains @($args) "-NoPause")) { $args.Add("-NoPause") }
+    foreach ($spec in $autoAppendSpecs) {
+        if (-not (Test-ArgsContains @($args) "-$($spec.Name)")) { $args.Add("-$($spec.Name)") }
+    }
     return @($args)
 }
 
@@ -355,4 +505,3 @@ function Get-CurrentProjectKey {
     if (-not $script:Projects.Contains($script:MainConfig["CURRENT_PROJECT"])) { return "" }
     return $script:MainConfig["CURRENT_PROJECT"]
 }
-

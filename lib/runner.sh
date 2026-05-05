@@ -461,7 +461,7 @@ run_management_script() {
   append_management_script_args "$key" "$script_name" args
   split_args "$args_raw" extra_args
   args+=("${extra_args[@]}")
-  if management_script_supports_param "$key" "$script_name" NoPause || project_supports_param "$key" NoPause; then
+  if management_script_supports_param "$key" "$script_name" NoPause; then
     args_contains_param "-NoPause" "${args[@]}" || args+=("-NoPause")
   fi
   log_info "management script prepared: project=$key script=$script_name path=$script_path args=$(format_log_args "${args[@]}")"

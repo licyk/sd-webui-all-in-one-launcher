@@ -18,36 +18,38 @@ ensure_main_config() {
 }
 
 ensure_project_config() {
-  local key="$1" file branch
+  local key="$1" file branch schema
   file="$(project_config_file "$key")"
   branch="$(project_default_branch "$key")"
   mkdir -p "$PROJECT_CONFIG_DIR"
-  if [[ ! -f "$file" ]]; then
-    log_info "create project config: project=$key file=$file"
-    {
-      printf 'INSTALL_PATH=""\n'
-      printf 'INSTALL_BRANCH=%s\n' "$(quote_config "$branch")"
-      printf 'CORE_PREFIX=""\n'
-      printf 'PYTORCH_MIRROR_TYPE=""\n'
-      printf 'PYTHON_VERSION=""\n'
-      printf 'PROXY=""\n'
-      printf 'GITHUB_MIRROR=""\n'
-      printf 'HUGGINGFACE_MIRROR=""\n'
-      printf 'EXTRA_INSTALL_ARGS=""\n'
-      printf 'DISABLE_PYPI_MIRROR="0"\n'
-      printf 'DISABLE_PROXY="0"\n'
-      printf 'DISABLE_UV="0"\n'
-      printf 'DISABLE_GITHUB_MIRROR="0"\n'
-      printf 'DISABLE_MODEL_MIRROR="0"\n'
-      printf 'DISABLE_HUGGINGFACE_MIRROR="0"\n'
-      printf 'DISABLE_CUDA_MALLOC="0"\n'
-      printf 'DISABLE_ENV_CHECK="0"\n'
-      printf 'NO_PRE_DOWNLOAD_EXTENSION="0"\n'
-      printf 'NO_PRE_DOWNLOAD_NODE="0"\n'
-      printf 'NO_PRE_DOWNLOAD_MODEL="0"\n'
-      printf 'NO_CLEAN_CACHE="0"\n'
-    } >"$file"
+  if [[ -f "$file" ]]; then
+    schema="$(sed -n 's/^CONFIG_SCHEMA_VERSION=//p' "$file" | head -n 1)"
+    if [[ "$schema" != "2" && "$schema" != '"2"' && "$schema" != "'2'" ]]; then
+      log_warn "reset incompatible project config schema: project=$key file=$file"
+      rm -f -- "$file"
+    fi
   fi
+  if [[ ! -f "$file" ]]; then
+    log_info "create project config v2: project=$key file=$file"
+    write_default_project_config_v2 "$key" "$branch" >"$file"
+  fi
+}
+
+write_default_project_config_v2() {
+  local key="$1" branch="$2" param var default_value
+  printf 'CONFIG_SCHEMA_VERSION="2"\n'
+  while IFS= read -r param; do
+    [[ -n "$param" ]] || continue
+    installer_param_config_var_name "$param" >/dev/null 2>&1 || continue
+    var="$(installer_param_var_name "$param")"
+    case "$param" in
+      InstallBranch) default_value="$branch" ;;
+      Disable*|No*) default_value="0" ;;
+      *) default_value="" ;;
+    esac
+    printf '%s=%s\n' "$var" "$(quote_config "$default_value")"
+  done < <(project_param_entries "$key")
+  printf 'INSTALLER_EXTRA_ARGS=""\n'
 }
 
 load_log_level_hint() {
@@ -96,6 +98,7 @@ save_main_config() {
 }
 
 reset_project_config_vars() {
+  CONFIG_SCHEMA_VERSION=2
   INSTALL_PATH=""
   INSTALL_BRANCH=""
   CORE_PREFIX=""
@@ -119,6 +122,45 @@ reset_project_config_vars() {
   NO_CLEAN_CACHE=0
 }
 
+installer_param_config_var_name() {
+  case "$1" in
+    InstallPath) printf 'INSTALL_PATH' ;;
+    InstallBranch) printf 'INSTALL_BRANCH' ;;
+    CorePrefix) printf 'CORE_PREFIX' ;;
+    PyTorchMirrorType) printf 'PYTORCH_MIRROR_TYPE' ;;
+    InstallPythonVersion) printf 'PYTHON_VERSION' ;;
+    UseCustomProxy) printf 'PROXY' ;;
+    UseCustomGithubMirror) printf 'GITHUB_MIRROR' ;;
+    UseCustomHuggingFaceMirror) printf 'HUGGINGFACE_MIRROR' ;;
+    DisablePyPIMirror) printf 'DISABLE_PYPI_MIRROR' ;;
+    DisableProxy) printf 'DISABLE_PROXY' ;;
+    DisableUV) printf 'DISABLE_UV' ;;
+    DisableGithubMirror) printf 'DISABLE_GITHUB_MIRROR' ;;
+    DisableModelMirror) printf 'DISABLE_MODEL_MIRROR' ;;
+    DisableHuggingFaceMirror) printf 'DISABLE_HUGGINGFACE_MIRROR' ;;
+    DisableCUDAMalloc) printf 'DISABLE_CUDA_MALLOC' ;;
+    DisableEnvCheck) printf 'DISABLE_ENV_CHECK' ;;
+    NoPreDownloadExtension) printf 'NO_PRE_DOWNLOAD_EXTENSION' ;;
+    NoPreDownloadNode) printf 'NO_PRE_DOWNLOAD_NODE' ;;
+    NoPreDownloadModel) printf 'NO_PRE_DOWNLOAD_MODEL' ;;
+    NoCleanCache) printf 'NO_CLEAN_CACHE' ;;
+    *) return 1 ;;
+  esac
+}
+
+sync_installer_params_from_v2_vars() {
+  local key="$1" param source_var target_var value
+  while IFS= read -r param; do
+    [[ -n "$param" ]] || continue
+    target_var="$(installer_param_config_var_name "$param")" || continue
+    source_var="$(installer_param_var_name "$param")"
+    value="${!source_var:-}"
+    printf -v "$target_var" '%s' "$value"
+  done < <(project_param_entries "$key")
+  INSTALL_BRANCH="${INSTALL_BRANCH:-$(project_default_branch "$key")}"
+  EXTRA_INSTALL_ARGS="${INSTALLER_EXTRA_ARGS:-}"
+}
+
 load_project_config() {
   local key="$1"
   require_project_key "$key"
@@ -126,17 +168,22 @@ load_project_config() {
   ensure_project_config "$key"
   # shellcheck disable=SC1090
   source "$(project_config_file "$key")"
-  INSTALL_BRANCH="${INSTALL_BRANCH:-$(project_default_branch "$key")}"
+  sync_installer_params_from_v2_vars "$key"
 }
 
 save_project_config() {
-  local key="$1" file config_key entry script var param
+  local key="$1" file entry script var param value source_var
   file="$(project_config_file "$key")"
   mkdir -p "$PROJECT_CONFIG_DIR"
   {
-    for config_key in "${PROJECT_CONFIG_KEYS[@]}"; do
-      printf '%s=%s\n' "$config_key" "$(quote_config "${!config_key:-}")"
-    done
+    printf 'CONFIG_SCHEMA_VERSION="2"\n'
+    while IFS= read -r param; do
+      [[ -n "$param" ]] || continue
+      source_var="$(installer_param_config_var_name "$param")" || continue
+      var="$(installer_param_var_name "$param")"
+      printf '%s=%s\n' "$var" "$(quote_config "${!source_var:-}")"
+    done < <(project_param_entries "$key")
+    printf 'INSTALLER_EXTRA_ARGS=%s\n' "$(quote_config "${EXTRA_INSTALL_ARGS:-}")"
     while IFS= read -r entry; do
       [[ -n "$entry" ]] || continue
       script="${entry%%:*}"
@@ -146,7 +193,8 @@ save_project_config() {
         [[ -n "$param" ]] || continue
         [[ "$param" == "NoPause" ]] && continue
         var="$(script_param_var_name "$script" "$param")"
-        printf '%s=%s\n' "$var" "$(quote_config "${!var:-}")"
+        value="${!var:-}"
+        printf '%s=%s\n' "$var" "$(quote_config "$value")"
       done < <(management_script_param_entries "$key" "$script")
     done < <(script_entries_for_project "$key")
   } >"$file"
@@ -243,7 +291,7 @@ EOF
     printf '[%s]\n' "$script"
     while IFS= read -r param; do
       [[ -n "$param" ]] || continue
-      [[ "$param" == "NoPause" ]] && continue
+      management_script_param_is_visible "$key" "$script" "$param" || continue
       value="$(get_script_param_value "$script" "$param")"
       [[ -n "$value" ]] && printf '  %s=%s\n' "$param" "$value"
     done < <(management_script_param_entries "$key" "$script")

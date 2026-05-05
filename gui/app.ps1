@@ -112,11 +112,7 @@ function Start-App {
         $scriptName = Get-SelectedScriptName $UI.ScriptCombo
         $State.IsRefreshing = $true
         try {
-        if ($null -ne $config["ScriptArgs"] -and (Test-DictionaryKey $config["ScriptArgs"] $scriptName)) {
-            $UI.ScriptArgsBox.Text = [string]$config["ScriptArgs"][$scriptName]
-        } else {
-            $UI.ScriptArgsBox.Text = ""
-        }
+        $UI.ScriptArgsBox.Text = Get-ScriptExtraArgs $config $scriptName
         Refresh-ScriptParamUi $UI $State
         } finally {
             $State.IsRefreshing = $false
