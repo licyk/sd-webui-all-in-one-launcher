@@ -491,6 +491,53 @@ function Save-MainConfig {
     Configure-ProxyFromMainConfig
 }
 
+function Reset-MainConfigPreferences {
+    $currentProject = ""
+    $agreementAccepted = $false
+    if ($null -ne $script:MainConfig) {
+        if (Test-DictionaryKey $script:MainConfig "CURRENT_PROJECT") { $currentProject = [string]$script:MainConfig["CURRENT_PROJECT"] }
+        if (Test-DictionaryKey $script:MainConfig "USER_AGREEMENT_ACCEPTED") { $agreementAccepted = [bool]$script:MainConfig["USER_AGREEMENT_ACCEPTED"] }
+    }
+    $script:MainConfig = Get-DefaultMainConfig
+    $script:MainConfig["CURRENT_PROJECT"] = $currentProject
+    $script:MainConfig["USER_AGREEMENT_ACCEPTED"] = $agreementAccepted
+    Save-MainConfig
+    Write-Log INFO "main config preferences reset: current_project=$currentProject agreement=$agreementAccepted"
+}
+
+function Test-ProjectManagementScript {
+    param([string]$ProjectKey, [string]$ScriptName)
+    if ([string]::IsNullOrWhiteSpace($ProjectKey) -or -not $script:Projects.Contains($ProjectKey)) { return $false }
+    if ([string]::IsNullOrWhiteSpace($ScriptName)) { return $false }
+    $project = $script:Projects[$ProjectKey]
+    return (Test-DictionaryKey $project.Scripts $ScriptName)
+}
+
+function Reset-InstallerConfig {
+    param([string]$ProjectKey)
+    if ([string]::IsNullOrWhiteSpace($ProjectKey) -or -not $script:Projects.Contains($ProjectKey)) {
+        throw "未知项目: $ProjectKey"
+    }
+    $config = Get-ProjectConfig $ProjectKey
+    $default = Get-DefaultProjectConfig $ProjectKey
+    $config["Installer"] = $default["Installer"]
+    Save-ProjectConfig $ProjectKey $config
+    Write-Log INFO "installer config reset: project=$ProjectKey"
+}
+
+function Reset-ManagementScriptConfig {
+    param([string]$ProjectKey, [string]$ScriptName)
+    if (-not (Test-ProjectManagementScript $ProjectKey $ScriptName)) {
+        throw "$ProjectKey 没有管理脚本: $ScriptName"
+    }
+    $config = Get-ProjectConfig $ProjectKey
+    $default = Get-DefaultProjectConfig $ProjectKey
+    if ($null -eq $config["Scripts"] -or -not ($config["Scripts"] -is [System.Collections.IDictionary])) { $config["Scripts"] = [ordered]@{} }
+    $config["Scripts"][$ScriptName] = $default["Scripts"][$ScriptName]
+    Save-ProjectConfig $ProjectKey $config
+    Write-Log INFO "management script config reset: project=$ProjectKey script=$ScriptName"
+}
+
 function Load-AllConfig {
     Initialize-Directories
     $script:MainConfig = Read-JsonConfig -Path $script:MainConfigFile -Default (Get-DefaultMainConfig)

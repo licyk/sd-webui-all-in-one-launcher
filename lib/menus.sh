@@ -74,11 +74,22 @@ configure_script_args() {
     done < <(management_script_param_entries "$key" "$script_name")
     current="$(get_script_args "$script_name")"
     menu_args+=("raw" "额外原始参数: ${current:-无}")
+    menu_args+=("reset" "重置当前管理脚本设置")
     menu_args+=("back" "返回")
 
     choice="$(menu_select "$script_name 参数配置" "只显示该管理脚本文档中支持的参数；-NoPause 会自动追加。" "${menu_args[@]}")" || return 0
     case "$choice" in
       back) save_project_config "$key"; return 0 ;;
+      reset)
+        if confirm_screen "重置管理脚本设置" "即将重置 $(project_name "$key") 的 $script_name 参数。
+
+只会清除当前选择的管理脚本结构化参数和额外原始参数。
+不会影响 installer 安装设置，也不会影响其他管理脚本。
+
+确认继续？"; then
+          reset_management_script_config "$key" "$script_name"
+        fi
+        ;;
       raw)
         new_value="$(input_box "额外原始参数" "追加给 $script_name 的原始参数，结构化参数会排在它之前" "$current")" || true
         set_script_args "$script_name" "$new_value"
@@ -159,6 +170,7 @@ configure_project() {
     menu_args+=("flags" "开关参数")
     menu_args+=("extra" "主安装器自定义参数: ${EXTRA_INSTALL_ARGS:-无}")
     menu_args+=("script_args" "子脚本默认启动参数设置")
+    menu_args+=("reset_installer" "重置 installer 安装设置")
     menu_args+=("back" "返回")
 
     choice="$(menu_select "$(project_name "$key") 配置" "项目配置文件: $(project_config_file "$key")" "${menu_args[@]}")" || return 0
@@ -180,6 +192,16 @@ configure_project() {
       flags) configure_flags "$key" || true ;;
       extra) EXTRA_INSTALL_ARGS="$(input_box "主安装器自定义参数" "直接追加给 $(project_installer_file "$key") 的参数" "${EXTRA_INSTALL_ARGS:-}")" || true ;;
       script_args) configure_script_args "$key" || true ;;
+      reset_installer)
+        if confirm_screen "重置 installer 设置" "即将重置 $(project_name "$key") 的 installer 安装设置。
+
+会恢复安装路径、分支、镜像、代理、开关参数和主安装器自定义参数为默认值。
+不会清除任何管理脚本参数，也不会删除已安装软件、缓存或日志。
+
+确认继续？"; then
+          reset_installer_config "$key"
+        fi
+        ;;
       back) save_project_config "$key"; return 0 ;;
     esac
     save_project_config "$key"
@@ -196,6 +218,7 @@ configure_main() {
       "log_level" "日志等级: $LOG_LEVEL" \
       "proxy_mode" "代理模式: $PROXY_MODE" \
       "manual_proxy" "手动代理地址: ${MANUAL_PROXY:-未设置}" \
+      "reset_main" "重置启动器设置" \
       "back" "返回")" || return 0
     case "$choice" in
       project) change_current_project ;;
@@ -234,6 +257,16 @@ configure_main() {
         ;;
       manual_proxy)
         MANUAL_PROXY="$(input_box "手动代理地址" "例如 http://127.0.0.1:7890 或 socks://127.0.0.1:1080。代理模式为 manual 时生效，留空表示不设置。" "${MANUAL_PROXY:-}")" || true
+        ;;
+      reset_main)
+        if confirm_screen "重置启动器设置" "即将重置启动器自身偏好设置。
+
+会恢复自动更新、欢迎页、日志等级、代理模式、手动代理地址和更新检查时间。
+当前安装器选择会保留；已安装软件、项目配置、缓存和日志不会被删除。
+
+确认继续？"; then
+          reset_main_config_preferences
+        fi
         ;;
       back) save_main_config; return 0 ;;
     esac
@@ -353,6 +386,7 @@ dialog 操作方式
     界面会按 manager_script_docs.md 中的脚本文档动态显示支持项，不支持的参数不会出现。
     结构化参数会排在额外原始参数之前，-NoPause 会自动追加。
     这些参数只在运行对应子脚本时使用，不会传给主安装器。
+    “重置当前管理脚本设置”只会重置当前选择的脚本，不会影响其他管理脚本。
 
   当前安装器配置
     配置当前项目的安装参数。界面会按项目动态显示支持项，不支持的参数不会出现。
@@ -364,6 +398,7 @@ dialog 操作方式
       代理和镜像: 用于 Github、HuggingFace、PyPI 等下载加速或网络环境适配。
       开关参数: 例如禁用代理、禁用镜像、跳过预下载模型、禁用环境检查等。
       主安装器自定义参数: 原样追加给主安装器，适合临时传递未内置的参数。
+    「重置 installer 安装设置」只会恢复 installer 参数默认值，不会清除管理脚本参数。
 
   启动器主配置
     当前安装器: 可重新选择当前项目，或在 CLI 中使用 null 清空当前项目。
@@ -372,6 +407,7 @@ dialog 操作方式
     日志等级: 控制写入日志文件的最低等级，可选 DEBUG、INFO、WARN、ERROR。
     代理模式: 控制启动器联网操作是否使用代理。auto 自动读取系统代理，manual 使用手动代理地址，off 清理代理环境变量。
     手动代理地址: 代理模式为 manual 时使用，例如 http://127.0.0.1:7890。
+    「重置启动器设置」会恢复启动器偏好默认值，但保留当前安装器选择。
     注意: 实际安装路径优先看项目配置里的安装路径；未设置才使用默认安装路径。
 
   安装/更新启动器
@@ -444,6 +480,12 @@ CLI 辅助命令
     设置手动代理地址，仅在 PROXY_MODE=manual 时生效。
   ./installer_launcher.sh set-script-param comfyui launch.ps1 LaunchArg "--listen 0.0.0.0"
     设置某个管理脚本的结构化参数；开关参数使用 1/0。
+  ./installer_launcher.sh reset-main
+    重置启动器偏好设置，保留当前安装器选择。
+  ./installer_launcher.sh reset-installer comfyui
+    重置指定项目的 installer 安装设置，保留管理脚本参数。
+  ./installer_launcher.sh reset-script comfyui launch.ps1
+    只重置指定管理脚本的结构化参数和额外原始参数。
   ./installer_launcher.sh config [project]
     查看项目配置。未传 project 时使用当前项目。
   ./installer_launcher.sh show-log [lines]

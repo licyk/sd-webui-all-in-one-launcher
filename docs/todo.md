@@ -85,6 +85,7 @@
 - [x] `set-main CURRENT_PROJECT null` 可清空当前项目。
 - [x] 已移除 `WORKSPACE_DIR` 及其管理脚本查找兜底逻辑。
 - [x] 每个项目使用独立配置文件：`${XDG_CONFIG_HOME:-$HOME/.config}/installer-launcher/projects/<project>.conf`。
+- [x] 启动器偏好可一键重置为默认值，并保留当前安装器选择。
 
 ## 参数与安装器运行
 
@@ -96,6 +97,7 @@
 - [x] `NoPause` 不再作为用户配置项；运行安装器和管理脚本时始终自动追加 `-NoPause`，并避免重复添加。
 - [x] 运行安装器时显式传入 `-InstallPath`，未配置时使用 `$HOME/<项目默认目录>`。
 - [x] `EXTRA_INSTALL_ARGS` 会追加到结构化安装器参数之后。
+- [x] installer 安装设置可单独重置为默认值，重置时不会清除任何管理脚本参数。
 - [x] 运行安装器前展示确认信息，包括项目、安装器下载源列表、缓存路径、安装路径、PowerShell 参数和当前项目配置。
 - [x] 用户取消确认时不会下载，也不会执行 PowerShell。
 - [x] PowerShell 安装器返回非零退出代码时，会停留在当前终端提示用户查看输出日志，按 Enter 后再返回 TUI。
@@ -192,6 +194,7 @@
 - [x] 管理脚本返回非零退出代码时，会停留在当前终端提示用户查看 PowerShell 输出日志，按 Enter 后再返回 TUI。
 - [x] 子脚本默认参数可按项目配置保存。
 - [x] 子脚本结构化参数会随项目配置保存，并在 `show-config` 中展示。
+- [x] 管理脚本参数可按脚本单独重置，只影响当前指定脚本，不影响同项目其他管理脚本。
 
 ## TUI
 
@@ -201,6 +204,7 @@
 - [x] TUI 帮助页面已添加到主界面。
 - [x] TUI 启动欢迎页已添加，展示版本信息、自动更新状态和 dialog 操作提示。
 - [x] 启动欢迎页可通过“启动器主配置”关闭或开启。
+- [x] TUI 已在启动器主配置、当前安装器配置和管理脚本参数配置中加入独立重置入口，并在执行前确认重置范围。
 - [x] 启动欢迎页使用非致命展示；dialog 取消、终端尺寸问题或渲染失败不会导致启动器退出。
 - [x] TUI 帮助文档已补充首次使用流程、状态含义、配置细节、常见问题和 CLI 辅助命令。
 - [x] `show-config` 使用 `text_viewer` 展示配置，避免长文本导致异常退出。
@@ -219,6 +223,7 @@
 - [x] 已添加 `install-launcher --yes` 非交互安装入口。
 - [x] 已添加 `uninstall [project]`。
 - [x] 已添加 `show-log [lines]`。
+- [x] 已添加 `reset-main`、`reset-installer [project]` 和 `reset-script <project> <script.ps1>`。
 - [x] CLI 帮助文本已与当前命令保持一致。
 - [x] `set-main AUTO_UPDATE_ENABLED 0/1` 可关闭或开启启动时自动更新。
 - [x] `set-main SHOW_WELCOME_SCREEN 0/1` 可关闭或开启 TUI 启动欢迎页。
@@ -399,6 +404,7 @@
 - [x] GUI 运行安装器或管理脚本时会记录当前 PowerShell 控制台 PID，并提供“终止当前任务”按钮；确认后只终止当前启动器创建的进程树。
 - [x] 修复 GUI 终止任务后完成回调引用外层 `$scriptPath` 导致严格模式报错的问题，脚本路径改为随任务结果返回。
 - [x] 修复 GUI 在 Windows PowerShell 5.1 中 WPF 事件回调无法解析 `Report-UiError`、`Update-OneClickModeUi` 等函数的问题；事件处理改为启动时导出必要函数到 `Global:` 函数表，避免 DispatcherTimer / WPF 事件闭包丢失 handler。
+- [x] GUI 设置页、高级选项的安装器设置页和管理脚本设置页已分别新增启动器偏好、installer 参数和当前管理脚本参数重置按钮。
 - [x] `AGENTS.md` 已记录 Windows PowerShell 5.1 下 WPF 事件处理方式：事件 helper 通过 `Export-GuiEventFunctions` 导出到 `Global:`，不要使用局部脚本块闭包或 `$script:GuiHandler_*` 缓存。
 - [x] `README.md` 已补充日志位置、崩溃记录、脱敏策略和 `show-log` 命令。
 - [x] `README.md` 已补充日志等级设置方法。
@@ -413,6 +419,12 @@
 
 ## 验证记录
 
+- [x] 新增重置设置功能后运行 `bash -n install.sh installer_launcher.sh lib/*.sh`，通过。
+- [x] 新增重置设置功能后运行 `shellcheck install.sh installer_launcher.sh lib/*.sh`，通过。
+- [x] 新增重置设置功能后运行 PowerShell 解析检查，覆盖源码入口、`install.ps1` 和 `gui/*.ps1`，通过。
+- [x] 新增重置设置功能后解析 `gui/xaml/main.xaml`，通过。
+- [x] 新增重置设置功能后使用临时 XDG 目录验证 `reset-main`、`reset-installer` 和 `reset-script` 的隔离行为，通过。
+- [x] 新增重置设置功能后运行 `git diff --check`，通过。
 - [x] 多次运行 `bash -n installer_launcher.sh lib/*.sh`，通过。
 - [x] 多次运行 `shellcheck installer_launcher.sh lib/*.sh`，通过。
 - [x] 运行 `bash -n install.sh installer_launcher.sh lib/*.sh`，通过。

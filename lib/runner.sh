@@ -374,15 +374,6 @@ set_script_param_value() {
   printf -v "$var" '%s' "$value"
 }
 
-script_param_is_flag() {
-  case "$1" in
-    BuildMode|DisablePyPIMirror|DisableUpdate|DisableProxy|DisableHuggingFaceMirror|DisableGithubMirror|DisableUV|EnableShortcut|DisableCUDAMalloc|DisableEnvCheck|DisableModelMirror|BuildWithTorchReinstall)
-      return 0
-      ;;
-    *) return 1 ;;
-  esac
-}
-
 script_param_label() {
   case "$1" in
     CorePrefix) printf '内核路径前缀 -CorePrefix' ;;

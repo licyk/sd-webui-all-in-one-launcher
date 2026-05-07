@@ -337,6 +337,14 @@ script_entries_for_project() {
   printf '%s\n' "${!array_name}"
 }
 
+project_has_management_script() {
+  local key="$1" script_name="$2" entry
+  while IFS= read -r entry; do
+    [[ "${entry%%:*}" == "$script_name" ]] && return 0
+  done < <(script_entries_for_project "$key")
+  return 1
+}
+
 branch_entries_for_project() {
   local key="$1" array_name="PROJECT_${1}_BRANCHES[@]"
   if declare -p "PROJECT_${key}_BRANCHES" >/dev/null 2>&1; then

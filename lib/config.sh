@@ -35,6 +35,15 @@ ensure_project_config() {
   fi
 }
 
+installer_param_default_value() {
+  local key="$1" param="$2"
+  case "$param" in
+    InstallBranch) project_default_branch "$key" ;;
+    Disable*|No*) printf '0' ;;
+    *) printf '' ;;
+  esac
+}
+
 write_default_project_config_v2() {
   local key="$1" branch="$2" param var default_value
   printf 'CONFIG_SCHEMA_VERSION="2"\n'
@@ -42,11 +51,8 @@ write_default_project_config_v2() {
     [[ -n "$param" ]] || continue
     installer_param_config_var_name "$param" >/dev/null 2>&1 || continue
     var="$(installer_param_var_name "$param")"
-    case "$param" in
-      InstallBranch) default_value="$branch" ;;
-      Disable*|No*) default_value="0" ;;
-      *) default_value="" ;;
-    esac
+    default_value="$(installer_param_default_value "$key" "$param")"
+    [[ "$param" == "InstallBranch" && -n "$branch" ]] && default_value="$branch"
     printf '%s=%s\n' "$var" "$(quote_config "$default_value")"
   done < <(project_param_entries "$key")
   printf 'INSTALLER_EXTRA_ARGS=""\n'
@@ -97,6 +103,19 @@ save_main_config() {
   log_debug "saved main config: file=$MAIN_CONFIG_FILE current_project=${CURRENT_PROJECT:-<none>} auto_update=$AUTO_UPDATE_ENABLED welcome=$SHOW_WELCOME_SCREEN log_level=$LOG_LEVEL proxy_mode=$PROXY_MODE manual_proxy=$(sanitize_config_log_value MANUAL_PROXY "$MANUAL_PROXY") last_check=$AUTO_UPDATE_LAST_CHECK"
 }
 
+reset_main_config_preferences() {
+  local preserved_project="${CURRENT_PROJECT:-}"
+  CURRENT_PROJECT="$preserved_project"
+  AUTO_UPDATE_ENABLED=1
+  SHOW_WELCOME_SCREEN=1
+  LOG_LEVEL="DEBUG"
+  PROXY_MODE="auto"
+  MANUAL_PROXY=""
+  AUTO_UPDATE_LAST_CHECK=0
+  save_main_config
+  log_info "main config preferences reset: current_project=${CURRENT_PROJECT:-<none>}"
+}
+
 reset_project_config_vars() {
   CONFIG_SCHEMA_VERSION=2
   INSTALL_PATH=""
@@ -120,6 +139,57 @@ reset_project_config_vars() {
   NO_PRE_DOWNLOAD_NODE=0
   NO_PRE_DOWNLOAD_MODEL=0
   NO_CLEAN_CACHE=0
+}
+
+script_param_is_flag() {
+  case "$1" in
+    BuildMode|DisablePyPIMirror|DisableUpdate|DisableProxy|DisableHuggingFaceMirror|DisableGithubMirror|DisableUV|EnableShortcut|DisableCUDAMalloc|DisableEnvCheck|DisableModelMirror|BuildWithTorchReinstall)
+      return 0
+      ;;
+    *) return 1 ;;
+  esac
+}
+
+script_param_default_value() {
+  if script_param_is_flag "$1"; then
+    printf '0'
+  else
+    printf ''
+  fi
+}
+
+reset_installer_config_vars() {
+  local key="$1" param var default_value
+  while IFS= read -r param; do
+    [[ -n "$param" ]] || continue
+    var="$(installer_param_config_var_name "$param")" || continue
+    default_value="$(installer_param_default_value "$key" "$param")"
+    printf -v "$var" '%s' "$default_value"
+  done < <(project_param_entries "$key")
+  EXTRA_INSTALL_ARGS=""
+  INSTALLER_EXTRA_ARGS=""
+}
+
+reset_management_script_config_vars() {
+  local key="$1" script_name="$2" param var default_value
+  var="$(script_arg_var_name "$script_name")"
+  printf -v "$var" '%s' ""
+  while IFS= read -r param; do
+    [[ -n "$param" ]] || continue
+    [[ "$param" == "NoPause" ]] && continue
+    var="$(script_param_var_name "$script_name" "$param")"
+    default_value="$(script_param_default_value "$param")"
+    printf -v "$var" '%s' "$default_value"
+  done < <(management_script_param_entries "$key" "$script_name")
+}
+
+reset_script_config_vars_for_project() {
+  local key="$1" entry script_name
+  while IFS= read -r entry; do
+    [[ -n "$entry" ]] || continue
+    script_name="${entry%%:*}"
+    reset_management_script_config_vars "$key" "$script_name"
+  done < <(script_entries_for_project "$key")
 }
 
 installer_param_config_var_name() {
@@ -165,10 +235,30 @@ load_project_config() {
   local key="$1"
   require_project_key "$key"
   reset_project_config_vars
+  reset_script_config_vars_for_project "$key"
   ensure_project_config "$key"
   # shellcheck disable=SC1090
   source "$(project_config_file "$key")"
   sync_installer_params_from_v2_vars "$key"
+}
+
+reset_installer_config() {
+  local key="$1"
+  require_project_key "$key"
+  load_project_config "$key"
+  reset_installer_config_vars "$key"
+  save_project_config "$key"
+  log_info "installer config reset: project=$key"
+}
+
+reset_management_script_config() {
+  local key="$1" script_name="$2"
+  require_project_key "$key"
+  project_has_management_script "$key" "$script_name" || die "$(project_name "$key") 没有管理脚本: $script_name"
+  load_project_config "$key"
+  reset_management_script_config_vars "$key" "$script_name"
+  save_project_config "$key"
+  log_info "management script config reset: project=$key script=$script_name"
 }
 
 save_project_config() {

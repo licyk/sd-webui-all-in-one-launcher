@@ -14,6 +14,9 @@ Usage:
   $0 set-project <project> <key> <value>
   $0 set-script-param <project> <script.ps1> <param> <value>
   $0 set-script-args <project> <script.ps1> <args>
+  $0 reset-main
+  $0 reset-installer [project]
+  $0 reset-script <project> <script.ps1>
   $0 config [project]
   $0 show-log [lines]
   $0 install-launcher [--yes]
@@ -30,6 +33,9 @@ Examples:
   $0 set-script-param comfyui launch.ps1 LaunchArg "--listen 0.0.0.0 --port 8188"
   $0 set-script-param comfyui launch.ps1 DisableUpdate 1
   $0 set-script-args comfyui launch.ps1 "--listen 0.0.0.0 --port 8188"
+  $0 reset-main
+  $0 reset-installer comfyui
+  $0 reset-script comfyui launch.ps1
   $0 set-main AUTO_UPDATE_ENABLED 0
   $0 set-main SHOW_WELCOME_SCREEN 0
   $0 set-main LOG_LEVEL INFO
@@ -57,7 +63,7 @@ main() {
   init_ui
   log_debug "config loaded: current_project=${CURRENT_PROJECT:-<none>} auto_update=${AUTO_UPDATE_ENABLED:-1} welcome=${SHOW_WELCOME_SCREEN:-1} log_level=$LOG_LEVEL proxy_mode=$PROXY_MODE manual_proxy=$(sanitize_config_log_value MANUAL_PROXY "$MANUAL_PROXY")"
   case "$command" in
-    set-main|install-launcher|uninstall-launcher|show-log|help|-h|--help) ;;
+    set-main|reset-main|reset-installer|reset-script|install-launcher|uninstall-launcher|show-log|help|-h|--help) ;;
     *) check_and_update_launcher_if_due ;;
   esac
   if [[ "$command" != "tui" && -n "${STARTUP_NOTICE:-}" ]]; then
@@ -157,6 +163,24 @@ main() {
       set_script_args "$3" "$4"
       save_project_config "$2"
       log_info "set script args: project=$2 script=$3 args=$(sanitize_config_log_value EXTRA_INSTALL_ARGS "$4")"
+      ;;
+    reset-main)
+      [[ "$#" -eq 1 ]] || die "用法: $0 reset-main"
+      reset_main_config_preferences
+      printf '启动器设置已重置，当前安装器保留为: %s\n' "${CURRENT_PROJECT:-未选择}"
+      ;;
+    reset-installer)
+      key="${2:-$CURRENT_PROJECT}"
+      require_project_key "$key"
+      reset_installer_config "$key"
+      printf 'installer 安装设置已重置: %s\n' "$key"
+      ;;
+    reset-script)
+      [[ "$#" -eq 3 ]] || die "用法: $0 reset-script <project> <script.ps1>"
+      require_project_key "$2"
+      project_has_management_script "$2" "$3" || die "$(project_name "$2") 没有管理脚本: $3"
+      reset_management_script_config "$2" "$3"
+      printf '管理脚本设置已重置: %s %s\n' "$2" "$3"
       ;;
     config)
       key="${2:-$CURRENT_PROJECT}"

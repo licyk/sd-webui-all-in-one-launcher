@@ -34,6 +34,7 @@
 - 按项目能力动态显示和传递参数。
 - 自动传入 `-InstallPath`，未设置时使用项目默认目录。
 - 安装后运行启动、更新、终端、模型下载等管理脚本。
+- 可分开重置启动器偏好、installer 安装设置和单个管理脚本参数。
 - 支持项目卸载、启动器自更新、日志记录和代理配置。
 
 ## 选择入口
@@ -252,6 +253,8 @@ installer-launcher install-launcher
 
 GUI 会定时自动刷新安装状态；安装完成、目录移动或卸载后无需手动点击刷新按钮。
 
+GUI 的“设置”页可重置启动器偏好；“高级选项”的“安装器设置”页可只重置 installer 参数；“管理脚本设置”页可只重置当前选中的管理脚本参数。
+
 ### Bash TUI
 
 1. 进入“选择不同类型的安装器”，选择要安装或管理的 WebUI / 工具。
@@ -310,8 +313,8 @@ dialog 常用操作：
 - `卸载当前已安装软件`：删除当前项目安装目录，需要双确认。
 - `运行安装后生成的管理脚本`：执行安装目录中的启动、更新、终端等管理脚本。
 - `调整子脚本默认启动参数`：给 `launch.ps1` 等脚本保存默认参数。
-- `当前安装器配置`：配置安装路径、分支、镜像、代理、开关参数等。
-- `启动器主配置`：设置当前项目、自动更新、欢迎页、日志等级和代理模式。
+- `当前安装器配置`：配置或重置安装路径、分支、镜像、代理、开关参数等 installer 设置。
+- `启动器主配置`：设置当前项目、自动更新、欢迎页、日志等级和代理模式；重置启动器偏好时会保留当前项目。
 - `查看当前配置`：查看主配置和项目配置。
 - `TUI 使用帮助`：查看更详细的界面说明。
 
@@ -392,6 +395,19 @@ dialog 常用操作：
 ./installer_launcher.sh set-script-args comfyui launch.ps1 "--listen 0.0.0.0 --port 8188"
 ```
 
+重置设置：
+
+```bash
+# 重置启动器偏好，保留当前项目选择
+./installer_launcher.sh reset-main
+
+# 重置指定项目的 installer 安装设置，保留全部管理脚本参数
+./installer_launcher.sh reset-installer comfyui
+
+# 只重置指定管理脚本的结构化参数和额外原始参数
+./installer_launcher.sh reset-script comfyui launch.ps1
+```
+
 运行管理脚本：
 
 ```bash
@@ -418,7 +434,7 @@ GUI 脚本: %APPDATA%\installer-launcher\installer_launcher_gui.ps1
 
 GUI 支持项目选择、动态安装器配置、搜索当前系统中已安装的 WebUI 并切换管理路径、管理脚本运行、项目卸载、日志、代理模式、关于页和 GUI 自更新。GUI 不会注册 Bash 命令，也不会执行 Linux / macOS 依赖引导或 shell rc 清理。
 
-当前仍是测试版，项目配置采用 v2 参数存储结构：安装器参数和每个管理脚本参数分开保存。旧项目配置不会迁移，启动器检测到旧格式时会重建默认配置。
+当前仍是测试版，项目配置采用 v2 参数存储结构：安装器参数和每个管理脚本参数分开保存。重置 installer 设置不会清除管理脚本参数；重置管理脚本设置只影响当前选择的脚本。旧项目配置不会迁移，启动器检测到旧格式时会重建默认配置。
 
 ### Bash TUI/CLI 路径
 
@@ -431,7 +447,7 @@ GUI 支持项目选择、动态安装器配置、搜索当前系统中已安装�
 命令链接: $HOME/.local/bin/installer-launcher
 ```
 
-Bash TUI/CLI 项目配置同样使用 v2 结构，安装器参数保存为 `INSTALLER_PARAM_*`，管理脚本参数保存为 `SCRIPT_PARAM_<SCRIPT>_*`。旧格式项目配置会被重建为默认值。
+Bash TUI/CLI 项目配置同样使用 v2 结构，安装器参数保存为 `INSTALLER_PARAM_*`，管理脚本参数保存为 `SCRIPT_PARAM_<SCRIPT>_*`。`reset-installer` 只恢复 installer 参数默认值；`reset-script` 只恢复指定脚本参数。旧格式项目配置会被重建为默认值。
 
 ### 日志
 

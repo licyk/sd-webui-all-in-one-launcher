@@ -772,7 +772,10 @@
                     <ScrollViewer VerticalScrollBarVisibility="Auto">
                       <StackPanel>
                         <Border Background="{DynamicResource HeaderBGBrush}" CornerRadius="8" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1" Padding="14" Margin="0,0,0,14">
-                          <TextBlock Text="这里只显示当前项目 installer 支持的参数。首次安装、修复安装或重新配置环境前，先在这里确认分支、镜像、代理和跳过项；运行安装器时会先使用结构化参数，再追加“额外原始参数”。-NoPause 会自动追加。" TextWrapping="Wrap" Foreground="{DynamicResource TextSecBrush}"/>
+                          <DockPanel>
+                            <Button Name="ResetInstallerConfigBtn" DockPanel.Dock="Right" Content="重置 installer 设置" Margin="14,0,0,0"/>
+                            <TextBlock Text="这里只显示当前项目 installer 支持的参数。首次安装、修复安装或重新配置环境前，先在这里确认分支、镜像、代理和跳过项；运行安装器时会先使用结构化参数，再追加“额外原始参数”。-NoPause 会自动追加。" TextWrapping="Wrap" Foreground="{DynamicResource TextSecBrush}" VerticalAlignment="Center"/>
+                          </DockPanel>
                         </Border>
                         <StackPanel Name="ConfigPanel"/>
                       </StackPanel>
@@ -786,7 +789,14 @@
                       <RowDefinition Height="Auto"/>
                       <RowDefinition Height="*"/>
                     </Grid.RowDefinitions>
-                    <ComboBox Name="ScriptCombo" Grid.Row="0" Margin="0,0,0,12" DisplayMemberPath="Label"/>
+                    <Grid Grid.Row="0" Margin="0,0,0,12">
+                      <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="Auto"/>
+                      </Grid.ColumnDefinitions>
+                      <ComboBox Name="ScriptCombo" Grid.Column="0" Margin="0,0,12,0" DisplayMemberPath="Label"/>
+                      <Button Name="ResetCurrentScriptConfigBtn" Grid.Column="1" Content="重置当前脚本"/>
+                    </Grid>
                     <Border Grid.Row="1" Background="{DynamicResource HeaderBGBrush}" CornerRadius="8" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1" Padding="14" Margin="0,0,0,14">
                       <TextBlock Text="管理脚本用于启动、更新、打开终端、下载模型或管理版本。先选择脚本再配置参数；每个脚本的参数会单独保存。需要执行时回到“一键启动”的启动模式选择脚本并启动。" TextWrapping="Wrap" Foreground="{DynamicResource TextSecBrush}"/>
                     </Border>
@@ -872,7 +882,7 @@
                     </Grid>
                   </Border>
 
-                  <Border Background="{DynamicResource HeaderBGBrush}" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1" CornerRadius="8" Padding="14" Margin="0,0,0,20">
+                  <Border Background="{DynamicResource HeaderBGBrush}" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1" CornerRadius="8" Padding="14" Margin="0,0,0,10">
                     <Grid>
                       <Grid.ColumnDefinitions>
                         <ColumnDefinition Width="*"/>
@@ -883,6 +893,20 @@
                         <TextBlock Text="仅在代理模式为 manual 时使用，例如 http://127.0.0.1:7890。" Foreground="{DynamicResource TextSecBrush}" TextWrapping="Wrap" Margin="0,4,0,0"/>
                       </StackPanel>
                       <TextBox Name="ManualProxyBox" Grid.Column="1" Margin="0" VerticalContentAlignment="Center" VerticalAlignment="Center"/>
+                    </Grid>
+                  </Border>
+
+                  <Border Background="{DynamicResource HeaderBGBrush}" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1" CornerRadius="8" Padding="14" Margin="0,0,0,20">
+                    <Grid>
+                      <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="Auto"/>
+                      </Grid.ColumnDefinitions>
+                      <StackPanel Grid.Column="0" Margin="0,0,18,0" VerticalAlignment="Center">
+                        <TextBlock Text="重置启动器设置" FontWeight="SemiBold"/>
+                        <TextBlock Text="恢复更新、日志和代理等启动器偏好；保留当前软件类型和用户协议确认状态。" Foreground="{DynamicResource TextSecBrush}" TextWrapping="Wrap" Margin="0,4,0,0"/>
+                      </StackPanel>
+                      <Button Name="ResetMainConfigBtn" Grid.Column="1" Content="重置设置" VerticalAlignment="Center"/>
                     </Grid>
                   </Border>
 

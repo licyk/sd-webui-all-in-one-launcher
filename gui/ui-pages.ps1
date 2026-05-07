@@ -882,3 +882,64 @@ function AutoSave-MainConfigFromUi {
         $State.IsAutoSavingMainConfig = $false
     }
 }
+
+function Invoke-ResetMainConfig {
+    param($UI, $State)
+    $State = Ensure-GuiState $State
+    if (-not (Confirm-Message "即将重置启动器自身偏好设置。`n`n会恢复自动更新、日志等级、代理模式、手动代理地址和更新检查时间。`n当前软件类型和用户协议确认状态会保留；项目配置、缓存、日志和已安装软件不会被删除。`n`n确认继续？" "重置启动器设置")) { return }
+    $State.IsRefreshing = $true
+    try {
+        Reset-MainConfigPreferences
+        Refresh-MainConfigUi $UI
+    } finally {
+        $State.IsRefreshing = $false
+    }
+    Refresh-Status $UI $State
+    Append-UiLog $UI "启动器设置已重置，当前软件类型已保留。"
+}
+
+function Invoke-ResetInstallerConfig {
+    param($UI, $State)
+    $State = Ensure-GuiState $State
+    $key = Get-CurrentProjectKey
+    if ([string]::IsNullOrWhiteSpace($key)) {
+        Show-Message "请先选择项目。" "未选择项目" "Warning"
+        return
+    }
+    $projectName = [string]$script:Projects[$key].Name
+    if (-not (Confirm-Message "即将重置 $projectName 的 installer 安装设置。`n`n会恢复安装路径、分支、镜像、代理、开关参数和 installer 额外原始参数为默认值。`n管理脚本参数、缓存、日志和已安装软件不会被删除。`n`n确认继续？" "重置 installer 设置")) { return }
+    Reset-InstallerConfig $key
+    Refresh-ProjectConfigUi $UI $State
+    Refresh-Status $UI $State
+    Append-UiLog $UI "installer 安装设置已重置: $key"
+}
+
+function Invoke-ResetCurrentScriptConfig {
+    param($UI, $State)
+    $State = Ensure-GuiState $State
+    $key = Get-CurrentProjectKey
+    if ([string]::IsNullOrWhiteSpace($key)) {
+        Show-Message "请先选择项目。" "未选择项目" "Warning"
+        return
+    }
+    if ($null -eq $UI.ScriptCombo -or $null -eq $UI.ScriptCombo.SelectedItem) {
+        Show-Message "请先选择要重置的管理脚本。" "未选择脚本" "Warning"
+        return
+    }
+    $scriptName = Get-SelectedScriptName $UI.ScriptCombo
+    if ([string]::IsNullOrWhiteSpace($scriptName) -or -not (Test-ProjectManagementScript $key $scriptName)) {
+        Show-Message "无法识别当前管理脚本，请重新选择。" "脚本选择异常" "Warning"
+        return
+    }
+    if (-not (Confirm-Message "即将重置当前管理脚本设置。`n`n项目: $($script:Projects[$key].Name)`n脚本: $scriptName`n`n只会清除这个脚本的结构化参数和额外原始参数，不会影响 installer 设置或其他管理脚本。`n`n确认继续？" "重置管理脚本设置")) { return }
+    Reset-ManagementScriptConfig $key $scriptName
+    $config = Get-ProjectConfig $key
+    $State.IsRefreshing = $true
+    try {
+        $UI.ScriptArgsBox.Text = Get-ScriptExtraArgs $config $scriptName
+        Refresh-ScriptParamUi $UI $State
+    } finally {
+        $State.IsRefreshing = $false
+    }
+    Append-UiLog $UI "管理脚本设置已重置: $scriptName"
+}
