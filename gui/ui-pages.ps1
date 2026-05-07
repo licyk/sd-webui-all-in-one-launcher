@@ -766,7 +766,8 @@ function Refresh-ProjectConfigUi {
         [PSCustomObject]@{ Key = "NO_CLEAN_CACHE"; Label = "不清理安装缓存 -NoCleanCache"; Param = "NoCleanCache" },
         [PSCustomObject]@{ Key = "DISABLE_MODEL_MIRROR"; Label = "禁用模型镜像 -DisableModelMirror"; Param = "DisableModelMirror" },
         [PSCustomObject]@{ Key = "DISABLE_HUGGINGFACE_MIRROR"; Label = "禁用 HuggingFace 镜像 -DisableHuggingFaceMirror"; Param = "DisableHuggingFaceMirror" },
-        [PSCustomObject]@{ Key = "HOTPATCHER"; Label = "启用 Hotpatcher -Hotpatcher"; Param = "Hotpatcher" },
+        [PSCustomObject]@{ Key = "DISABLE_HOTPATCHER"; Label = "禁用 Hotpatcher -DisableHotpatcher"; Param = "DisableHotpatcher" },
+        [PSCustomObject]@{ Key = "ENABLE_HOTPATCHER_RUNTIME"; Label = "启用 Hotpatcher runtime -EnableHotpatcherRuntime"; Param = "EnableHotpatcherRuntime" },
         [PSCustomObject]@{ Key = "DISABLE_CUDA_MALLOC"; Label = "禁用 CUDA 内存分配器设置 -DisableCUDAMalloc"; Param = "DisableCUDAMalloc" },
         [PSCustomObject]@{ Key = "DISABLE_ENV_CHECK"; Label = "禁用环境检查 -DisableEnvCheck"; Param = "DisableEnvCheck" }
     )

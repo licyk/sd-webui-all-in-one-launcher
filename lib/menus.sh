@@ -126,7 +126,8 @@ configure_flags() {
   project_supports_param "$key" NoCleanCache && checklist_args+=("NO_CLEAN_CACHE" "不清理安装缓存 -NoCleanCache" "$(flag_state "$NO_CLEAN_CACHE")")
   project_supports_param "$key" DisableModelMirror && checklist_args+=("DISABLE_MODEL_MIRROR" "不用 ModelScope 下载模型 -DisableModelMirror" "$(flag_state "$DISABLE_MODEL_MIRROR")")
   project_supports_param "$key" DisableHuggingFaceMirror && checklist_args+=("DISABLE_HUGGINGFACE_MIRROR" "禁用 HuggingFace 镜像 -DisableHuggingFaceMirror" "$(flag_state "$DISABLE_HUGGINGFACE_MIRROR")")
-  project_supports_param "$key" Hotpatcher && checklist_args+=("HOTPATCHER" "启用 Hotpatcher -Hotpatcher" "$(flag_state "$HOTPATCHER")")
+  project_supports_param "$key" DisableHotpatcher && checklist_args+=("DISABLE_HOTPATCHER" "禁用 Hotpatcher -DisableHotpatcher" "$(flag_state "$DISABLE_HOTPATCHER")")
+  project_supports_param "$key" EnableHotpatcherRuntime && checklist_args+=("ENABLE_HOTPATCHER_RUNTIME" "启用 Hotpatcher runtime -EnableHotpatcherRuntime" "$(flag_state "$ENABLE_HOTPATCHER_RUNTIME")")
   project_supports_param "$key" DisableCUDAMalloc && checklist_args+=("DISABLE_CUDA_MALLOC" "禁用 CUDA 内存分配器设置 -DisableCUDAMalloc" "$(flag_state "$DISABLE_CUDA_MALLOC")")
   project_supports_param "$key" DisableEnvCheck && checklist_args+=("DISABLE_ENV_CHECK" "禁用环境检查 -DisableEnvCheck" "$(flag_state "$DISABLE_ENV_CHECK")")
 
@@ -137,9 +138,10 @@ configure_flags() {
 
   selected="$(checklist_select "开关参数" "选择当前安装器运行时的开关参数" "${checklist_args[@]}")" || return 0
   DISABLE_PYPI_MIRROR=0 DISABLE_PROXY=0 DISABLE_UV=0 DISABLE_GITHUB_MIRROR=0
-  DISABLE_MODEL_MIRROR=0 DISABLE_HUGGINGFACE_MIRROR=0 HOTPATCHER=0 DISABLE_CUDA_MALLOC=0
-  DISABLE_ENV_CHECK=0 NO_PRE_DOWNLOAD_EXTENSION=0 NO_PRE_DOWNLOAD_NODE=0
-  NO_PRE_DOWNLOAD_MODEL=0 NO_CLEAN_CACHE=0
+  DISABLE_MODEL_MIRROR=0 DISABLE_HUGGINGFACE_MIRROR=0 DISABLE_HOTPATCHER=0
+  ENABLE_HOTPATCHER_RUNTIME=0 DISABLE_CUDA_MALLOC=0 DISABLE_ENV_CHECK=0
+  NO_PRE_DOWNLOAD_EXTENSION=0 NO_PRE_DOWNLOAD_NODE=0 NO_PRE_DOWNLOAD_MODEL=0
+  NO_CLEAN_CACHE=0
   [[ " $selected " == *" DISABLE_PYPI_MIRROR "* ]] && DISABLE_PYPI_MIRROR=1
   [[ " $selected " == *" DISABLE_PROXY "* ]] && DISABLE_PROXY=1
   [[ " $selected " == *" DISABLE_UV "* ]] && DISABLE_UV=1
@@ -150,7 +152,8 @@ configure_flags() {
   [[ " $selected " == *" NO_CLEAN_CACHE "* ]] && NO_CLEAN_CACHE=1
   [[ " $selected " == *" DISABLE_MODEL_MIRROR "* ]] && DISABLE_MODEL_MIRROR=1
   [[ " $selected " == *" DISABLE_HUGGINGFACE_MIRROR "* ]] && DISABLE_HUGGINGFACE_MIRROR=1
-  [[ " $selected " == *" HOTPATCHER "* ]] && HOTPATCHER=1
+  [[ " $selected " == *" DISABLE_HOTPATCHER "* ]] && DISABLE_HOTPATCHER=1
+  [[ " $selected " == *" ENABLE_HOTPATCHER_RUNTIME "* ]] && ENABLE_HOTPATCHER_RUNTIME=1
   [[ " $selected " == *" DISABLE_CUDA_MALLOC "* ]] && DISABLE_CUDA_MALLOC=1
   [[ " $selected " == *" DISABLE_ENV_CHECK "* ]] && DISABLE_ENV_CHECK=1
   save_project_config "$key"

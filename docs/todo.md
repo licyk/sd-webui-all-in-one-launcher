@@ -669,12 +669,14 @@
 - [x] 新增长路径支持检测后运行 `python3 tools/compile_gui.py --output dist/installer_launcher_gui.ps1`，通过。
 - [x] 新增长路径支持检测后运行 PowerShell 解析检查，覆盖 `dist/installer_launcher_gui.ps1`、源码入口、`gui/*.ps1` 和 `install.ps1`，通过。
 - [x] 新增长路径支持检测后运行 `git diff --check`，通过。
-- [x] 根据 `installer.docs` 同步 GUI/TUI 热补丁参数：支持项目的 installer 与 `launch.ps1` 增加 `-Hotpatcher`、`-HotpatcherConfig`、`-HotpatcherPort` 配置、保存和传递。
+- [x] 根据 `installer_docs.md` 破坏性同步 GUI/TUI 热补丁参数：移除旧 `-Hotpatcher` / `HOTPATCHER`，改为 `-DisableHotpatcher`、`-HotpatcherConfig`、`-HotpatcherPort`、`-EnableHotpatcherRuntime` 配置、保存和传递。
+- [x] GUI 项目配置读取改为只保留当前注册表支持的 installer / 管理脚本参数，旧参数键不再随 JSON 配置继续保留。
 - [x] 同步热补丁参数后运行 `bash -n install.sh installer_launcher.sh lib/*.sh`，通过。
 - [x] 同步热补丁参数后运行 `shellcheck install.sh installer_launcher.sh lib/*.sh`，通过。
-- [x] 同步热补丁参数后运行 Bash 参数构造烟测，确认 installer 与 `launch.ps1` 会传递热补丁参数，且 `sd_trainer_script` 未误启用。
+- [x] 同步热补丁参数后运行 Bash 参数构造烟测，确认 installer 与 `launch.ps1` 会传递热补丁参数，且 `sd_trainer_script` installer 已按文档启用热补丁参数。
 - [x] 同步热补丁参数后运行 `python3 -m py_compile tools/compile_gui.py` 和 `python3 tools/compile_gui.py --output dist/installer_launcher_gui.ps1`，通过。
 - [x] 同步热补丁参数后运行 PowerShell 解析检查，覆盖 GUI 源码入口、`gui/*.ps1` 和 `dist/installer_launcher_gui.ps1`，通过。
+- [x] 同步热补丁参数后运行 GUI 参数构造烟测，确认 installer 与 `launch.ps1` 会传递新热补丁参数且不会再传旧 `-Hotpatcher`。
 - [x] 同步热补丁参数后运行 CLI 配置烟测和 `git diff --check`，通过。
 - [x] 清理临时 `installer.docs` 文档文件。
 - [x] TUI `APP_VERSION` 和 GUI `INSTALLER_LAUNCHER_GUI_VERSION` 同步提升到 `0.3.6`，并重新生成 GUI 单文件产物。

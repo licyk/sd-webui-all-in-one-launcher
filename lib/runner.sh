@@ -122,9 +122,10 @@ build_installer_args() {
   project_supports_param "$key" DisableModelMirror && [[ "${DISABLE_MODEL_MIRROR:-0}" == "1" ]] && output_ref+=("-DisableModelMirror")
   project_supports_param "$key" DisableHuggingFaceMirror && [[ "${DISABLE_HUGGINGFACE_MIRROR:-0}" == "1" ]] && output_ref+=("-DisableHuggingFaceMirror")
   project_supports_param "$key" UseCustomHuggingFaceMirror && [[ -n "${HUGGINGFACE_MIRROR:-}" ]] && output_ref+=("-UseCustomHuggingFaceMirror" "$HUGGINGFACE_MIRROR")
-  project_supports_param "$key" Hotpatcher && [[ "${HOTPATCHER:-0}" == "1" ]] && output_ref+=("-Hotpatcher")
+  project_supports_param "$key" DisableHotpatcher && [[ "${DISABLE_HOTPATCHER:-0}" == "1" ]] && output_ref+=("-DisableHotpatcher")
   project_supports_param "$key" HotpatcherConfig && [[ -n "${HOTPATCHER_CONFIG:-}" ]] && output_ref+=("-HotpatcherConfig" "$HOTPATCHER_CONFIG")
   project_supports_param "$key" HotpatcherPort && [[ -n "${HOTPATCHER_PORT:-}" ]] && output_ref+=("-HotpatcherPort" "$HOTPATCHER_PORT")
+  project_supports_param "$key" EnableHotpatcherRuntime && [[ "${ENABLE_HOTPATCHER_RUNTIME:-0}" == "1" ]] && output_ref+=("-EnableHotpatcherRuntime")
   project_supports_param "$key" DisableCUDAMalloc && [[ "${DISABLE_CUDA_MALLOC:-0}" == "1" ]] && output_ref+=("-DisableCUDAMalloc")
   project_supports_param "$key" DisableEnvCheck && [[ "${DISABLE_ENV_CHECK:-0}" == "1" ]] && output_ref+=("-DisableEnvCheck")
   local extra_args=()
@@ -395,9 +396,10 @@ script_param_label() {
     UseCustomGithubMirror) printf '自定义 Github 镜像 -UseCustomGithubMirror' ;;
     DisableUV) printf '禁用 uv -DisableUV' ;;
     LaunchArg) printf '启动参数 -LaunchArg' ;;
-    Hotpatcher) printf '启用 Hotpatcher -Hotpatcher' ;;
+    DisableHotpatcher) printf '禁用 Hotpatcher -DisableHotpatcher' ;;
     HotpatcherConfig) printf 'Hotpatcher 配置文件 -HotpatcherConfig' ;;
     HotpatcherPort) printf 'Hotpatcher 通信端口 -HotpatcherPort' ;;
+    EnableHotpatcherRuntime) printf '启用 Hotpatcher runtime -EnableHotpatcherRuntime' ;;
     EnableShortcut) printf '创建快捷方式 -EnableShortcut' ;;
     DisableCUDAMalloc) printf '禁用 CUDA 内存分配器 -DisableCUDAMalloc' ;;
     DisableEnvCheck) printf '禁用环境检查 -DisableEnvCheck' ;;

@@ -236,7 +236,9 @@ function Read-ProjectJsonConfig {
             if ($loaded["Installer"].Contains("Params") -and $null -ne $loaded["Installer"]["Params"]) {
                 if (-not ($loaded["Installer"]["Params"] -is [System.Collections.IDictionary])) { $loaded["Installer"]["Params"] = ConvertTo-PlainHashtable $loaded["Installer"]["Params"] }
                 foreach ($paramName in @($loaded["Installer"]["Params"].Keys)) {
-                    $merged["Installer"]["Params"][$paramName] = $loaded["Installer"]["Params"][$paramName]
+                    if (Test-DictionaryKey $merged["Installer"]["Params"] $paramName) {
+                        $merged["Installer"]["Params"][$paramName] = $loaded["Installer"]["Params"][$paramName]
+                    }
                 }
             }
         }
@@ -244,6 +246,7 @@ function Read-ProjectJsonConfig {
             if (-not ($loaded["Scripts"] -is [System.Collections.IDictionary])) { $loaded["Scripts"] = ConvertTo-PlainHashtable $loaded["Scripts"] }
             foreach ($scriptName in @($loaded["Scripts"].Keys)) {
                 if ([string]::IsNullOrWhiteSpace($scriptName)) { continue }
+                if (-not (Test-DictionaryKey $merged["Scripts"] $scriptName)) { continue }
                 $scriptConfig = Get-ScriptConfigTable $merged $scriptName
                 $loadedScript = $loaded["Scripts"][$scriptName]
                 if ($null -eq $loadedScript) { continue }
@@ -252,7 +255,9 @@ function Read-ProjectJsonConfig {
                 if ($loadedScript.Contains("Params") -and $null -ne $loadedScript["Params"]) {
                     if (-not ($loadedScript["Params"] -is [System.Collections.IDictionary])) { $loadedScript["Params"] = ConvertTo-PlainHashtable $loadedScript["Params"] }
                     foreach ($paramName in @($loadedScript["Params"].Keys)) {
-                        $scriptConfig["Params"][$paramName] = $loadedScript["Params"][$paramName]
+                        if (Test-DictionaryKey $scriptConfig["Params"] $paramName) {
+                            $scriptConfig["Params"][$paramName] = $loadedScript["Params"][$paramName]
+                        }
                     }
                 }
             }
