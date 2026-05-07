@@ -56,7 +56,7 @@ function Start-App {
     $script:InstallerLauncherGuiUi = $UI
     $script:InstallerLauncherGuiState = $State
     $mainConfig = $script:MainConfig
-    $State.AutoSaveProjectConfig = { Save-CurrentProjectConfigFromUi $UI $State $false }.GetNewClosure()
+    $State.AutoSaveProjectConfig = $true
     if ($null -ne $UI.AboutAgreementText) {
         $UI.AboutAgreementText.Text = Get-UserAgreementText
     }
@@ -118,12 +118,12 @@ function Start-App {
             $State.IsRefreshing = $false
         }
     }.GetNewClosure())
-    $UI.ScriptArgsBox.Add_TextChanged({ Save-CurrentProjectConfigFromUi $UI $State $false }.GetNewClosure())
-    $UI.AutoUpdateCheck.Add_Checked({ AutoSave-MainConfigFromUi $UI $State }.GetNewClosure())
-    $UI.AutoUpdateCheck.Add_Unchecked({ AutoSave-MainConfigFromUi $UI $State }.GetNewClosure())
-    $UI.LogLevelCombo.Add_SelectionChanged({ AutoSave-MainConfigFromUi $UI $State }.GetNewClosure())
-    $UI.ProxyModeCombo.Add_SelectionChanged({ AutoSave-MainConfigFromUi $UI $State }.GetNewClosure())
-    $UI.ManualProxyBox.Add_TextChanged({ AutoSave-MainConfigFromUi $UI $State }.GetNewClosure())
+    $UI.ScriptArgsBox.Add_TextChanged({ Save-CurrentProjectConfigFromUi $script:InstallerLauncherGuiUi $script:InstallerLauncherGuiState $false })
+    $UI.AutoUpdateCheck.Add_Checked({ AutoSave-MainConfigFromUi $script:InstallerLauncherGuiUi $script:InstallerLauncherGuiState })
+    $UI.AutoUpdateCheck.Add_Unchecked({ AutoSave-MainConfigFromUi $script:InstallerLauncherGuiUi $script:InstallerLauncherGuiState })
+    $UI.LogLevelCombo.Add_SelectionChanged({ AutoSave-MainConfigFromUi $script:InstallerLauncherGuiUi $script:InstallerLauncherGuiState })
+    $UI.ProxyModeCombo.Add_SelectionChanged({ AutoSave-MainConfigFromUi $script:InstallerLauncherGuiUi $script:InstallerLauncherGuiState })
+    $UI.ManualProxyBox.Add_TextChanged({ AutoSave-MainConfigFromUi $script:InstallerLauncherGuiUi $script:InstallerLauncherGuiState })
     $UI.CheckUpdateBtn.Add_Click({ Invoke-UpdateCheck $UI $State $true }.GetNewClosure())
     $UI.ResetMainConfigBtn.Add_Click({ Invoke-ResetMainConfig $UI $State }.GetNewClosure())
     $UI.ResetInstallerConfigBtn.Add_Click({ Invoke-ResetInstallerConfig $UI $State }.GetNewClosure())

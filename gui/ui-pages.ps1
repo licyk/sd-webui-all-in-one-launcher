@@ -547,10 +547,7 @@ function Add-ConfigTextBox {
     $box = New-Object System.Windows.Controls.TextBox
     $box.Text = $Value
     $box.VerticalContentAlignment = "Center"
-    $autoSave = $null
-    if ($null -ne $State.PSObject.Properties["AutoSaveProjectConfig"]) {
-        $autoSave = $State.AutoSaveProjectConfig
-    }
+    $autoSaveEnabled = ($null -ne $State.PSObject.Properties["AutoSaveProjectConfig"] -and $null -ne $State.AutoSaveProjectConfig)
     if ($Key -eq "INSTALL_PATH") {
         $row = New-Object System.Windows.Controls.Grid
         $col1 = New-Object System.Windows.Controls.ColumnDefinition
@@ -580,8 +577,10 @@ function Add-ConfigTextBox {
     }
     $Panel.Children.Add($rowInfo.Card) | Out-Null
     $State.ConfigControls[$Key] = $box
-    if ($null -ne $autoSave) {
-        $box.Add_TextChanged({ & $autoSave }.GetNewClosure())
+    if ($autoSaveEnabled) {
+        $box.Add_TextChanged({
+            Save-CurrentProjectConfigFromUi $script:InstallerLauncherGuiUi $script:InstallerLauncherGuiState $false
+        })
     }
 }
 
@@ -590,10 +589,7 @@ function Add-ConfigComboBox {
     $rowInfo = New-ConfigCardRow $Label
     $combo = New-Object System.Windows.Controls.ComboBox
     $combo.IsEditable = $false
-    $autoSave = $null
-    if ($null -ne $State.PSObject.Properties["AutoSaveProjectConfig"]) {
-        $autoSave = $State.AutoSaveProjectConfig
-    }
+    $autoSaveEnabled = ($null -ne $State.PSObject.Properties["AutoSaveProjectConfig"] -and $null -ne $State.AutoSaveProjectConfig)
     if ($null -ne $Options) {
         foreach ($optionKey in $Options.Keys) {
             $item = New-Object System.Windows.Controls.ComboBoxItem
@@ -610,8 +606,10 @@ function Add-ConfigComboBox {
     $rowInfo.Grid.Children.Add($combo) | Out-Null
     $Panel.Children.Add($rowInfo.Card) | Out-Null
     $State.ConfigControls[$Key] = $combo
-    if ($null -ne $autoSave) {
-        $combo.Add_SelectionChanged({ & $autoSave }.GetNewClosure())
+    if ($autoSaveEnabled) {
+        $combo.Add_SelectionChanged({
+            Save-CurrentProjectConfigFromUi $script:InstallerLauncherGuiUi $script:InstallerLauncherGuiState $false
+        })
     }
 }
 
@@ -620,19 +618,20 @@ function Add-ConfigCheckBox {
     $rowInfo = New-ConfigCardRow $Label
     $box = New-Object System.Windows.Controls.CheckBox
     $box.IsChecked = $Value
-    $autoSave = $null
-    if ($null -ne $State.PSObject.Properties["AutoSaveProjectConfig"]) {
-        $autoSave = $State.AutoSaveProjectConfig
-    }
+    $autoSaveEnabled = ($null -ne $State.PSObject.Properties["AutoSaveProjectConfig"] -and $null -ne $State.AutoSaveProjectConfig)
     $box.HorizontalAlignment = "Right"
     $box.VerticalAlignment = "Center"
     [System.Windows.Controls.Grid]::SetColumn($box, 1)
     $rowInfo.Grid.Children.Add($box) | Out-Null
     $Panel.Children.Add($rowInfo.Card) | Out-Null
     $State.ConfigControls[$Key] = $box
-    if ($null -ne $autoSave) {
-        $box.Add_Checked({ & $autoSave }.GetNewClosure())
-        $box.Add_Unchecked({ & $autoSave }.GetNewClosure())
+    if ($autoSaveEnabled) {
+        $box.Add_Checked({
+            Save-CurrentProjectConfigFromUi $script:InstallerLauncherGuiUi $script:InstallerLauncherGuiState $false
+        })
+        $box.Add_Unchecked({
+            Save-CurrentProjectConfigFromUi $script:InstallerLauncherGuiUi $script:InstallerLauncherGuiState $false
+        })
     }
 }
 
@@ -647,7 +646,7 @@ function Refresh-ScriptParamUi {
     if ([string]::IsNullOrWhiteSpace($key) -or $null -eq $UI.ScriptCombo.SelectedItem) { return }
     $scriptName = Get-SelectedScriptName $UI.ScriptCombo
     $config = Get-ProjectConfig $key
-    $scriptState = [PSCustomObject]@{ ConfigControls = @{} }
+    $scriptState = [PSCustomObject]@{ ConfigControls = @{}; AutoSaveProjectConfig = $true }
     foreach ($spec in (Get-ManagementScriptParamSpecs $key $scriptName)) {
         if (-not [bool]$spec.Visible) { continue }
         $value = Get-ScriptParamValue $config $scriptName $spec.Name

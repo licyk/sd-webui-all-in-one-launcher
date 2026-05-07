@@ -405,6 +405,7 @@
 - [x] 修复 GUI 终止任务后完成回调引用外层 `$scriptPath` 导致严格模式报错的问题，脚本路径改为随任务结果返回。
 - [x] 修复 GUI 在 Windows PowerShell 5.1 中 WPF 事件回调无法解析 `Report-UiError`、`Update-OneClickModeUi` 等函数的问题；事件处理改为启动时导出必要函数到 `Global:` 函数表，避免 DispatcherTimer / WPF 事件闭包丢失 handler。
 - [x] GUI 设置页、高级选项的安装器设置页和管理脚本设置页已分别新增启动器偏好、installer 参数和当前管理脚本参数重置按钮。
+- [x] 修复 GUI 自动保存不稳定的问题：动态配置控件不再依赖局部 scriptblock 闭包，管理脚本参数控件也会绑定自动保存事件。
 - [x] `AGENTS.md` 已记录 Windows PowerShell 5.1 下 WPF 事件处理方式：事件 helper 通过 `Export-GuiEventFunctions` 导出到 `Global:`，不要使用局部脚本块闭包或 `$script:GuiHandler_*` 缓存。
 - [x] `README.md` 已补充日志位置、崩溃记录、脱敏策略和 `show-log` 命令。
 - [x] `README.md` 已补充日志等级设置方法。
@@ -425,6 +426,11 @@
 - [x] 新增重置设置功能后解析 `gui/xaml/main.xaml`，通过。
 - [x] 新增重置设置功能后使用临时 XDG 目录验证 `reset-main`、`reset-installer` 和 `reset-script` 的隔离行为，通过。
 - [x] 新增重置设置功能后运行 `git diff --check`，通过。
+- [x] 修复 GUI 自动保存事件绑定后运行 PowerShell 解析检查，覆盖源码入口、`install.ps1` 和 `gui/*.ps1`，通过。
+- [x] 修复 GUI 自动保存事件绑定后解析 `gui/xaml/main.xaml`，通过。
+- [x] 修复 GUI 自动保存事件绑定后运行 `bash -n install.sh installer_launcher.sh lib/*.sh`，通过。
+- [x] 修复 GUI 自动保存事件绑定后运行 `shellcheck install.sh installer_launcher.sh lib/*.sh`，通过。
+- [x] 修复 GUI 自动保存事件绑定后运行 `git diff --check`，通过。
 - [x] 多次运行 `bash -n installer_launcher.sh lib/*.sh`，通过。
 - [x] 多次运行 `shellcheck installer_launcher.sh lib/*.sh`，通过。
 - [x] 运行 `bash -n install.sh installer_launcher.sh lib/*.sh`，通过。

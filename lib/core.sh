@@ -3,7 +3,7 @@
 
 APP_NAME="installer-launcher"
 APP_TITLE="SD WebUI All In One Installer Launcher"
-APP_VERSION="0.3.4"
+APP_VERSION="0.3.5"
 
 CONFIG_HOME="${XDG_CONFIG_HOME:-$HOME/.config}/${APP_NAME}"
 CACHE_HOME="${XDG_CACHE_HOME:-$HOME/.cache}/${APP_NAME}"
