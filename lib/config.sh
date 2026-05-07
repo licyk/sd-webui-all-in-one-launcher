@@ -39,6 +39,7 @@ installer_param_default_value() {
   local key="$1" param="$2"
   case "$param" in
     InstallBranch) project_default_branch "$key" ;;
+    Hotpatcher) printf '0' ;;
     Disable*|No*) printf '0' ;;
     *) printf '' ;;
   esac
@@ -126,7 +127,10 @@ reset_project_config_vars() {
   PROXY=""
   GITHUB_MIRROR=""
   HUGGINGFACE_MIRROR=""
+  HOTPATCHER_CONFIG=""
+  HOTPATCHER_PORT=""
   EXTRA_INSTALL_ARGS=""
+  HOTPATCHER=0
   DISABLE_PYPI_MIRROR=0
   DISABLE_PROXY=0
   DISABLE_UV=0
@@ -143,7 +147,7 @@ reset_project_config_vars() {
 
 script_param_is_flag() {
   case "$1" in
-    BuildMode|DisablePyPIMirror|DisableUpdate|DisableProxy|DisableHuggingFaceMirror|DisableGithubMirror|DisableUV|EnableShortcut|DisableCUDAMalloc|DisableEnvCheck|DisableModelMirror|BuildWithTorchReinstall)
+    BuildMode|DisablePyPIMirror|DisableUpdate|DisableProxy|DisableHuggingFaceMirror|DisableGithubMirror|DisableUV|EnableShortcut|DisableCUDAMalloc|DisableEnvCheck|DisableModelMirror|BuildWithTorchReinstall|Hotpatcher)
       return 0
       ;;
     *) return 1 ;;
@@ -202,7 +206,10 @@ installer_param_config_var_name() {
     UseCustomProxy) printf 'PROXY' ;;
     UseCustomGithubMirror) printf 'GITHUB_MIRROR' ;;
     UseCustomHuggingFaceMirror) printf 'HUGGINGFACE_MIRROR' ;;
+    HotpatcherConfig) printf 'HOTPATCHER_CONFIG' ;;
+    HotpatcherPort) printf 'HOTPATCHER_PORT' ;;
     DisablePyPIMirror) printf 'DISABLE_PYPI_MIRROR' ;;
+    Hotpatcher) printf 'HOTPATCHER' ;;
     DisableProxy) printf 'DISABLE_PROXY' ;;
     DisableUV) printf 'DISABLE_UV' ;;
     DisableGithubMirror) printf 'DISABLE_GITHUB_MIRROR' ;;
@@ -310,7 +317,10 @@ config_key_param_name() {
     PROXY) printf 'UseCustomProxy' ;;
     GITHUB_MIRROR) printf 'UseCustomGithubMirror' ;;
     HUGGINGFACE_MIRROR) printf 'UseCustomHuggingFaceMirror' ;;
+    HOTPATCHER_CONFIG) printf 'HotpatcherConfig' ;;
+    HOTPATCHER_PORT) printf 'HotpatcherPort' ;;
     DISABLE_PYPI_MIRROR) printf 'DisablePyPIMirror' ;;
+    HOTPATCHER) printf 'Hotpatcher' ;;
     DISABLE_PROXY) printf 'DisableProxy' ;;
     DISABLE_UV) printf 'DisableUV' ;;
     DISABLE_GITHUB_MIRROR) printf 'DisableGithubMirror' ;;
@@ -337,7 +347,7 @@ set_project_config_key() {
   local key="$1" config_key="$2" value="$3"
   load_project_config "$key"
   case "$config_key" in
-    INSTALL_PATH|INSTALL_BRANCH|CORE_PREFIX|PYTORCH_MIRROR_TYPE|PYTHON_VERSION|PROXY|GITHUB_MIRROR|HUGGINGFACE_MIRROR|EXTRA_INSTALL_ARGS|DISABLE_PYPI_MIRROR|DISABLE_PROXY|DISABLE_UV|DISABLE_GITHUB_MIRROR|DISABLE_MODEL_MIRROR|DISABLE_HUGGINGFACE_MIRROR|DISABLE_CUDA_MALLOC|DISABLE_ENV_CHECK|NO_PRE_DOWNLOAD_EXTENSION|NO_PRE_DOWNLOAD_NODE|NO_PRE_DOWNLOAD_MODEL|NO_CLEAN_CACHE)
+    INSTALL_PATH|INSTALL_BRANCH|CORE_PREFIX|PYTORCH_MIRROR_TYPE|PYTHON_VERSION|PROXY|GITHUB_MIRROR|HUGGINGFACE_MIRROR|HOTPATCHER_CONFIG|HOTPATCHER_PORT|EXTRA_INSTALL_ARGS|HOTPATCHER|DISABLE_PYPI_MIRROR|DISABLE_PROXY|DISABLE_UV|DISABLE_GITHUB_MIRROR|DISABLE_MODEL_MIRROR|DISABLE_HUGGINGFACE_MIRROR|DISABLE_CUDA_MALLOC|DISABLE_ENV_CHECK|NO_PRE_DOWNLOAD_EXTENSION|NO_PRE_DOWNLOAD_NODE|NO_PRE_DOWNLOAD_MODEL|NO_CLEAN_CACHE)
       config_key_supported_by_project "$key" "$config_key" || die "$(project_name "$key") 不支持配置项: $config_key"
       printf -v "$config_key" '%s' "$value"
       save_project_config "$key"
@@ -373,6 +383,9 @@ EOF
   config_key_supported_by_project "$key" PROXY && printf 'PROXY=%s\n' "${PROXY:-}"
   config_key_supported_by_project "$key" GITHUB_MIRROR && printf 'GITHUB_MIRROR=%s\n' "${GITHUB_MIRROR:-}"
   config_key_supported_by_project "$key" HUGGINGFACE_MIRROR && printf 'HUGGINGFACE_MIRROR=%s\n' "${HUGGINGFACE_MIRROR:-}"
+  config_key_supported_by_project "$key" HOTPATCHER && printf 'HOTPATCHER=%s\n' "${HOTPATCHER:-0}"
+  config_key_supported_by_project "$key" HOTPATCHER_CONFIG && printf 'HOTPATCHER_CONFIG=%s\n' "${HOTPATCHER_CONFIG:-}"
+  config_key_supported_by_project "$key" HOTPATCHER_PORT && printf 'HOTPATCHER_PORT=%s\n' "${HOTPATCHER_PORT:-}"
   printf 'EXTRA_INSTALL_ARGS=%s\n' "${EXTRA_INSTALL_ARGS:-}"
   printf '\nManagement script args:\n'
   while IFS= read -r entry; do

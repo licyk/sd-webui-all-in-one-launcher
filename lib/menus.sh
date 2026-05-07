@@ -126,6 +126,7 @@ configure_flags() {
   project_supports_param "$key" NoCleanCache && checklist_args+=("NO_CLEAN_CACHE" "不清理安装缓存 -NoCleanCache" "$(flag_state "$NO_CLEAN_CACHE")")
   project_supports_param "$key" DisableModelMirror && checklist_args+=("DISABLE_MODEL_MIRROR" "不用 ModelScope 下载模型 -DisableModelMirror" "$(flag_state "$DISABLE_MODEL_MIRROR")")
   project_supports_param "$key" DisableHuggingFaceMirror && checklist_args+=("DISABLE_HUGGINGFACE_MIRROR" "禁用 HuggingFace 镜像 -DisableHuggingFaceMirror" "$(flag_state "$DISABLE_HUGGINGFACE_MIRROR")")
+  project_supports_param "$key" Hotpatcher && checklist_args+=("HOTPATCHER" "启用 Hotpatcher -Hotpatcher" "$(flag_state "$HOTPATCHER")")
   project_supports_param "$key" DisableCUDAMalloc && checklist_args+=("DISABLE_CUDA_MALLOC" "禁用 CUDA 内存分配器设置 -DisableCUDAMalloc" "$(flag_state "$DISABLE_CUDA_MALLOC")")
   project_supports_param "$key" DisableEnvCheck && checklist_args+=("DISABLE_ENV_CHECK" "禁用环境检查 -DisableEnvCheck" "$(flag_state "$DISABLE_ENV_CHECK")")
 
@@ -136,7 +137,7 @@ configure_flags() {
 
   selected="$(checklist_select "开关参数" "选择当前安装器运行时的开关参数" "${checklist_args[@]}")" || return 0
   DISABLE_PYPI_MIRROR=0 DISABLE_PROXY=0 DISABLE_UV=0 DISABLE_GITHUB_MIRROR=0
-  DISABLE_MODEL_MIRROR=0 DISABLE_HUGGINGFACE_MIRROR=0 DISABLE_CUDA_MALLOC=0
+  DISABLE_MODEL_MIRROR=0 DISABLE_HUGGINGFACE_MIRROR=0 HOTPATCHER=0 DISABLE_CUDA_MALLOC=0
   DISABLE_ENV_CHECK=0 NO_PRE_DOWNLOAD_EXTENSION=0 NO_PRE_DOWNLOAD_NODE=0
   NO_PRE_DOWNLOAD_MODEL=0 NO_CLEAN_CACHE=0
   [[ " $selected " == *" DISABLE_PYPI_MIRROR "* ]] && DISABLE_PYPI_MIRROR=1
@@ -149,6 +150,7 @@ configure_flags() {
   [[ " $selected " == *" NO_CLEAN_CACHE "* ]] && NO_CLEAN_CACHE=1
   [[ " $selected " == *" DISABLE_MODEL_MIRROR "* ]] && DISABLE_MODEL_MIRROR=1
   [[ " $selected " == *" DISABLE_HUGGINGFACE_MIRROR "* ]] && DISABLE_HUGGINGFACE_MIRROR=1
+  [[ " $selected " == *" HOTPATCHER "* ]] && HOTPATCHER=1
   [[ " $selected " == *" DISABLE_CUDA_MALLOC "* ]] && DISABLE_CUDA_MALLOC=1
   [[ " $selected " == *" DISABLE_ENV_CHECK "* ]] && DISABLE_ENV_CHECK=1
   save_project_config "$key"
@@ -167,6 +169,8 @@ configure_project() {
     project_supports_param "$key" UseCustomProxy && menu_args+=("proxy" "代理: ${PROXY:-未设置}")
     project_supports_param "$key" UseCustomGithubMirror && menu_args+=("github_mirror" "Github 镜像: ${GITHUB_MIRROR:-默认}")
     project_supports_param "$key" UseCustomHuggingFaceMirror && menu_args+=("hf_mirror" "HuggingFace 镜像: ${HUGGINGFACE_MIRROR:-默认}")
+    project_supports_param "$key" HotpatcherConfig && menu_args+=("hotpatcher_config" "Hotpatcher 配置文件: ${HOTPATCHER_CONFIG:-未设置}")
+    project_supports_param "$key" HotpatcherPort && menu_args+=("hotpatcher_port" "Hotpatcher 通信端口: ${HOTPATCHER_PORT:-未设置}")
     menu_args+=("flags" "开关参数")
     menu_args+=("extra" "主安装器自定义参数: ${EXTRA_INSTALL_ARGS:-无}")
     menu_args+=("script_args" "子脚本默认启动参数设置")
@@ -189,6 +193,8 @@ configure_project() {
       proxy) PROXY="$(input_box "代理" "例如 http://127.0.0.1:10809，留空不传" "${PROXY:-}")" || true ;;
       github_mirror) GITHUB_MIRROR="$(input_box "Github 镜像" "例如 https://ghfast.top/https://github.com，留空不传" "${GITHUB_MIRROR:-}")" || true ;;
       hf_mirror) HUGGINGFACE_MIRROR="$(input_box "HuggingFace 镜像" "例如 https://hf-mirror.com，留空不传" "${HUGGINGFACE_MIRROR:-}")" || true ;;
+      hotpatcher_config) HOTPATCHER_CONFIG="$(input_box "Hotpatcher 配置文件" "传给 -HotpatcherConfig 的配置文件路径，留空不传" "${HOTPATCHER_CONFIG:-}")" || true ;;
+      hotpatcher_port) HOTPATCHER_PORT="$(input_box "Hotpatcher 通信端口" "传给 -HotpatcherPort 的端口，范围 1-65535，留空不传" "${HOTPATCHER_PORT:-}")" || true ;;
       flags) configure_flags "$key" || true ;;
       extra) EXTRA_INSTALL_ARGS="$(input_box "主安装器自定义参数" "直接追加给 $(project_installer_file "$key") 的参数" "${EXTRA_INSTALL_ARGS:-}")" || true ;;
       script_args) configure_script_args "$key" || true ;;

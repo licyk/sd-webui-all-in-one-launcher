@@ -54,7 +54,7 @@ PROJECT_sd_webui_PARAMS=(
   DisablePyPIMirror DisableProxy UseCustomProxy DisableUV DisableGithubMirror
   UseCustomGithubMirror NoPreDownloadExtension NoPreDownloadModel NoCleanCache
   DisableModelMirror NoPause DisableHuggingFaceMirror UseCustomHuggingFaceMirror
-  DisableCUDAMalloc DisableEnvCheck
+  Hotpatcher HotpatcherConfig HotpatcherPort DisableCUDAMalloc DisableEnvCheck
 )
 
 # shellcheck disable=SC2034
@@ -90,7 +90,8 @@ PROJECT_comfyui_PARAMS=(
   CorePrefix InstallPath PyTorchMirrorType InstallPythonVersion DisablePyPIMirror
   DisableProxy UseCustomProxy DisableUV DisableGithubMirror UseCustomGithubMirror
   NoPreDownloadNode NoPreDownloadModel NoCleanCache DisableModelMirror NoPause
-  DisableHuggingFaceMirror UseCustomHuggingFaceMirror
+  DisableHuggingFaceMirror UseCustomHuggingFaceMirror Hotpatcher
+  HotpatcherConfig HotpatcherPort
 )
 
 # shellcheck disable=SC2034
@@ -127,7 +128,7 @@ PROJECT_invokeai_PARAMS=(
   DisableProxy UseCustomProxy DisableUV DisableGithubMirror UseCustomGithubMirror
   NoPreDownloadModel NoCleanCache DisableModelMirror NoPause
   DisableHuggingFaceMirror UseCustomHuggingFaceMirror DisableCUDAMalloc
-  DisableEnvCheck
+  DisableEnvCheck Hotpatcher HotpatcherConfig HotpatcherPort
 )
 
 # shellcheck disable=SC2034
@@ -171,7 +172,8 @@ PROJECT_fooocus_PARAMS=(
   CorePrefix InstallPath PyTorchMirrorType InstallPythonVersion InstallBranch
   DisablePyPIMirror DisableProxy UseCustomProxy DisableUV DisableGithubMirror
   UseCustomGithubMirror NoPreDownloadModel NoCleanCache DisableModelMirror
-  NoPause DisableHuggingFaceMirror UseCustomHuggingFaceMirror
+  NoPause DisableHuggingFaceMirror UseCustomHuggingFaceMirror Hotpatcher
+  HotpatcherConfig HotpatcherPort
 )
 
 # shellcheck disable=SC2034
@@ -214,7 +216,8 @@ PROJECT_sd_trainer_PARAMS=(
   CorePrefix InstallPath PyTorchMirrorType InstallPythonVersion InstallBranch
   DisablePyPIMirror DisableProxy UseCustomProxy DisableUV DisableGithubMirror
   UseCustomGithubMirror NoPreDownloadModel NoCleanCache DisableModelMirror
-  NoPause DisableHuggingFaceMirror UseCustomHuggingFaceMirror
+  NoPause DisableHuggingFaceMirror UseCustomHuggingFaceMirror Hotpatcher
+  HotpatcherConfig HotpatcherPort
 )
 
 # shellcheck disable=SC2034
@@ -297,7 +300,7 @@ PROJECT_qwen_tts_webui_PARAMS=(
   CorePrefix InstallPath PyTorchMirrorType InstallPythonVersion DisablePyPIMirror
   DisableProxy UseCustomProxy DisableUV DisableGithubMirror UseCustomGithubMirror
   NoCleanCache NoPause DisableHuggingFaceMirror UseCustomHuggingFaceMirror
-  DisableCUDAMalloc DisableEnvCheck
+  Hotpatcher HotpatcherConfig HotpatcherPort DisableCUDAMalloc DisableEnvCheck
 )
 
 project_var() {
@@ -373,7 +376,7 @@ management_script_param_entries() {
   local key="$1" script_name="$2"
   case "$key:$script_name" in
     sd_webui:launch.ps1|comfyui:launch.ps1|invokeai:launch.ps1|fooocus:launch.ps1|sd_trainer:launch.ps1|qwen_tts_webui:launch.ps1)
-      printf '%s\n' CorePrefix BuildMode DisablePyPIMirror DisableUpdate DisableProxy UseCustomProxy DisableHuggingFaceMirror UseCustomHuggingFaceMirror DisableGithubMirror UseCustomGithubMirror DisableUV LaunchArg EnableShortcut DisableCUDAMalloc DisableEnvCheck NoPause
+      printf '%s\n' CorePrefix BuildMode DisablePyPIMirror DisableUpdate DisableProxy UseCustomProxy DisableHuggingFaceMirror UseCustomHuggingFaceMirror DisableGithubMirror UseCustomGithubMirror DisableUV LaunchArg Hotpatcher HotpatcherConfig HotpatcherPort EnableShortcut DisableCUDAMalloc DisableEnvCheck NoPause
       ;;
     sd_webui:download_models.ps1|comfyui:download_models.ps1|invokeai:download_models.ps1|fooocus:download_models.ps1|sd_trainer:download_models.ps1|sd_trainer_script:download_models.ps1)
       printf '%s\n' CorePrefix BuildMode BuildWithModel DisableProxy UseCustomProxy DisableUpdate DisableModelMirror NoPause
