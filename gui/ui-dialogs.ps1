@@ -32,6 +32,61 @@ function Confirm-Message {
     return $result -eq [System.Windows.MessageBoxResult]::Yes
 }
 
+function Show-InstallConfirmDialog {
+    param(
+        [string]$ProjectName,
+        [string]$InstallPath,
+        [string]$CachePath,
+        [string[]]$InstallerUrls,
+        [string[]]$PowerShellArgs
+    )
+    $window = Load-GuiXamlWindow "install_confirm.xaml"
+    $projectText = $window.FindName("ProjectText")
+    $installPathText = $window.FindName("InstallPathText")
+    $cachePathText = $window.FindName("CachePathText")
+    $sourcesText = $window.FindName("SourcesText")
+    $argsText = $window.FindName("ArgsText")
+    $confirmBtn = $window.FindName("ConfirmBtn")
+    $cancelBtn = $window.FindName("CancelBtn")
+
+    $projectText.Text = $ProjectName
+    $installPathText.Text = $InstallPath
+    $cachePathText.Text = $CachePath
+    if ($null -eq $InstallerUrls -or $InstallerUrls.Count -eq 0) {
+        $sourcesText.Text = "(无)"
+    } else {
+        $sourcesText.Text = ($InstallerUrls -join [Environment]::NewLine)
+    }
+    if ($null -eq $PowerShellArgs -or $PowerShellArgs.Count -eq 0) {
+        $argsText.Text = "(无)"
+    } else {
+        $argsText.Text = ($PowerShellArgs -join [Environment]::NewLine)
+    }
+
+    $state = [PSCustomObject]@{ Result = $false }
+    $confirmBtn.Tag = $state
+    $cancelBtn.Tag = $state
+    $confirmBtn.Add_Click({
+        param($sender, $eventArgs)
+        $dialogState = $sender.Tag
+        $dialogState.Result = $true
+        $dialogWindow = [System.Windows.Window]::GetWindow($sender)
+        $dialogWindow.DialogResult = $true
+        $dialogWindow.Close()
+    })
+    $cancelBtn.Add_Click({
+        param($sender, $eventArgs)
+        $dialogState = $sender.Tag
+        $dialogState.Result = $false
+        $dialogWindow = [System.Windows.Window]::GetWindow($sender)
+        $dialogWindow.DialogResult = $false
+        $dialogWindow.Close()
+    })
+    $window.Tag = $state
+    $null = $window.ShowDialog()
+    return [bool]$state.Result
+}
+
 function Show-CountdownConfirmDialog {
     param(
         [string]$Title = "最终确认",

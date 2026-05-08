@@ -1,0 +1,48 @@
+<Window xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        Title="确认运行安装器" Width="760" Height="620" MinWidth="620" MinHeight="460"
+        WindowStartupLocation="CenterScreen" ResizeMode="CanResize">
+  <Grid Margin="18">
+    <Grid.RowDefinitions>
+      <RowDefinition Height="Auto"/>
+      <RowDefinition Height="*"/>
+      <RowDefinition Height="Auto"/>
+    </Grid.RowDefinitions>
+
+    <StackPanel Grid.Row="0" Margin="0,0,0,14">
+      <TextBlock Text="确认运行安装器" FontSize="22" FontWeight="Bold"/>
+      <TextBlock Text="即将下载最新 installer 并使用下面的配置运行 PowerShell 安装任务。"
+                 TextWrapping="Wrap" Foreground="#666666" Margin="0,6,0,0"/>
+    </StackPanel>
+
+    <Border Grid.Row="1" BorderBrush="#D0D7DE" BorderThickness="1" CornerRadius="8" Background="#FAFBFC">
+      <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+        <StackPanel Margin="14">
+          <TextBlock Text="项目" FontWeight="SemiBold" Margin="0,0,0,4"/>
+          <TextBlock Name="ProjectText" TextWrapping="Wrap" Foreground="#333333" Margin="0,0,0,12"/>
+
+          <TextBlock Text="安装路径" FontWeight="SemiBold" Margin="0,0,0,4"/>
+          <TextBlock Name="InstallPathText" TextWrapping="Wrap" Foreground="#333333" FontFamily="Consolas" Margin="0,0,0,12"/>
+
+          <TextBlock Text="安装器缓存" FontWeight="SemiBold" Margin="0,0,0,4"/>
+          <TextBlock Name="CachePathText" TextWrapping="Wrap" Foreground="#333333" FontFamily="Consolas" Margin="0,0,0,16"/>
+
+          <TextBlock Text="下载源" FontWeight="SemiBold" Margin="0,0,0,6"/>
+          <Border BorderBrush="#E5E7EB" BorderThickness="1" CornerRadius="6" Background="White" Padding="10" Margin="0,0,0,16">
+            <TextBlock Name="SourcesText" TextWrapping="Wrap" Foreground="#333333" FontFamily="Consolas" LineHeight="21"/>
+          </Border>
+
+          <TextBlock Text="PowerShell 参数" FontWeight="SemiBold" Margin="0,0,0,6"/>
+          <Border BorderBrush="#E5E7EB" BorderThickness="1" CornerRadius="6" Background="White" Padding="10">
+            <TextBlock Name="ArgsText" TextWrapping="Wrap" Foreground="#333333" FontFamily="Consolas" LineHeight="21"/>
+          </Border>
+        </StackPanel>
+      </ScrollViewer>
+    </Border>
+
+    <StackPanel Grid.Row="2" Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,16,0,0">
+      <Button Name="CancelBtn" Content="取消" Width="120" Height="38" Margin="0,0,10,0"/>
+      <Button Name="ConfirmBtn" Content="运行安装器" Width="136" Height="38"
+              Background="#FF0078D4" Foreground="White" BorderThickness="0"/>
+    </StackPanel>
+  </Grid>
+</Window>

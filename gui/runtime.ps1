@@ -534,7 +534,7 @@ function Start-GuiOperation {
     }
     if ($null -ne (Get-ObjectPropertyValue $State $StateProperty $null)) {
         Show-Message "已有任务正在运行，请等待当前任务完成。" "任务运行中" "Warning"
-        return
+        return $false
     }
     $control = New-OperationControl -Name $Name
     $control["CanTerminate"] = $CanTerminate
@@ -591,6 +591,7 @@ $operationBody
         }
     }.GetNewClosure())
     $timer.Start()
+    return $true
 }
 
 function Invoke-TerminateCurrentOperation {
@@ -872,7 +873,7 @@ function Invoke-CreateLauncherShortcut {
             return [PSCustomObject]@{ Success = $false; Message = "创建快捷方式失败: $($_.Exception.Message)"; Attempts = @($attempts.ToArray()); Paths = @() }
         }
     }
-    Start-GuiOperation -UI $UI -State $State -Name "创建快捷方式" -ScriptBlock $operation -Arguments @($iconUrlPayload, $script:ShortcutIconFile, $selfPath, $launcherPath, "SD WebUI All In One Launcher") -CanTerminate $false -OnComplete {
+    $null = Start-GuiOperation -UI $UI -State $State -Name "创建快捷方式" -ScriptBlock $operation -Arguments @($iconUrlPayload, $script:ShortcutIconFile, $selfPath, $launcherPath, "SD WebUI All In One Launcher") -CanTerminate $false -UseGlobalBusy $false -StateProperty "ShortcutOperation" -OnComplete {
         param($result, $streamErrors)
         $item = Select-GuiOperationResultItem -Result $result -PreferredProperties @("Paths", "Message")
         if ($null -eq $item) {
@@ -905,20 +906,7 @@ function Invoke-RunInstaller {
     $scriptPath = Get-InstallerCachePath $project
     if ($null -eq $args -or $args.Count -eq 0) { $argsText = "" } else { $argsText = Join-Shlex $args }
     Write-Log DEBUG "installer args prepared: project=$key path=$scriptPath args=$(Format-LogArgs $args) args_text=$argsText"
-    $confirmation = @"
-即将运行安装任务，请确认配置。
-
-项目: $($project.Name)
-安装路径: $(Get-EffectiveInstallPath $project $config)
-安装器缓存: $scriptPath
-
-下载源:
-$($project.InstallerUrls -join [Environment]::NewLine)
-
-PowerShell 参数:
-$($args -join [Environment]::NewLine)
-"@
-    if (-not (Confirm-Message $confirmation "确认运行安装器")) { Append-UiLog $UI "安装任务已取消。"; return }
+    if (-not (Show-InstallConfirmDialog -ProjectName $project.Name -InstallPath (Get-EffectiveInstallPath $project $config) -CachePath $scriptPath -InstallerUrls ([string[]]$project.InstallerUrls) -PowerShellArgs ([string[]]$args))) { Append-UiLog $UI "安装任务已取消。"; return }
     $operation = {
         param($Project, $Config, [string]$InstallerArgsText, [string]$OutputPath, [hashtable]$Control)
         $download = Invoke-DownloadWithRetry -Urls ([string[]]$Project.InstallerUrls) -OutputPath $OutputPath
@@ -932,7 +920,7 @@ $($args -join [Environment]::NewLine)
         $result | Add-Member -NotePropertyName Detail -NotePropertyValue "下载源: $($download.Url)" -Force
         return $result
     }
-    Start-GuiOperation -UI $UI -State $State -Name "运行安装器" -ScriptBlock $operation -Arguments @($project, $config, $argsText, $scriptPath) -OnComplete {
+    $null = Start-GuiOperation -UI $UI -State $State -Name "运行安装器" -ScriptBlock $operation -Arguments @($project, $config, $argsText, $scriptPath) -OnComplete {
         param($result, $streamErrors)
         $item = Select-GuiOperationResultItem -Result $result -PreferredProperties @("ProcessArgs", "ExitCode", "Success")
         if ($null -eq $item) { Show-Message "安装任务没有返回结果。" "错误" "Error"; return }
@@ -985,7 +973,7 @@ function Invoke-RunManagementScript {
         param([string]$ScriptPath, [string]$ScriptArgsText, [string]$DisplayScriptName, [hashtable]$Control)
         return (Invoke-TrackedPowerShellScript -ScriptPath $ScriptPath -ScriptArgsText $ScriptArgsText -DisplayName $DisplayScriptName -Control $Control)
     }
-    Start-GuiOperation -UI $UI -State $State -Name "运行管理脚本" -ScriptBlock $operation -Arguments @($scriptPath, $scriptArgsText, $scriptName) -OnComplete {
+    $null = Start-GuiOperation -UI $UI -State $State -Name "运行管理脚本" -ScriptBlock $operation -Arguments @($scriptPath, $scriptArgsText, $scriptName) -OnComplete {
         param($result, $streamErrors)
         $item = Select-GuiOperationResultItem -Result $result -PreferredProperties @("ScriptName", "ProcessArgs", "ExitCode", "Success")
         if ($null -eq $item) {
@@ -1065,7 +1053,7 @@ function Invoke-UninstallProject {
         }
     }
     Append-UiLog $UI "开始卸载 ${projectName}: $path"
-    Start-GuiOperation -UI $UI -State $State -Name "卸载已安装软件" -ScriptBlock $operation -Arguments @($projectName, $path) -CanTerminate $false -OnComplete {
+    $null = Start-GuiOperation -UI $UI -State $State -Name "卸载已安装软件" -ScriptBlock $operation -Arguments @($projectName, $path) -CanTerminate $false -OnComplete {
         param($result, $streamErrors)
         foreach ($streamError in @($streamErrors)) {
             if (-not [string]::IsNullOrWhiteSpace($streamError)) {
@@ -1124,15 +1112,6 @@ function Invoke-UpdateCheck {
             Write-Log DEBUG "update check skipped: interval not reached now=$now last=$last interval=$script:AutoUpdateIntervalSeconds"
             return
         }
-    }
-    if ($null -ne (Get-ObjectPropertyValue $State "CurrentOperation" $null)) {
-        $runningName = [string](Get-ObjectPropertyValue $State.CurrentOperation "Name" "当前任务")
-        Write-Log DEBUG "update check skipped: operation already running name=$runningName manual=$Manual"
-        if ($Manual) {
-            Append-UiLog $UI "已有任务正在运行，暂时不能检查更新。"
-            Show-Message "已有任务正在运行，请等待当前任务完成后再检查更新。" "任务运行中" "Warning"
-        }
-        return
     }
     if (-not (Get-UpdateCheckSemaphore).Wait(0)) {
         Write-Log DEBUG "update check skipped: update lock is held manual=$Manual"
@@ -1211,7 +1190,7 @@ function Invoke-UpdateCheck {
     $manualCheck = $Manual
     $updateCacheDir = Join-Path $script:CacheHome "self-update"
     try {
-        Start-GuiOperation -UI $UI -State $State -Name "检查更新" -ScriptBlock $operation -Arguments @($urlPayload, $script:INSTALLER_LAUNCHER_GUI_VERSION, $script:EntryScriptPath, $updateCacheDir) -CanTerminate $false -OnComplete {
+        $started = Start-GuiOperation -UI $UI -State $State -Name "检查更新" -ScriptBlock $operation -Arguments @($urlPayload, $script:INSTALLER_LAUNCHER_GUI_VERSION, $script:EntryScriptPath, $updateCacheDir) -CanTerminate $false -UseGlobalBusy $false -StateProperty "UpdateOperation" -OnComplete {
             param($result, $streamErrors)
             try {
                 $item = Select-GuiOperationResultItem -Result $result -PreferredProperties @("Updated", "Message", "Success")
@@ -1233,6 +1212,10 @@ function Invoke-UpdateCheck {
                 Release-UpdateCheckLock
             }
         }.GetNewClosure()
+        if (-not $started) {
+            Release-UpdateCheckLock
+            Write-Log DEBUG "update check lock released because operation dispatch was skipped"
+        }
     } catch {
         Release-UpdateCheckLock
         Write-Log DEBUG "update check lock released after dispatch failure"

@@ -79,7 +79,7 @@ function Export-GuiEventFunctions {
         "Refresh-DiscoveredInstallList", "Refresh-ProjectConfigUi", "Refresh-ScriptParamUi", "Refresh-Status", "Release-UpdateCheckLock", "Report-UiError", "Reset-InstallerConfig", "Reset-MainConfigPreferences", "Reset-ManagementScriptConfig",
         "Invoke-WindowsLongPathsStartupCheck", "Join-ProcessArguments", "Quote-ProcessArgument", "Resolve-PowerShellCommand", "Save-CurrentProjectConfigFromUi", "Save-MainConfig", "Save-MainConfigFromUi", "Save-ProjectConfig", "Select-GuiOperationResultItem",
         "Select-FolderPath", "Select-RelevantMainTab", "Set-ButtonLoadingState", "Set-DiscoverySearchBusy", "Set-UiBusy", "Show-AppPage",
-        "Show-CountdownConfirmDialog", "Show-HelpWindow", "Show-LogWindow", "Show-Message", "Show-UserAgreementDialog", "Start-HeroImageDownload", "Start-LauncherIconDownload", "Start-TabTransition",
+        "Show-CountdownConfirmDialog", "Show-HelpWindow", "Show-InstallConfirmDialog", "Show-LogWindow", "Show-Message", "Show-UserAgreementDialog", "Start-HeroImageDownload", "Start-LauncherIconDownload", "Start-TabTransition",
         "Start-DiscoveryProgressTimer", "Test-DictionaryKey", "Test-ProjectManagementScript", "Test-WindowsLongPathsEnabled", "Toggle-CustomMaximizeWindow", "Update-DiscoveryProgressUi", "Update-OneClickModeUi", "Write-Log", "Write-TrackedScriptResultDebug"
     )
     foreach ($name in $names) {
@@ -142,7 +142,7 @@ function Set-UiBusy {
     $enabled = -not $Busy
     $isTerminating = $Busy -and $CanTerminate -and ($Message -match "正在终止")
     $isUninstalling = $Busy -and ($Message -match "卸载")
-    foreach ($name in @("UninstallBtn", "CheckUpdateBtn", "UnifiedStartBtn", "OpenConfigFolderBtn", "OpenLogFolderBtn", "OpenCacheFolderBtn", "ShowLogBtn", "CreateShortcutBtn", "UninstallLauncherBtn")) {
+    foreach ($name in @("UnifiedStartBtn", "UninstallBtn", "UninstallLauncherBtn")) {
         $button = Get-UiControl $UI $name
         if ($null -ne $button) { $button.IsEnabled = $enabled }
     }

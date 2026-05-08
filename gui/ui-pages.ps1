@@ -449,7 +449,7 @@ function Invoke-DiscoverInstalledWebUis {
         }
     }
 
-    Start-GuiOperation -UI $UI -State $State -Name "搜索已安装 WebUI" -ScriptBlock $operation -Arguments @($featureRows, @($Roots)) -CanTerminate $false -UseGlobalBusy $false -StateProperty "DiscoveryOperation" -OnComplete {
+    $null = Start-GuiOperation -UI $UI -State $State -Name "搜索已安装 WebUI" -ScriptBlock $operation -Arguments @($featureRows, @($Roots)) -CanTerminate $false -UseGlobalBusy $false -StateProperty "DiscoveryOperation" -OnComplete {
         param($result, $streamErrors)
         Set-DiscoverySearchBusy $UI $State $false
         $item = Select-GuiOperationResultItem -Result $result -PreferredProperties @("Results", "Message", "Success")
