@@ -726,7 +726,7 @@ function Refresh-ProjectConfigUi {
     $config = Get-ProjectConfig $key
     $State.ProjectConfig = $config
     if (Test-ProjectParam $project "InstallPath") {
-        Add-ConfigTextBox $UI.PathPanel $State "INSTALL_PATH" "安装路径（留空使用默认: $(Get-EffectiveInstallPath $project $config)）" (Get-InstallerConfigValue $project $config "INSTALL_PATH")
+        Add-ConfigTextBox $UI.PathPanel $State "INSTALL_PATH" "安装路径（留空使用默认: $(Get-DefaultInstallPath $project)）" (Get-InstallerConfigValue $project $config "INSTALL_PATH")
     } else {
         $hint = New-Object System.Windows.Controls.TextBlock
         $hint.Text = "当前项目不支持自定义安装路径。"

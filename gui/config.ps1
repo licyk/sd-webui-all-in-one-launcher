@@ -408,6 +408,11 @@ function Get-EffectiveInstallPath {
     param($Project, [System.Collections.IDictionary]$Config)
     $installPath = [string](Get-InstallerParamValue $Config "InstallPath")
     if (-not [string]::IsNullOrWhiteSpace($installPath)) { return $installPath }
+    return (Get-DefaultInstallPath $Project)
+}
+
+function Get-DefaultInstallPath {
+    param($Project)
     return (Join-Path ([Environment]::GetFolderPath("UserProfile")) $Project.DefaultDir)
 }
 

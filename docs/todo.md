@@ -687,6 +687,13 @@
 - [x] 清理临时文档并提升版本号后运行 `python3 -m py_compile tools/compile_gui.py` 和 `python3 tools/compile_gui.py --output dist/installer_launcher_gui.ps1`，通过。
 - [x] 清理临时文档并提升版本号后运行 PowerShell 解析检查，覆盖 GUI 源码入口、`gui/*.ps1` 和 `dist/installer_launcher_gui.ps1`，通过。
 - [x] 清理临时文档并提升版本号后运行 `./installer_launcher.sh --help`，确认 TUI/CLI 显示 `0.3.6`。
+- [x] 修复 GUI 安装路径页“留空使用默认”提示误显示手动安装路径的问题，默认路径提示改为独立于当前配置的默认路径。
+- [x] 修复 GUI 默认路径提示后运行 `bash -n install.sh installer_launcher.sh lib/*.sh`，通过。
+- [x] 修复 GUI 默认路径提示后运行 `shellcheck install.sh installer_launcher.sh lib/*.sh`，通过。
+- [x] 修复 GUI 默认路径提示后运行 `python3 tools/compile_gui.py --output dist/installer_launcher_gui.ps1`，通过。
+- [x] 修复 GUI 默认路径提示后运行 PowerShell 解析检查，覆盖 GUI 源码入口、`gui/*.ps1`、`install.ps1` 和 `dist/installer_launcher_gui.ps1`，通过。
+- [x] 修复 GUI 默认路径提示后运行 PowerShell 路径烟测，确认手动 `INSTALL_PATH` 不会污染默认路径提示，且有效安装路径仍使用手动配置。
+- [x] 修复 GUI 默认路径提示后运行 `git diff --check`，通过。
 - [ ] 在 Windows PowerShell 5.1 中运行 `installer_launcher_gui.ps1`，验证 WPF 界面可正常启动。
 - [ ] 在 Windows 中验证 GUI 首次启动会创建 AppData / LocalAppData 配置、缓存和日志目录。
 - [ ] 在 Windows 中验证 GUI 安装器下载重试、PowerShell 执行、安装检测、管理脚本运行和项目卸载流程。
