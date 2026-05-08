@@ -130,7 +130,11 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .\installer_launcher_gui.ps1
 推荐使用一键安装脚本。它会检查依赖并注册 `installer-launcher` 命令。
 
 ```bash
+# 使用 Github 下载
 curl -fsSL https://github.com/licyk/sd-webui-all-in-one-launcher/raw/main/install.sh | bash
+
+# 使用 Gitee 下载
+curl -fsSL https://gitee.com/licyk/sd-webui-all-in-one-launcher/raw/main/install.sh | bash
 ```
 
 如果已经下载源码，也可以在仓库目录运行：
