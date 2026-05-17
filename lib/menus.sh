@@ -117,6 +117,7 @@ configure_flags() {
   local key="$1" selected
   local checklist_args=()
   project_supports_param "$key" DisablePyPIMirror && checklist_args+=("DISABLE_PYPI_MIRROR" "禁用 PyPI 镜像 -DisablePyPIMirror" "$(flag_state "$DISABLE_PYPI_MIRROR")")
+  project_supports_param "$key" DisableAutoMirror && checklist_args+=("DISABLE_AUTO_MIRROR" "禁用自动镜像源选择 -DisableAutoMirror" "$(flag_state "$DISABLE_AUTO_MIRROR")")
   project_supports_param "$key" DisableProxy && checklist_args+=("DISABLE_PROXY" "禁用自动代理 -DisableProxy" "$(flag_state "$DISABLE_PROXY")")
   project_supports_param "$key" DisableUV && checklist_args+=("DISABLE_UV" "禁用 uv -DisableUV" "$(flag_state "$DISABLE_UV")")
   project_supports_param "$key" DisableGithubMirror && checklist_args+=("DISABLE_GITHUB_MIRROR" "禁用 Github 镜像 -DisableGithubMirror" "$(flag_state "$DISABLE_GITHUB_MIRROR")")
@@ -137,12 +138,13 @@ configure_flags() {
   fi
 
   selected="$(checklist_select "开关参数" "选择当前安装器运行时的开关参数" "${checklist_args[@]}")" || return 0
-  DISABLE_PYPI_MIRROR=0 DISABLE_PROXY=0 DISABLE_UV=0 DISABLE_GITHUB_MIRROR=0
+  DISABLE_PYPI_MIRROR=0 DISABLE_AUTO_MIRROR=0 DISABLE_PROXY=0 DISABLE_UV=0 DISABLE_GITHUB_MIRROR=0
   DISABLE_MODEL_MIRROR=0 DISABLE_HUGGINGFACE_MIRROR=0 DISABLE_HOTPATCHER=0
   ENABLE_HOTPATCHER_RUNTIME=0 DISABLE_CUDA_MALLOC=0 DISABLE_ENV_CHECK=0
   NO_PRE_DOWNLOAD_EXTENSION=0 NO_PRE_DOWNLOAD_NODE=0 NO_PRE_DOWNLOAD_MODEL=0
   NO_CLEAN_CACHE=0
   [[ " $selected " == *" DISABLE_PYPI_MIRROR "* ]] && DISABLE_PYPI_MIRROR=1
+  [[ " $selected " == *" DISABLE_AUTO_MIRROR "* ]] && DISABLE_AUTO_MIRROR=1
   [[ " $selected " == *" DISABLE_PROXY "* ]] && DISABLE_PROXY=1
   [[ " $selected " == *" DISABLE_UV "* ]] && DISABLE_UV=1
   [[ " $selected " == *" DISABLE_GITHUB_MIRROR "* ]] && DISABLE_GITHUB_MIRROR=1

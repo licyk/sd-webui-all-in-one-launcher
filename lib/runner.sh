@@ -110,6 +110,7 @@ build_installer_args() {
   project_supports_param "$key" InstallPythonVersion && [[ -n "${PYTHON_VERSION:-}" ]] && output_ref+=("-InstallPythonVersion" "$PYTHON_VERSION")
   project_supports_param "$key" InstallBranch && [[ -n "${INSTALL_BRANCH:-}" ]] && output_ref+=("-InstallBranch" "$INSTALL_BRANCH")
   project_supports_param "$key" DisablePyPIMirror && [[ "${DISABLE_PYPI_MIRROR:-0}" == "1" ]] && output_ref+=("-DisablePyPIMirror")
+  project_supports_param "$key" DisableAutoMirror && [[ "${DISABLE_AUTO_MIRROR:-0}" == "1" ]] && output_ref+=("-DisableAutoMirror")
   project_supports_param "$key" DisableProxy && [[ "${DISABLE_PROXY:-0}" == "1" ]] && output_ref+=("-DisableProxy")
   project_supports_param "$key" UseCustomProxy && [[ -n "${PROXY:-}" ]] && output_ref+=("-UseCustomProxy" "$PROXY")
   project_supports_param "$key" DisableUV && [[ "${DISABLE_UV:-0}" == "1" ]] && output_ref+=("-DisableUV")
@@ -387,6 +388,7 @@ script_param_label() {
     BuildWithTorchReinstall) printf '强制重装 PyTorch -BuildWithTorchReinstall' ;;
     BuildWithBranch) printf '构建分支 -BuildWithBranch' ;;
     DisablePyPIMirror) printf '禁用 PyPI 镜像 -DisablePyPIMirror' ;;
+    DisableAutoMirror) printf '禁用自动镜像源选择 -DisableAutoMirror' ;;
     DisableUpdate) printf '禁用更新检查 -DisableUpdate' ;;
     DisableProxy) printf '禁用自动代理 -DisableProxy' ;;
     UseCustomProxy) printf '自定义代理 -UseCustomProxy' ;;

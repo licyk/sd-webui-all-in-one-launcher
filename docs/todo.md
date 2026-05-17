@@ -96,6 +96,8 @@
 - [x] 构建安装器参数时只传递当前项目支持的参数。
 - [x] `set-project` 会拒绝设置当前项目不支持的结构化配置项。
 - [x] `sd_trainer_script` installer 参数表不再包含 `-EnableShortcut`；其他仍支持该参数的 `launch.ps1` 管理脚本继续保留该选项。
+- [x] 根据 `installer_docs.txt` 新增 `-DisableAutoMirror` 结构化配置与参数传递；`launch_*_installer.ps1` 继续只作为安装器代理脚本处理，不展开完整 installer 参数。
+- [x] 按新 installer 文档补齐项目能力表：ComfyUI、Fooocus、SD Trainer 支持 `-DisableCUDAMalloc` / `-DisableEnvCheck`，Qwen TTS WebUI 支持 `-DisableModelMirror`，并修正 GUI 中多余的 ComfyUI / SD WebUI 参数注册。
 - [x] `NoPause` 不再作为用户配置项；运行安装器和管理脚本时始终自动追加 `-NoPause`，并避免重复添加。
 - [x] 运行安装器时显式传入 `-InstallPath`，未配置时使用 `$HOME/<项目默认目录>`。
 - [x] `EXTRA_INSTALL_ARGS` 会追加到结构化安装器参数之后。

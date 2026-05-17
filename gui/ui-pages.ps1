@@ -757,6 +757,7 @@ function Refresh-ProjectConfigUi {
     Add-ConfigTextBox $UI.ConfigPanel $State "EXTRA_INSTALL_ARGS" "安装器自定义参数（追加到结构化参数之后）" (Get-InstallerConfigValue $project $config "EXTRA_INSTALL_ARGS")
     $flags = @(
         [PSCustomObject]@{ Key = "DISABLE_PYPI_MIRROR"; Label = "禁用 PyPI 镜像 -DisablePyPIMirror"; Param = "DisablePyPIMirror" },
+        [PSCustomObject]@{ Key = "DISABLE_AUTO_MIRROR"; Label = "禁用自动镜像源选择 -DisableAutoMirror"; Param = "DisableAutoMirror" },
         [PSCustomObject]@{ Key = "DISABLE_PROXY"; Label = "禁用安装器自动代理 -DisableProxy"; Param = "DisableProxy" },
         [PSCustomObject]@{ Key = "DISABLE_UV"; Label = "禁用 uv -DisableUV"; Param = "DisableUV" },
         [PSCustomObject]@{ Key = "DISABLE_GITHUB_MIRROR"; Label = "禁用 Github 镜像 -DisableGithubMirror"; Param = "DisableGithubMirror" },
