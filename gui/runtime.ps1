@@ -205,7 +205,7 @@ function Quote-ProcessArgument {
     param([string]$Argument)
     if ($null -eq $Argument) { return '""' }
     if ($Argument -notmatch '[\s"]' -and $Argument.Length -gt 0) { return $Argument }
-    return '"' + ($Argument -replace '"', '\"') + '"'
+    return '"' + ($Argument -replace '"', '`"') + '"'
 }
 
 function Join-ProcessArguments {
@@ -654,7 +654,7 @@ function New-ShortcutLauncherArguments {
     $command = @(
         '$ErrorActionPreference = ''Stop'''
         ('$scriptPath = {0}' -f $scriptLiteral)
-        'if (-not (Test-Path -LiteralPath $scriptPath -PathType Leaf)) { throw "GUI 脚本不存在: $scriptPath" }'
+        'if (-not (Test-Path -LiteralPath $scriptPath -PathType Leaf)) { throw ''GUI 脚本不存在: $scriptPath'' }'
         '$pwsh = Get-Command pwsh -CommandType Application -ErrorAction SilentlyContinue'
         '$pwshPath = [string]::Empty; if ($null -ne $pwsh) { $pwshPath = [string]$pwsh.Source }'
         ('if (-not [string]::IsNullOrWhiteSpace($pwshPath)) { & $pwshPath -NoLogo -NoProfile -ExecutionPolicy Bypass -File ' + $scriptLiteral + '; $code = $LASTEXITCODE; if ($null -eq $code) { $code = 0 }; exit $code }')

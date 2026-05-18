@@ -698,7 +698,9 @@
 - [x] 修复 GUI 默认路径提示后运行 `git diff --check`，通过。
 - [x] GUI 创建桌面和开始菜单快捷方式时改为通过 Windows PowerShell 检测 `pwsh`，检测到则使用 `pwsh` 启动 GUI，否则回退到 `powershell`。
 - [x] GUI 快捷方式检测命令中的 GUI 脚本路径改为在 `-File` 和 fallback 调用点都使用单引号字面量保护，避免路径包含空格时被拆分。
+- [x] `install.ps1` 创建快捷方式时同步采用 GUI runtime 的动态 PowerShell 检测和脚本路径单引号保护逻辑。
 - [x] GUI 快捷方式动态 PowerShell 检测后运行 PowerShell 解析检查、快捷方式参数烟测、`python3 tools/compile_gui.py --output dist/installer_launcher_gui.ps1`、编译产物解析、`bash -n`、`shellcheck` 和 `git diff --check`，通过。
+- [x] `install.ps1` 快捷方式同步后运行 PowerShell 解析检查、安装脚本快捷方式参数烟测、GUI 单文件编译、编译产物解析、`bash -n`、`shellcheck` 和 `git diff --check`，通过。
 - [ ] 在 Windows PowerShell 5.1 中运行 `installer_launcher_gui.ps1`，验证 WPF 界面可正常启动。
 - [ ] 在 Windows 中验证 GUI 首次启动会创建 AppData / LocalAppData 配置、缓存和日志目录。
 - [ ] 在 Windows 中验证 GUI 安装器下载重试、PowerShell 执行、安装检测、管理脚本运行和项目卸载流程。

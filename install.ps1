@@ -191,6 +191,53 @@ function Get-CurrentPowerShellPath {
     return $process.Path
 }
 
+function Quote-ProcessArgument {
+    param([string]$Argument)
+    if ($null -eq $Argument) { return '""' }
+    if ($Argument -notmatch '[\s"]' -and $Argument.Length -gt 0) { return $Argument }
+    return '"' + ($Argument -replace '"', '`"') + '"'
+}
+
+function Join-ProcessArguments {
+    param([string[]]$Arguments)
+    $quoted = @()
+    foreach ($arg in $Arguments) { $quoted += (Quote-ProcessArgument $arg) }
+    return ($quoted -join " ")
+}
+
+function ConvertTo-ShortcutPowerShellLiteral {
+    param([string]$Value)
+    return "'{0}'" -f (($Value -replace "'", "''"))
+}
+
+function Resolve-ShortcutDetectorPowerShell {
+    param([string]$FallbackPath)
+    $powershell = Get-Command powershell -CommandType Application -ErrorAction SilentlyContinue
+    if ($null -ne $powershell -and -not [string]::IsNullOrWhiteSpace([string]$powershell.Source)) {
+        return [string]$powershell.Source
+    }
+    if (-not [string]::IsNullOrWhiteSpace($FallbackPath) -and (Test-Path -LiteralPath $FallbackPath -PathType Leaf)) {
+        return $FallbackPath
+    }
+    return ""
+}
+
+function New-ShortcutLauncherArguments {
+    param([string]$ScriptPath)
+    $scriptLiteral = ConvertTo-ShortcutPowerShellLiteral $ScriptPath
+    $command = @(
+        '$ErrorActionPreference = ''Stop'''
+        ('$scriptPath = {0}' -f $scriptLiteral)
+        'if (-not (Test-Path -LiteralPath $scriptPath -PathType Leaf)) { throw ''GUI 脚本不存在: $scriptPath'' }'
+        '$pwsh = Get-Command pwsh -CommandType Application -ErrorAction SilentlyContinue'
+        '$pwshPath = [string]::Empty; if ($null -ne $pwsh) { $pwshPath = [string]$pwsh.Source }'
+        ('if (-not [string]::IsNullOrWhiteSpace($pwshPath)) { & $pwshPath -NoLogo -NoProfile -ExecutionPolicy Bypass -File ' + $scriptLiteral + '; $code = $LASTEXITCODE; if ($null -eq $code) { $code = 0 }; exit $code }')
+        ('& ' + $scriptLiteral)
+        'exit 0'
+    ) -join "; "
+    return (Join-ProcessArguments @("-NoLogo", "-NoProfile", "-ExecutionPolicy", "Bypass", "-Command", $command))
+}
+
 function Invoke-DownloadFirst {
     param(
         [Parameter(Mandatory)][string[]]$Urls,
@@ -268,10 +315,13 @@ function New-LauncherShortcut {
         [Parameter(Mandatory)][string]$IconPath
     )
     New-Item -ItemType Directory -Force -Path (Split-Path -Parent $ShortcutPath) | Out-Null
+    $targetPath = Resolve-ShortcutDetectorPowerShell -FallbackPath $TargetPath
+    if ([string]::IsNullOrWhiteSpace($targetPath)) { throw "未找到可用于快捷方式检测的 PowerShell。" }
+    $shortcutArguments = New-ShortcutLauncherArguments -ScriptPath $ScriptPath
     $shell = New-Object -ComObject WScript.Shell
     $shortcut = $shell.CreateShortcut($ShortcutPath)
-    $shortcut.TargetPath = $TargetPath
-    $shortcut.Arguments = "-NoProfile -ExecutionPolicy Bypass -File `"$ScriptPath`""
+    $shortcut.TargetPath = $targetPath
+    $shortcut.Arguments = $shortcutArguments
     $shortcut.WorkingDirectory = Split-Path -Parent $ScriptPath
     if (Test-IconFile $IconPath) {
         $shortcut.IconLocation = $IconPath
