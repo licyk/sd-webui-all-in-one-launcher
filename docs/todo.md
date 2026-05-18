@@ -701,6 +701,8 @@
 - [x] `install.ps1` 创建快捷方式时同步采用 GUI runtime 的动态 PowerShell 检测和脚本路径单引号保护逻辑。
 - [x] GUI 快捷方式动态 PowerShell 检测后运行 PowerShell 解析检查、快捷方式参数烟测、`python3 tools/compile_gui.py --output dist/installer_launcher_gui.ps1`、编译产物解析、`bash -n`、`shellcheck` 和 `git diff --check`，通过。
 - [x] `install.ps1` 快捷方式同步后运行 PowerShell 解析检查、安装脚本快捷方式参数烟测、GUI 单文件编译、编译产物解析、`bash -n`、`shellcheck` 和 `git diff --check`，通过。
+- [x] GUI 标题栏左上角图标加载后会清除默认蓝色 fallback 背景，并去掉图标内边距，避免真实图标周围出现蓝色边框。
+- [x] GUI 标题栏图标背景修复后运行 PowerShell 解析检查、XAML XML 解析、GUI 单文件编译、编译产物解析、`bash -n`、`shellcheck` 和 `git diff --check`，通过；当前 Linux 环境缺少 WPF `PresentationFramework`，实机 WPF 加载仍待 Windows 验证。
 - [ ] 在 Windows PowerShell 5.1 中运行 `installer_launcher_gui.ps1`，验证 WPF 界面可正常启动。
 - [ ] 在 Windows 中验证 GUI 首次启动会创建 AppData / LocalAppData 配置、缓存和日志目录。
 - [ ] 在 Windows 中验证 GUI 安装器下载重试、PowerShell 执行、安装检测、管理脚本运行和项目卸载流程。

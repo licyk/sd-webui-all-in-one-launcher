@@ -309,6 +309,7 @@ function Apply-LauncherIcon {
     if (-not (Test-IconFile $IconPath)) { return $false }
     $titleLogoImage = Get-UiControl $UI "TitleLogoImage"
     $titleLogoText = Get-UiControl $UI "TitleLogoText"
+    $titleLogoBorder = Get-UiControl $UI "TitleLogoBorder"
     try {
         $iconUri = New-Object System.Uri($IconPath, [System.UriKind]::Absolute)
         $frame = [System.Windows.Media.Imaging.BitmapFrame]::Create($iconUri)
@@ -318,6 +319,9 @@ function Apply-LauncherIcon {
         if ($null -ne $titleLogoImage) {
             $titleLogoImage.Source = $frame
             $titleLogoImage.Visibility = "Visible"
+        }
+        if ($null -ne $titleLogoBorder) {
+            $titleLogoBorder.Background = [System.Windows.Media.Brushes]::Transparent
         }
         if ($null -ne $titleLogoText) { $titleLogoText.Visibility = "Collapsed" }
         Write-Log INFO "launcher icon applied: $IconPath"

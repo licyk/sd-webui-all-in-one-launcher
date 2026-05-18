@@ -565,7 +565,7 @@
           </Grid.ColumnDefinitions>
           <Border Name="TitleLogoBorder" Grid.Column="0" Width="24" Height="24" CornerRadius="7" Background="{DynamicResource PrimaryBrush}" Margin="0,0,10,0" ClipToBounds="True" VerticalAlignment="Center">
             <Grid>
-              <Image Name="TitleLogoImage" Stretch="Uniform" Margin="2" Visibility="Collapsed"/>
+              <Image Name="TitleLogoImage" Stretch="Uniform" Margin="0" Visibility="Collapsed"/>
               <TextBlock Name="TitleLogoText" Text="AI" Foreground="White" FontSize="10" FontWeight="SemiBold" HorizontalAlignment="Center" VerticalAlignment="Center"/>
             </Grid>
           </Border>
