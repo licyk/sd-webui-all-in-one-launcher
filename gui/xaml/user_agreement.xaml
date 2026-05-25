@@ -16,8 +16,8 @@
       </ScrollViewer>
     </Border>
     <StackPanel Grid.Row="2" Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,16,0,0">
-      <Button Name="DeclineBtn" Content="不同意并退出" Width="128" Height="36" Margin="0,0,10,0"/>
-      <Button Name="AgreeBtn" Content="同意并继续" Width="128" Height="36" Background="#0078D4" Foreground="White" BorderThickness="0"/>
+      <Button Name="DeclineBtn" Content="不同意并退出" Width="128" Height="40" Margin="0,0,10,0"/>
+      <Button Name="AgreeBtn" Content="同意并继续" Width="128" Height="40" Background="#0078D4" Foreground="White" BorderThickness="0"/>
     </StackPanel>
   </Grid>
 </Window>

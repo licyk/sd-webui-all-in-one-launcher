@@ -9,8 +9,8 @@
     <TextBlock Grid.Row="0" Name="MessageText" Text="" TextWrapping="Wrap" Margin="0,0,0,12"/>
     <TextBox Grid.Row="1" Name="InputBox" Height="28"/>
     <StackPanel Grid.Row="2" Orientation="Horizontal" HorizontalAlignment="Right" VerticalAlignment="Bottom">
-      <Button Name="OkBtn" Content="确定" Width="86" Margin="0,0,8,0"/>
-      <Button Name="CancelBtn" Content="取消" Width="86"/>
+      <Button Name="OkBtn" Content="确定" Width="86" Height="40" Margin="0,0,8,0"/>
+      <Button Name="CancelBtn" Content="取消" Width="86" Height="40"/>
     </StackPanel>
   </Grid>
 </Window>

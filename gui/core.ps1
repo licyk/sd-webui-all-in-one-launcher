@@ -1,6 +1,6 @@
 ﻿# Core constants, helpers, logging.
 
-$script:INSTALLER_LAUNCHER_GUI_VERSION = "0.3.13"
+$script:INSTALLER_LAUNCHER_GUI_VERSION = "0.3.14"
 $script:APP_NAME = "installer-launcher"
 $script:APP_TITLE = "SD WebUI All In One Installer Launcher GUI"
 $script:SELF_REMOTE_URLS = @(
@@ -17,6 +17,7 @@ $script:SHORTCUT_ICON_URLS = @(
 )
 $script:LAUNCHER_GUI_DOC_URL = "https://licyk.github.io/sd-webui-all-in-one/tools/launcher-gui"
 $script:SDNOTE_URL = "https://licyk.github.io/SDNote"
+$script:ISSUE_FEEDBACK_URL = "https://github.com/licyk/sd-webui-all-in-one/issues"
 Add-Type -AssemblyName PresentationFramework, PresentationCore, WindowsBase, System.Windows.Forms, System.Drawing
 
 Add-Type -TypeDefinition @"

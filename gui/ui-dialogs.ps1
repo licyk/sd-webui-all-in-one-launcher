@@ -228,6 +228,12 @@ function Show-HelpWindow {
     if ([string]::IsNullOrWhiteSpace($sdNoteUrl)) {
         $sdNoteUrl = "https://licyk.github.io/SDNote"
     }
+    $issueFeedbackVar = Get-Variable -Name ISSUE_FEEDBACK_URL -Scope Script -ErrorAction SilentlyContinue
+    $issueFeedbackUrl = ""
+    if ($null -ne $issueFeedbackVar) { $issueFeedbackUrl = [string]$issueFeedbackVar.Value }
+    if ([string]::IsNullOrWhiteSpace($issueFeedbackUrl)) {
+        $issueFeedbackUrl = "https://github.com/licyk/sd-webui-all-in-one/issues"
+    }
     $openLauncherDocBtn = $window.FindName("OpenLauncherDocBtn")
     $openLauncherDocBtn.Tag = $launcherDocUrl
     $openLauncherDocBtn.Add_Click({
@@ -237,6 +243,12 @@ function Show-HelpWindow {
     $openSdNoteBtn = $window.FindName("OpenSdNoteBtn")
     $openSdNoteBtn.Tag = $sdNoteUrl
     $openSdNoteBtn.Add_Click({
+        param($sender, $eventArgs)
+        Invoke-OpenTaggedUrl $sender
+    })
+    $openIssueFeedbackBtn = $window.FindName("OpenIssueFeedbackBtn")
+    $openIssueFeedbackBtn.Tag = $issueFeedbackUrl
+    $openIssueFeedbackBtn.Add_Click({
         param($sender, $eventArgs)
         Invoke-OpenTaggedUrl $sender
     })

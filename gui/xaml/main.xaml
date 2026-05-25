@@ -686,7 +686,7 @@
                   <StackPanel>
                     <TextBlock Text="未安装时：先选软件，再确认安装路径和安装器参数，最后用安装模式运行 installer 完成首次安装。" Foreground="{DynamicResource TextSecBrush}" TextWrapping="Wrap" Margin="0,0,0,10"/>
                     <TextBlock Text="已安装后：优先使用启动模式，选择 launch.ps1 启动 WebUI，或选择 update.ps1 / terminal.ps1 / version_manager.ps1 做维护。" Foreground="{DynamicResource TextSecBrush}" TextWrapping="Wrap" Margin="0,0,0,10"/>
-                    <TextBlock Text="如果 WebUI 已经打开但不知道如何使用模型、提示词、扩展或排查错误，可以点左上角 ? 进入 SD Note 教程。" Foreground="{DynamicResource TextSecBrush}" TextWrapping="Wrap" Margin="0,0,0,18"/>
+                    <TextBlock Text="如果 WebUI 已经打开但不知道如何使用模型、提示词、扩展或排查错误，可以点左上角 ? 进入 SD Note 教程；遇到启动器、安装器或上游脚本问题，也可以在那里打开问题反馈。" Foreground="{DynamicResource TextSecBrush}" TextWrapping="Wrap" Margin="0,0,0,18"/>
                     <Border Background="{DynamicResource HeaderBGBrush}" CornerRadius="8" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1" Padding="14" Margin="0,0,0,14">
                       <TextBlock Text="PowerShell 脚本会在独立控制台中运行；如果返回非零退出码，窗口会停留以便查看上游日志。" TextWrapping="Wrap" Foreground="{DynamicResource TextSecBrush}"/>
                     </Border>

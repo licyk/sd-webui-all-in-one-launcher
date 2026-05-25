@@ -40,8 +40,8 @@
     </Border>
 
     <StackPanel Grid.Row="2" Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,16,0,0">
-      <Button Name="CancelBtn" Content="取消" Width="120" Height="38" Margin="0,0,10,0"/>
-      <Button Name="ConfirmBtn" Content="运行安装器" Width="136" Height="38"
+      <Button Name="CancelBtn" Content="取消" Width="120" Height="40" Margin="0,0,10,0"/>
+      <Button Name="ConfirmBtn" Content="运行安装器" Width="136" Height="40"
               Background="#FF0078D4" Foreground="White" BorderThickness="0"/>
     </StackPanel>
   </Grid>

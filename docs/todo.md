@@ -703,6 +703,10 @@
 - [x] `install.ps1` 快捷方式同步后运行 PowerShell 解析检查、安装脚本快捷方式参数烟测、GUI 单文件编译、编译产物解析、`bash -n`、`shellcheck` 和 `git diff --check`，通过。
 - [x] GUI 标题栏左上角图标加载后会清除默认蓝色 fallback 背景，并去掉图标内边距，避免真实图标周围出现蓝色边框。
 - [x] GUI 标题栏图标背景修复后运行 PowerShell 解析检查、XAML XML 解析、GUI 单文件编译、编译产物解析、`bash -n`、`shellcheck` 和 `git diff --check`，通过；当前 Linux 环境缺少 WPF `PresentationFramework`，实机 WPF 加载仍待 Windows 验证。
+- [x] GUI 左上角帮助窗口已新增“问题反馈”按钮，指向 `https://github.com/licyk/sd-webui-all-in-one/issues`；帮助说明和一键启动右侧提示也同步提示可在该入口反馈问题。
+- [x] GUI 自定义弹窗底部按钮高度统一为 40px，覆盖帮助、安装确认、最终确认、输入、日志和用户协议窗口。
+- [x] GUI 版本号已从 `0.3.13` 提升到 `0.3.14`。
+- [x] GUI 帮助问题反馈、弹窗按钮高度调整和版本号提升后运行 GUI 单文件编译、PowerShell 解析检查、XAML XML 解析、`bash -n`、`shellcheck` 和 `git diff --check`，通过；当前 Linux 环境未做 WPF 实机加载验证。
 - [ ] 在 Windows PowerShell 5.1 中运行 `installer_launcher_gui.ps1`，验证 WPF 界面可正常启动。
 - [ ] 在 Windows 中验证 GUI 首次启动会创建 AppData / LocalAppData 配置、缓存和日志目录。
 - [ ] 在 Windows 中验证 GUI 安装器下载重试、PowerShell 执行、安装检测、管理脚本运行和项目卸载流程。
