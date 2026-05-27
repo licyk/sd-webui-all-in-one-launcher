@@ -450,9 +450,6 @@ function Get-RuntimeWorkerPrelude {
     $functionNames = @(
         "Join-Shlex",
         "Resolve-PowerShellCommand",
-        "ConvertTo-ShortcutPowerShellLiteral",
-        "Resolve-ShortcutDetectorPowerShell",
-        "New-ShortcutLauncherArguments",
         "New-ConsoleWrapperScript",
         "Quote-ProcessArgument",
         "Join-ProcessArguments",
@@ -629,39 +626,6 @@ function Invoke-TerminateCurrentOperation {
 function ConvertTo-SingleQuotedLiteral {
     param([string]$Value)
     return "'{0}'" -f (($Value -replace "'", "''"))
-}
-
-function ConvertTo-ShortcutPowerShellLiteral {
-    param([string]$Value)
-    return "'{0}'" -f (($Value -replace "'", "''"))
-}
-
-function Resolve-ShortcutDetectorPowerShell {
-    param([string]$FallbackPath)
-    $powershell = Get-Command powershell -CommandType Application -ErrorAction SilentlyContinue
-    if ($null -ne $powershell -and -not [string]::IsNullOrWhiteSpace([string]$powershell.Source)) {
-        return [string]$powershell.Source
-    }
-    if (-not [string]::IsNullOrWhiteSpace($FallbackPath) -and (Test-Path -LiteralPath $FallbackPath -PathType Leaf)) {
-        return $FallbackPath
-    }
-    return ""
-}
-
-function New-ShortcutLauncherArguments {
-    param([string]$ScriptPath)
-    $scriptLiteral = ConvertTo-ShortcutPowerShellLiteral $ScriptPath
-    $command = @(
-        '$ErrorActionPreference = ''Stop'''
-        ('$scriptPath = {0}' -f $scriptLiteral)
-        'if (-not (Test-Path -LiteralPath $scriptPath -PathType Leaf)) { throw ''GUI 脚本不存在: $scriptPath'' }'
-        '$pwsh = Get-Command pwsh -CommandType Application -ErrorAction SilentlyContinue'
-        '$pwshPath = [string]::Empty; if ($null -ne $pwsh) { $pwshPath = [string]$pwsh.Source }'
-        ('if (-not [string]::IsNullOrWhiteSpace($pwshPath)) { & $pwshPath -NoLogo -NoProfile -ExecutionPolicy Bypass -File ' + $scriptLiteral + '; $code = $LASTEXITCODE; if ($null -eq $code) { $code = 0 }; exit $code }')
-        ('& ' + $scriptLiteral)
-        'exit 0'
-    ) -join "; "
-    return (Join-ProcessArguments @("-NoLogo", "-NoProfile", "-ExecutionPolicy", "Bypass", "-Command", $command))
 }
 
 function Register-LauncherUninstallEntry {
@@ -851,10 +815,7 @@ function Invoke-CreateLauncherShortcut {
         }
 
         function Add-WindowsShortcut {
-            param([string]$Name, [string]$IconPath, [string]$FallbackTargetPath, [string]$ScriptPath)
-            $targetPath = Resolve-ShortcutDetectorPowerShell -FallbackPath $FallbackTargetPath
-            if ([string]::IsNullOrWhiteSpace($targetPath)) { throw "未找到可用于快捷方式检测的 PowerShell。" }
-            $shortcutArguments = New-ShortcutLauncherArguments -ScriptPath $ScriptPath
+            param([string]$Name, [string]$IconPath, [string]$TargetPath, [string]$ScriptPath)
             $shell = New-Object -ComObject WScript.Shell
             $desktop = [System.Environment]::GetFolderPath("Desktop")
             $programs = Join-Path ([System.Environment]::GetFolderPath("ApplicationData")) "Microsoft\Windows\Start Menu\Programs"
@@ -863,13 +824,13 @@ function Invoke-CreateLauncherShortcut {
             $programsShortcut = Join-Path $programs "$Name.lnk"
             foreach ($shortcutPath in @($desktopShortcut, $programsShortcut)) {
                 $shortcut = $shell.CreateShortcut($shortcutPath)
-                $shortcut.TargetPath = $targetPath
-                $shortcut.Arguments = $shortcutArguments
+                $shortcut.TargetPath = $TargetPath
+                $shortcut.Arguments = "-NoProfile -ExecutionPolicy Bypass -File `"$ScriptPath`""
                 $shortcut.WorkingDirectory = Split-Path -Parent $ScriptPath
                 $shortcut.IconLocation = $IconPath
                 $shortcut.Save()
             }
-            return [PSCustomObject]@{ Paths = @($desktopShortcut, $programsShortcut); TargetPath = $targetPath; Arguments = $shortcutArguments }
+            return @($desktopShortcut, $programsShortcut)
         }
 
         $attempts = New-Object System.Collections.ArrayList
@@ -906,8 +867,8 @@ function Invoke-CreateLauncherShortcut {
         }
 
         try {
-            $shortcutResult = Add-WindowsShortcut -Name $ShortcutName -IconPath $IconPath -FallbackTargetPath $LauncherPath -ScriptPath $SelfPath
-            return [PSCustomObject]@{ Success = $true; Message = "快捷方式已创建。"; Attempts = @($attempts.ToArray()); Paths = @($shortcutResult.Paths); TargetPath = $shortcutResult.TargetPath; Arguments = $shortcutResult.Arguments }
+            $paths = Add-WindowsShortcut -Name $ShortcutName -IconPath $IconPath -TargetPath $LauncherPath -ScriptPath $SelfPath
+            return [PSCustomObject]@{ Success = $true; Message = "快捷方式已创建。"; Attempts = @($attempts.ToArray()); Paths = @($paths) }
         } catch {
             return [PSCustomObject]@{ Success = $false; Message = "创建快捷方式失败: $($_.Exception.Message)"; Attempts = @($attempts.ToArray()); Paths = @() }
         }
@@ -924,7 +885,6 @@ function Invoke-CreateLauncherShortcut {
             Write-Log DEBUG "shortcut icon attempt: $attempt"
         }
         if ($item.Success) {
-            Write-Log DEBUG "shortcut target: $($item.TargetPath) args=$($item.Arguments)"
             $paths = @($item.Paths) -join [Environment]::NewLine
             Append-UiLog $UI "快捷方式已创建: $paths"
             Show-Message "$($item.Message)`n`n$paths" "创建快捷方式"
