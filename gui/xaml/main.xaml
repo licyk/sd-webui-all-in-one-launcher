@@ -124,7 +124,8 @@
       <Setter Property="Margin" Value="0,0,12,12"/>
       <Setter Property="Cursor" Value="Hand"/>
       <Setter Property="HorizontalContentAlignment" Value="Stretch"/>
-      <Setter Property="VerticalContentAlignment" Value="Stretch"/>
+      <Setter Property="VerticalContentAlignment" Value="Center"/>
+      <Setter Property="MinHeight" Value="86"/>
       <Setter Property="Template">
         <Setter.Value>
           <ControlTemplate TargetType="Button">
@@ -269,6 +270,30 @@
     </Style>
     <Style TargetType="TextBlock">
       <Setter Property="Foreground" Value="{DynamicResource TextMainBrush}"/>
+    </Style>
+    <Style x:Key="AboutLinkTitleText" TargetType="TextBlock">
+      <Setter Property="FontSize" Value="13"/>
+      <Setter Property="FontWeight" Value="SemiBold"/>
+      <Setter Property="LineHeight" Value="18"/>
+      <Setter Property="LineStackingStrategy" Value="BlockLineHeight"/>
+    </Style>
+    <Style x:Key="AboutLinkIconText" TargetType="TextBlock">
+      <Setter Property="Width" Value="28"/>
+      <Setter Property="FontSize" Value="22"/>
+      <Setter Property="Foreground" Value="{DynamicResource PrimaryBrush}"/>
+      <Setter Property="VerticalAlignment" Value="Center"/>
+      <Setter Property="TextAlignment" Value="Center"/>
+      <Setter Property="LineHeight" Value="26"/>
+      <Setter Property="LineStackingStrategy" Value="BlockLineHeight"/>
+      <Setter Property="Margin" Value="0,0,12,0"/>
+    </Style>
+    <Style x:Key="AboutLinkUrlText" TargetType="TextBlock">
+      <Setter Property="FontSize" Value="13"/>
+      <Setter Property="Foreground" Value="{DynamicResource TextSecBrush}"/>
+      <Setter Property="TextWrapping" Value="Wrap"/>
+      <Setter Property="Margin" Value="0,6,0,0"/>
+      <Setter Property="LineHeight" Value="18"/>
+      <Setter Property="LineStackingStrategy" Value="BlockLineHeight"/>
     </Style>
     <Style TargetType="CheckBox">
       <Setter Property="Foreground" Value="{DynamicResource TextMainBrush}"/>
@@ -1066,67 +1091,67 @@
                 </Border>
                 <WrapPanel Margin="0,0,0,18">
                   <Button Name="AboutSdAllInOneBtn" Style="{StaticResource AboutLinkCardButton}" Width="318" Tag="https://github.com/licyk/sd-webui-all-in-one">
-                    <Grid>
+                    <Grid VerticalAlignment="Center">
                       <Grid.ColumnDefinitions>
                         <ColumnDefinition Width="Auto"/>
                         <ColumnDefinition Width="*"/>
                       </Grid.ColumnDefinitions>
-                      <TextBlock Text="⌘" FontSize="22" Foreground="{DynamicResource PrimaryBrush}" VerticalAlignment="Center" Margin="0,0,12,0"/>
-                      <StackPanel Grid.Column="1">
-                        <TextBlock Text="SD WebUI All In One" FontWeight="SemiBold"/>
-                        <TextBlock Text="github.com/licyk/sd-webui-all-in-one" Foreground="{DynamicResource TextSecBrush}" TextWrapping="Wrap" Margin="0,6,0,0"/>
+                      <TextBlock Text="⌘" Style="{StaticResource AboutLinkIconText}"/>
+                      <StackPanel Grid.Column="1" VerticalAlignment="Center">
+                        <TextBlock Text="SD WebUI All In One" Style="{StaticResource AboutLinkTitleText}"/>
+                        <TextBlock Text="github.com/licyk/sd-webui-all-in-one" Style="{StaticResource AboutLinkUrlText}"/>
                       </StackPanel>
                     </Grid>
                   </Button>
                   <Button Name="AboutLauncherBtn" Style="{StaticResource AboutLinkCardButton}" Width="318" Tag="https://github.com/licyk/sd-webui-all-in-one-launcher">
-                    <Grid>
+                    <Grid VerticalAlignment="Center">
                       <Grid.ColumnDefinitions>
                         <ColumnDefinition Width="Auto"/>
                         <ColumnDefinition Width="*"/>
                       </Grid.ColumnDefinitions>
-                      <TextBlock Text="⌂" FontSize="22" Foreground="{DynamicResource PrimaryBrush}" VerticalAlignment="Center" Margin="0,0,12,0"/>
-                      <StackPanel Grid.Column="1">
-                        <TextBlock Text="Launcher 项目" FontWeight="SemiBold"/>
-                        <TextBlock Text="github.com/licyk/sd-webui-all-in-one-launcher" Foreground="{DynamicResource TextSecBrush}" TextWrapping="Wrap" Margin="0,6,0,0"/>
+                      <TextBlock Text="⌂" Style="{StaticResource AboutLinkIconText}"/>
+                      <StackPanel Grid.Column="1" VerticalAlignment="Center">
+                        <TextBlock Text="Launcher 项目" Style="{StaticResource AboutLinkTitleText}"/>
+                        <TextBlock Text="github.com/licyk/sd-webui-all-in-one-launcher" Style="{StaticResource AboutLinkUrlText}"/>
                       </StackPanel>
                     </Grid>
                   </Button>
                   <Button Name="AboutAuthorBtn" Style="{StaticResource AboutLinkCardButton}" Width="318" Tag="https://github.com/licyk">
-                    <Grid>
+                    <Grid VerticalAlignment="Center">
                       <Grid.ColumnDefinitions>
                         <ColumnDefinition Width="Auto"/>
                         <ColumnDefinition Width="*"/>
                       </Grid.ColumnDefinitions>
-                      <TextBlock Text="✦" FontSize="22" Foreground="{DynamicResource PrimaryBrush}" VerticalAlignment="Center" Margin="0,0,12,0"/>
-                      <StackPanel Grid.Column="1">
-                        <TextBlock Text="licyk" FontWeight="SemiBold"/>
-                        <TextBlock Text="github.com/licyk" Foreground="{DynamicResource TextSecBrush}" TextWrapping="Wrap" Margin="0,6,0,0"/>
+                      <TextBlock Text="✦" Style="{StaticResource AboutLinkIconText}"/>
+                      <StackPanel Grid.Column="1" VerticalAlignment="Center">
+                        <TextBlock Text="licyk" Style="{StaticResource AboutLinkTitleText}"/>
+                        <TextBlock Text="github.com/licyk" Style="{StaticResource AboutLinkUrlText}"/>
                       </StackPanel>
                     </Grid>
                   </Button>
                   <Button Name="AboutBlogBtn" Style="{StaticResource AboutLinkCardButton}" Width="318" Tag="https://licyk.netlify.app">
-                    <Grid>
+                    <Grid VerticalAlignment="Center">
                       <Grid.ColumnDefinitions>
                         <ColumnDefinition Width="Auto"/>
                         <ColumnDefinition Width="*"/>
                       </Grid.ColumnDefinitions>
-                      <TextBlock Text="✎" FontSize="22" Foreground="{DynamicResource PrimaryBrush}" VerticalAlignment="Center" Margin="0,0,12,0"/>
-                      <StackPanel Grid.Column="1">
-                        <TextBlock Text="博客" FontWeight="SemiBold"/>
-                        <TextBlock Text="licyk.netlify.app" Foreground="{DynamicResource TextSecBrush}" TextWrapping="Wrap" Margin="0,6,0,0"/>
+                      <TextBlock Text="✎" Style="{StaticResource AboutLinkIconText}"/>
+                      <StackPanel Grid.Column="1" VerticalAlignment="Center">
+                        <TextBlock Text="博客" Style="{StaticResource AboutLinkTitleText}"/>
+                        <TextBlock Text="licyk.netlify.app" Style="{StaticResource AboutLinkUrlText}"/>
                       </StackPanel>
                     </Grid>
                   </Button>
                   <Button Name="AboutBilibiliBtn" Style="{StaticResource AboutLinkCardButton}" Width="318" Tag="https://space.bilibili.com/46497516">
-                    <Grid>
+                    <Grid VerticalAlignment="Center">
                       <Grid.ColumnDefinitions>
                         <ColumnDefinition Width="Auto"/>
                         <ColumnDefinition Width="*"/>
                       </Grid.ColumnDefinitions>
-                      <TextBlock Text="▷" FontSize="22" Foreground="{DynamicResource PrimaryBrush}" VerticalAlignment="Center" Margin="0,0,12,0"/>
-                      <StackPanel Grid.Column="1">
-                        <TextBlock Text="哔哩哔哩" FontWeight="SemiBold"/>
-                        <TextBlock Text="space.bilibili.com/46497516" Foreground="{DynamicResource TextSecBrush}" TextWrapping="Wrap" Margin="0,6,0,0"/>
+                      <TextBlock Text="▷" Style="{StaticResource AboutLinkIconText}"/>
+                      <StackPanel Grid.Column="1" VerticalAlignment="Center">
+                        <TextBlock Text="哔哩哔哩" Style="{StaticResource AboutLinkTitleText}"/>
+                        <TextBlock Text="space.bilibili.com/46497516" Style="{StaticResource AboutLinkUrlText}"/>
                       </StackPanel>
                     </Grid>
                   </Button>
@@ -1134,7 +1159,7 @@
                 <Border Background="{DynamicResource PanelBGBrush}" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1" CornerRadius="12" Padding="22">
                   <StackPanel>
                     <TextBlock Text="用户协议" FontSize="20" FontWeight="SemiBold" Margin="0,0,0,14"/>
-                    <TextBox Name="AboutAgreementText" IsReadOnly="True" AcceptsReturn="True" TextWrapping="Wrap" VerticalScrollBarVisibility="Auto" BorderThickness="0" Background="Transparent" MinHeight="320" VerticalContentAlignment="Top"/>
+                    <TextBox Name="AboutAgreementText" IsReadOnly="True" AcceptsReturn="True" TextWrapping="Wrap" VerticalScrollBarVisibility="Auto" BorderThickness="0" Background="Transparent" MinHeight="320" VerticalContentAlignment="Top" FontSize="13"/>
                   </StackPanel>
                 </Border>
               </StackPanel>

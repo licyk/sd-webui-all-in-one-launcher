@@ -709,6 +709,11 @@
 - [x] GUI 帮助问题反馈、弹窗按钮高度调整和版本号提升后运行 GUI 单文件编译、PowerShell 解析检查、XAML XML 解析、`bash -n`、`shellcheck` 和 `git diff --check`，通过；当前 Linux 环境未做 WPF 实机加载验证。
 - [x] GUI 和 `install.ps1` 创建快捷方式逻辑已恢复为固定使用当前 PowerShell 可执行文件作为目标，并使用短 `-NoProfile -ExecutionPolicy Bypass -File "<脚本>"` 参数，不再在快捷方式中动态检测 `pwsh`。
 - [x] 恢复快捷方式逻辑后运行 PowerShell 解析检查、GUI 单文件临时编译与解析、`bash -n`、`shellcheck` 和 `git diff --check`，通过。
+- [x] GUI 关于页链接卡片改为垂直居中内容，并统一标题、链接和左侧符号的字号与行高；用户协议正文提升到 14px 字号。
+- [x] 关于页排版修复后运行 GUI 单文件编译、PowerShell 解析检查、XAML XML 解析、`bash -n`、`shellcheck` 和 `git diff --check`，通过；当前 Linux 环境未做 WPF 实机加载验证。
+- [x] 移除 GUI 关于页用户协议 `TextBox` 不兼容的 `LineHeight` / `LineStackingStrategy` 属性，避免 Windows WPF 加载时报未知成员。
+- [x] 移除不兼容 TextBox 行高属性后重新运行 GUI 单文件编译、PowerShell 解析检查、XAML XML 解析、`bash -n`、`shellcheck` 和 `git diff --check`，通过。
+- [x] GUI 关于页链接卡片和用户协议正文从 14px 微调为 13px，使字号更接近其他设置与说明区域。
 - [ ] 在 Windows PowerShell 5.1 中运行 `installer_launcher_gui.ps1`，验证 WPF 界面可正常启动。
 - [ ] 在 Windows 中验证 GUI 首次启动会创建 AppData / LocalAppData 配置、缓存和日志目录。
 - [ ] 在 Windows 中验证 GUI 安装器下载重试、PowerShell 执行、安装检测、管理脚本运行和项目卸载流程。
