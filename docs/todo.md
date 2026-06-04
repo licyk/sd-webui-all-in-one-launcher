@@ -72,6 +72,7 @@
 - [x] GUI 多文件拆分后的静态验证已通过：PowerShell 解析检查、`bash -n`、`shellcheck`、`git diff --check`。
 - [x] 修复 GUI 拆分后启动时主题资源替换可能把颜色值传给 `Foreground` 的问题，改用 `BrushConverter` 显式生成 `Brush`。
 - [x] GUI XAML 加载已支持优先读取编译产物中的内嵌 XAML 资源，源码运行时继续回退读取 `gui/xaml/`。
+- [x] TUI/CLI 与 GUI 的 SD Trainer Installer 分支列表已新增 `sd_trainer_next_main`（`wochenlong/SD-Trainer-Next`）。
 
 ## 配置与项目选择
 

@@ -1,6 +1,6 @@
 ﻿# Core constants, helpers, logging.
 
-$script:INSTALLER_LAUNCHER_GUI_VERSION = "0.3.16"
+$script:INSTALLER_LAUNCHER_GUI_VERSION = "0.3.17"
 $script:APP_NAME = "installer-launcher"
 $script:APP_TITLE = "SD WebUI All In One Installer Launcher GUI"
 $script:SELF_REMOTE_URLS = @(

@@ -215,6 +215,7 @@ PROJECT_sd_trainer_MANAGEMENT_SCRIPTS=(
 PROJECT_sd_trainer_BRANCHES=(
   "sd_trainer_main:Akegarasu/SD-Trainer"
   "kohya_gui_main:bmaltais/Kohya GUI"
+  "sd_trainer_next_main:wochenlong/SD-Trainer-Next"
 )
 # shellcheck disable=SC2034
 PROJECT_sd_trainer_PARAMS=(

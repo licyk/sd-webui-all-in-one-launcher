@@ -290,7 +290,7 @@ function New-ProjectRegistry {
             "https://gitlab.com/licyk/sd-webui-all-in-one/-/raw/main/installer/sd_trainer_installer.ps1"
         )
         DefaultDir = "SD-Trainer"; DefaultBranch = "sd_trainer_main"
-        Branches = [ordered]@{ sd_trainer_main = "Akegarasu/SD-Trainer"; kohya_gui_main = "bmaltais/Kohya GUI" }
+        Branches = [ordered]@{ sd_trainer_main = "Akegarasu/SD-Trainer"; kohya_gui_main = "bmaltais/Kohya GUI"; sd_trainer_next_main = "wochenlong/SD-Trainer-Next" }
         Scripts = [ordered]@{
             "launch.ps1" = "启动 SD Trainer"; "update.ps1" = "更新 SD Trainer"; "switch_branch.ps1" = "切换分支"; "version_manager.ps1" = "管理 SD Trainer 版本"
             "terminal.ps1" = "打开交互终端"; "settings.ps1" = "管理设置"; "download_models.ps1" = "下载模型"; "reinstall_pytorch.ps1" = "重装 PyTorch"; "launch_sd_trainer_installer.ps1" = "获取最新安装器并运行"
