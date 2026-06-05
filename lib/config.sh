@@ -18,9 +18,8 @@ ensure_main_config() {
 }
 
 ensure_project_config() {
-  local key="$1" file branch schema
+  local key="$1" file schema
   file="$(project_config_file "$key")"
-  branch="$(project_default_branch "$key")"
   mkdir -p "$PROJECT_CONFIG_DIR"
   if [[ -f "$file" ]]; then
     schema="$(sed -n 's/^CONFIG_SCHEMA_VERSION=//p' "$file" | head -n 1)"
@@ -31,14 +30,14 @@ ensure_project_config() {
   fi
   if [[ ! -f "$file" ]]; then
     log_info "create project config v2: project=$key file=$file"
-    write_default_project_config_v2 "$key" "$branch" >"$file"
+    write_default_project_config_v2 "$key" >"$file"
   fi
 }
 
 installer_param_default_value() {
   local key="$1" param="$2"
   case "$param" in
-    InstallBranch) project_default_branch "$key" ;;
+    InstallBranch) printf '' ;;
     EnableHotpatcherRuntime) printf '0' ;;
     Disable*|No*) printf '0' ;;
     *) printf '' ;;
@@ -46,14 +45,13 @@ installer_param_default_value() {
 }
 
 write_default_project_config_v2() {
-  local key="$1" branch="$2" param var default_value
+  local key="$1" param var default_value
   printf 'CONFIG_SCHEMA_VERSION="2"\n'
   while IFS= read -r param; do
     [[ -n "$param" ]] || continue
     installer_param_config_var_name "$param" >/dev/null 2>&1 || continue
     var="$(installer_param_var_name "$param")"
     default_value="$(installer_param_default_value "$key" "$param")"
-    [[ "$param" == "InstallBranch" && -n "$branch" ]] && default_value="$branch"
     printf '%s=%s\n' "$var" "$(quote_config "$default_value")"
   done < <(project_param_entries "$key")
   printf 'INSTALLER_EXTRA_ARGS=""\n'
@@ -242,7 +240,6 @@ sync_installer_params_from_v2_vars() {
     fi
     printf -v "$target_var" '%s' "$value"
   done < <(project_param_entries "$key")
-  INSTALL_BRANCH="${INSTALL_BRANCH:-$(project_default_branch "$key")}"
   EXTRA_INSTALL_ARGS="${INSTALLER_EXTRA_ARGS:-}"
 }
 

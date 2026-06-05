@@ -593,7 +593,11 @@ function Add-ConfigComboBox {
     if ($null -ne $Options) {
         foreach ($optionKey in $Options.Keys) {
             $item = New-Object System.Windows.Controls.ComboBoxItem
-            $item.Content = "$optionKey - $($Options[$optionKey])"
+            if ([string]::IsNullOrWhiteSpace([string]$optionKey)) {
+                $item.Content = [string]$Options[$optionKey]
+            } else {
+                $item.Content = "$optionKey - $($Options[$optionKey])"
+            }
             $item.Tag = [string]$optionKey
             $combo.Items.Add($item) | Out-Null
             if ([string]$optionKey -eq $Value) {
@@ -735,7 +739,7 @@ function Refresh-ProjectConfigUi {
     }
     if (Test-ProjectParam $project "InstallBranch") {
         $spec = Get-InstallerParamSpec $project "InstallBranch"
-        Add-ConfigComboBox $UI.ConfigPanel $State "INSTALL_BRANCH" (Get-ScriptParamLabel "InstallBranch" $spec) $project.Branches (Get-InstallerConfigValue $project $config "INSTALL_BRANCH")
+        Add-ConfigComboBox $UI.ConfigPanel $State "INSTALL_BRANCH" (Get-ScriptParamLabel "InstallBranch" $spec) (Get-InstallBranchOptions $project) (Get-InstallerConfigValue $project $config "INSTALL_BRANCH")
     }
     if (Test-ProjectParam $project "CorePrefix") {
         $spec = Get-InstallerParamSpec $project "CorePrefix"

@@ -38,13 +38,15 @@ ensure_current_project_selected() {
 }
 
 select_branch() {
-  local key="$1" menu_args=() entry
+  local key="$1" menu_args=("__default__" "默认分支（不传 -InstallBranch）") entry selected
   while IFS= read -r entry; do
     [[ -n "$entry" ]] || continue
     menu_args+=("${entry%%:*}" "${entry#*:}")
   done < <(branch_entries_for_project "$key")
   [[ "${#menu_args[@]}" -gt 0 ]] || return 1
-  menu_select "安装分支" "选择传给 -InstallBranch 的分支" "${menu_args[@]}"
+  selected="$(menu_select "安装分支" "选择默认分支时不会传 -InstallBranch；选择具体分支时才传递该参数。" "${menu_args[@]}")" || return $?
+  [[ "$selected" == "__default__" ]] && selected=""
+  printf '%s' "$selected"
 }
 
 select_management_script() {
@@ -167,7 +169,7 @@ configure_project() {
   while true; do
     local menu_args=()
     project_supports_param "$key" InstallPath && menu_args+=("install_path" "安装路径: ${INSTALL_PATH:-$(project_default_install_path "$key")}")
-    project_supports_param "$key" InstallBranch && menu_args+=("branch" "安装分支: ${INSTALL_BRANCH:-未设置}")
+    project_supports_param "$key" InstallBranch && menu_args+=("branch" "安装分支: ${INSTALL_BRANCH:-默认分支}")
     project_supports_param "$key" CorePrefix && menu_args+=("core_prefix" "内核路径前缀: ${CORE_PREFIX:-默认}")
     project_supports_param "$key" PyTorchMirrorType && menu_args+=("torch" "PyTorch 镜像类型: ${PYTORCH_MIRROR_TYPE:-默认}")
     project_supports_param "$key" InstallPythonVersion && menu_args+=("python" "Python 版本: ${PYTHON_VERSION:-默认}")
@@ -403,7 +405,7 @@ dialog 操作方式
     配置当前项目的安装参数。界面会按项目动态显示支持项，不支持的参数不会出现。
     常见项目参数:
       安装路径: 传给 -InstallPath。留空时使用 \$HOME/<项目默认目录>。
-      安装分支: 传给 -InstallBranch，仅支持分支选择的项目会显示。
+      安装分支: 选择 "默认分支" 时不传 -InstallBranch；仅支持分支选择的项目会显示。
       PyTorch 镜像类型: 传给 -PyTorchMirrorType，例如 cu121、cu124、cpu。
       Python 版本: 传给 -InstallPythonVersion。
       代理和镜像: 用于 Github、HuggingFace、PyPI 等下载加速或网络环境适配。

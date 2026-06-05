@@ -386,6 +386,12 @@ dialog 常用操作：
 ./installer_launcher.sh set-project fooocus INSTALL_BRANCH fooocus_mre_main
 ```
 
+清空安装分支会使用安装器默认分支，运行时不会传 `-InstallBranch`：
+
+```bash
+./installer_launcher.sh set-project fooocus INSTALL_BRANCH ""
+```
+
 给管理脚本保存结构化参数：
 
 ```bash

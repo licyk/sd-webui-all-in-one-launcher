@@ -73,6 +73,8 @@
 - [x] 修复 GUI 拆分后启动时主题资源替换可能把颜色值传给 `Foreground` 的问题，改用 `BrushConverter` 显式生成 `Brush`。
 - [x] GUI XAML 加载已支持优先读取编译产物中的内嵌 XAML 资源，源码运行时继续回退读取 `gui/xaml/`。
 - [x] TUI/CLI 与 GUI 的 SD Trainer Installer 分支列表已新增 `sd_trainer_next_main`（`wochenlong/SD-Trainer-Next`）。
+- [x] TUI 和 GUI 安装分支选择新增“默认分支”选项，选中时保存为空并在运行安装器时不传 `-InstallBranch`。
+- [x] TUI 版本提升到 `0.3.10`，GUI 版本提升到 `0.3.18`。
 
 ## 配置与项目选择
 
@@ -101,6 +103,7 @@
 - [x] 按新 installer 文档补齐项目能力表：ComfyUI、Fooocus、SD Trainer 支持 `-DisableCUDAMalloc` / `-DisableEnvCheck`，Qwen TTS WebUI 支持 `-DisableModelMirror`，并修正 GUI 中多余的 ComfyUI / SD WebUI 参数注册。
 - [x] `NoPause` 不再作为用户配置项；运行安装器和管理脚本时始终自动追加 `-NoPause`，并避免重复添加。
 - [x] 运行安装器时显式传入 `-InstallPath`，未配置时使用 `$HOME/<项目默认目录>`。
+- [x] 安装分支为空时使用安装器默认分支，不向 PowerShell 安装器传入 `-InstallBranch`。
 - [x] `EXTRA_INSTALL_ARGS` 会追加到结构化安装器参数之后。
 - [x] installer 安装设置可单独重置为默认值，重置时不会清除任何管理脚本参数。
 - [x] 运行安装器前展示确认信息，包括项目、安装器下载源列表、缓存路径、安装路径、PowerShell 参数和当前项目配置。

@@ -49,9 +49,21 @@ function Copy-Dictionary {
 
 function Get-DefaultParamValue {
     param($Spec, $Project)
-    if ($Spec.Name -eq "InstallBranch") { return [string]$Project.DefaultBranch }
+    if ($Spec.Name -eq "InstallBranch") { return "" }
     if ($Spec.Kind -eq "flag") { return $false }
     return ""
+}
+
+function Get-InstallBranchOptions {
+    param($Project)
+    $options = New-Object System.Collections.Specialized.OrderedDictionary
+    $options.Add("", "默认分支（不传 -InstallBranch）")
+    if ($null -ne $Project -and $Project.Contains("Branches") -and $null -ne $Project.Branches) {
+        foreach ($branchKey in $Project.Branches.Keys) {
+            $options.Add([string]$branchKey, [string]$Project.Branches[$branchKey])
+        }
+    }
+    return $options
 }
 
 function Get-InstallerParamSpecs {

@@ -560,7 +560,7 @@ main_menu
 例如：
 
 - 只有项目支持 `InstallPath` 时才传 `-InstallPath`。
-- 只有项目支持 `InstallBranch` 时才传 `-InstallBranch`。
+- 只有项目支持 `InstallBranch` 且配置了非空分支时才传 `-InstallBranch`；空值表示使用安装器默认分支。
 - 只有项目支持 `UseCustomProxy` 时才传 `-UseCustomProxy`。
 - `NoPause` 不展示为用户配置项；安装器和管理脚本执行时都会自动追加 `-NoPause`，并避免重复添加。
 

@@ -30,6 +30,7 @@ Examples:
   $0 uninstall comfyui
   $0 set-project sd_webui INSTALL_PATH /data/stable-diffusion-webui
   $0 set-project fooocus INSTALL_BRANCH fooocus_mre_main
+  $0 set-project fooocus INSTALL_BRANCH ""
   $0 set-script-param comfyui launch.ps1 LaunchArg "--listen 0.0.0.0 --port 8188"
   $0 set-script-param comfyui launch.ps1 DisableUpdate 1
   $0 set-script-args comfyui launch.ps1 "--listen 0.0.0.0 --port 8188"
