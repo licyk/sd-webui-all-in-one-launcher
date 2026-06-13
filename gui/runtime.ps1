@@ -187,8 +187,7 @@ try {
 }
 if ($code -ne 0) {
     Write-Host ("-" * $Host.UI.RawUI.WindowSize.Width)
-    Write-Host "PowerShell 脚本异常退出。" -ForegroundColor Red
-    Write-Host "退出代码: $code" -ForegroundColor Red
+    Write-Host "PowerShell 脚本异常退出。退出代码: $code" -ForegroundColor Red
     if (-not [string]::IsNullOrWhiteSpace($invokeError)) {
         Write-Host "错误信息: $invokeError" -ForegroundColor Red
     }
