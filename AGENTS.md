@@ -199,11 +199,16 @@ When adding or changing a project:
 
 - TUI and CLI must respect per-project capability tables.
 - Do not show or pass parameters unsupported by the selected project.
+- The launcher validates parameter scope only, not installer semantics.
+  - It may reject config keys or structured script params that are not in the selected project/script capability table.
+  - It must not add semantic validation for installer arguments, including required pairs, mutually exclusive flags, value ranges, path existence, or duplicated/conflicting parameters.
+  - If users pass unsupported or conflicting values through structured config or `EXTRA_INSTALL_ARGS`, pass them through when they are in scope and let the upstream installer or PowerShell report the error.
 - `NoPause` is not a user-facing config option.
   - Append `-NoPause` automatically for installer execution and management script execution.
   - Do not add duplicate `-NoPause`.
 - `run-installer` must explicitly pass `-InstallPath` when supported.
 - `EXTRA_INSTALL_ARGS` is appended after structured installer arguments.
+  - Extra args are only split/quoted for command construction; do not validate whether the installer supports them.
 
 ## TUI Rules
 
@@ -225,6 +230,9 @@ When adding or changing a project:
 - Always download the installer fresh before running it.
 - Download into the cache directory, not the project directory.
 - Use `pwsh -NoLogo -ExecutionPolicy Bypass -File` when available; fall back to `powershell` with the same arguments when `pwsh` is not found.
+- Treat `launch_*_installer.ps1` as installer proxy scripts. Running one is equivalent to running the latest upstream installer for that project.
+  - Do not modify or expand any parameters for `launch_*_installer.ps1`.
+  - In launcher registries and script parameter tables, keep these proxy scripts limited to automatic `NoPause`; do not mirror the full installer parameter list onto them.
 - `run_installer` flow:
   1. Load project config.
   2. Build installer args.

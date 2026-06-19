@@ -730,6 +730,7 @@
 - [x] 移除快照参数预校验并适配 `snapshot_manager.ps1` 后运行 `bash -n install.sh installer_launcher.sh lib/*.sh` 和 `shellcheck install.sh installer_launcher.sh lib/*.sh`，通过。
 - [x] 移除快照参数预校验并适配 `snapshot_manager.ps1` 后运行 Bash 烟测，确认只设置 `RESTORE_FROM_SNAPSHOT=1` 仍会原样传参，`snapshot_manager.ps1` 参数表符合上游，`launch_*_installer.ps1` 仍只自动追加 `NoPause`。
 - [x] 移除快照参数预校验并适配 `snapshot_manager.ps1` 后运行 PowerShell 解析检查、XAML XML 解析、GUI 临时单文件编译与解析、GUI registry 参数烟测和 `git diff --check`，通过；当前 Linux 环境缺少 WPF `PresentationFramework`，未做 GUI 窗口实机加载验证。
+- [x] `AGENTS.md` 新增参数校验边界：启动器只做参数范围/能力表校验，不做 installer 语义校验；同时明确 `launch_*_installer.ps1` 是代理脚本，参数表不得展开，保持只自动追加 `NoPause`。
 - [ ] 在 Windows PowerShell 5.1 中运行 `installer_launcher_gui.ps1`，验证 WPF 界面可正常启动。
 - [ ] 在 Windows 中验证 GUI 首次启动会创建 AppData / LocalAppData 配置、缓存和日志目录。
 - [ ] 在 Windows 中验证 GUI 安装器下载重试、PowerShell 执行、安装检测、管理脚本运行和项目卸载流程。
