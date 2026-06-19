@@ -33,6 +33,7 @@ PROJECT_sd_webui_MANAGEMENT_SCRIPTS=(
   "settings.ps1:管理设置"
   "download_models.ps1:下载模型"
   "reinstall_pytorch.ps1:重装 PyTorch"
+  "snapshot_manager.ps1:管理环境快照"
   "launch_stable_diffusion_webui_installer.ps1:获取最新安装器并运行"
 )
 # shellcheck disable=SC2034
@@ -50,12 +51,13 @@ PROJECT_sd_webui_BRANCHES=(
 )
 # shellcheck disable=SC2034
 PROJECT_sd_webui_PARAMS=(
-  CorePrefix InstallPath PyTorchMirrorType InstallPythonVersion InstallBranch
+  CorePrefix InstallPath PyTorchMirrorType InstallPythonVersion
+  RestoreFromSnapshot SnapshotPath DisableSnapshot InstallBranch
   DisablePyPIMirror DisableAutoMirror DisableProxy UseCustomProxy DisableUV
   DisableGithubMirror UseCustomGithubMirror NoPreDownloadExtension
   NoPreDownloadModel NoCleanCache DisableModelMirror NoPause
   DisableHuggingFaceMirror UseCustomHuggingFaceMirror DisableHotpatcher
-  HotpatcherConfig HotpatcherPort EnableHotpatcherRuntime DisableCUDAMalloc
+  HotpatcherPort EnableHotpatcherRuntime DisableCUDAMalloc
   DisableEnvCheck
 )
 
@@ -85,16 +87,18 @@ PROJECT_comfyui_MANAGEMENT_SCRIPTS=(
   "settings.ps1:管理设置"
   "download_models.ps1:下载模型"
   "reinstall_pytorch.ps1:重装 PyTorch"
+  "snapshot_manager.ps1:管理环境快照"
   "launch_comfyui_installer.ps1:获取最新安装器并运行"
 )
 # shellcheck disable=SC2034
 PROJECT_comfyui_PARAMS=(
-  CorePrefix InstallPath PyTorchMirrorType InstallPythonVersion DisablePyPIMirror
+  CorePrefix InstallPath PyTorchMirrorType InstallPythonVersion
+  RestoreFromSnapshot SnapshotPath DisableSnapshot DisablePyPIMirror
   DisableAutoMirror DisableProxy UseCustomProxy DisableUV DisableGithubMirror
   UseCustomGithubMirror NoPreDownloadNode NoPreDownloadModel NoCleanCache
   DisableModelMirror NoPause DisableHuggingFaceMirror UseCustomHuggingFaceMirror
-  DisableHotpatcher HotpatcherConfig HotpatcherPort EnableHotpatcherRuntime
-  DisableCUDAMalloc DisableEnvCheck
+  DisableHotpatcher HotpatcherPort EnableHotpatcherRuntime DisableCUDAMalloc
+  DisableEnvCheck
 )
 
 # shellcheck disable=SC2034
@@ -123,15 +127,17 @@ PROJECT_invokeai_MANAGEMENT_SCRIPTS=(
   "settings.ps1:管理设置"
   "download_models.ps1:下载模型"
   "reinstall_pytorch.ps1:重装 PyTorch"
+  "snapshot_manager.ps1:管理环境快照"
   "launch_invokeai_installer.ps1:获取最新安装器并运行"
 )
 # shellcheck disable=SC2034
 PROJECT_invokeai_PARAMS=(
-  CorePrefix InstallPath PyTorchMirrorType InstallPythonVersion DisablePyPIMirror
+  CorePrefix InstallPath PyTorchMirrorType InstallPythonVersion
+  RestoreFromSnapshot SnapshotPath DisableSnapshot DisablePyPIMirror
   DisableAutoMirror DisableProxy UseCustomProxy DisableUV DisableGithubMirror
   UseCustomGithubMirror NoPreDownloadModel NoCleanCache DisableModelMirror NoPause
   DisableHuggingFaceMirror UseCustomHuggingFaceMirror DisableCUDAMalloc
-  DisableEnvCheck DisableHotpatcher HotpatcherConfig HotpatcherPort
+  DisableEnvCheck DisableHotpatcher HotpatcherPort
   EnableHotpatcherRuntime
 )
 
@@ -163,6 +169,7 @@ PROJECT_fooocus_MANAGEMENT_SCRIPTS=(
   "settings.ps1:管理设置"
   "download_models.ps1:下载模型"
   "reinstall_pytorch.ps1:重装 PyTorch"
+  "snapshot_manager.ps1:管理环境快照"
   "launch_fooocus_installer.ps1:获取最新安装器并运行"
 )
 # shellcheck disable=SC2034
@@ -173,11 +180,12 @@ PROJECT_fooocus_BRANCHES=(
 )
 # shellcheck disable=SC2034
 PROJECT_fooocus_PARAMS=(
-  CorePrefix InstallPath PyTorchMirrorType InstallPythonVersion InstallBranch
+  CorePrefix InstallPath PyTorchMirrorType InstallPythonVersion
+  RestoreFromSnapshot SnapshotPath DisableSnapshot InstallBranch
   DisablePyPIMirror DisableAutoMirror DisableProxy UseCustomProxy DisableUV
   DisableGithubMirror UseCustomGithubMirror NoPreDownloadModel NoCleanCache
   DisableModelMirror NoPause DisableHuggingFaceMirror UseCustomHuggingFaceMirror
-  DisableHotpatcher HotpatcherConfig HotpatcherPort EnableHotpatcherRuntime
+  DisableHotpatcher HotpatcherPort EnableHotpatcherRuntime
   DisableCUDAMalloc DisableEnvCheck
 )
 
@@ -209,6 +217,7 @@ PROJECT_sd_trainer_MANAGEMENT_SCRIPTS=(
   "settings.ps1:管理设置"
   "download_models.ps1:下载模型"
   "reinstall_pytorch.ps1:重装 PyTorch"
+  "snapshot_manager.ps1:管理环境快照"
   "launch_sd_trainer_installer.ps1:获取最新安装器并运行"
 )
 # shellcheck disable=SC2034
@@ -219,11 +228,12 @@ PROJECT_sd_trainer_BRANCHES=(
 )
 # shellcheck disable=SC2034
 PROJECT_sd_trainer_PARAMS=(
-  CorePrefix InstallPath PyTorchMirrorType InstallPythonVersion InstallBranch
+  CorePrefix InstallPath PyTorchMirrorType InstallPythonVersion
+  RestoreFromSnapshot SnapshotPath DisableSnapshot InstallBranch
   DisablePyPIMirror DisableAutoMirror DisableProxy UseCustomProxy DisableUV
   DisableGithubMirror UseCustomGithubMirror NoPreDownloadModel NoCleanCache
   DisableModelMirror NoPause DisableHuggingFaceMirror UseCustomHuggingFaceMirror
-  DisableHotpatcher HotpatcherConfig HotpatcherPort EnableHotpatcherRuntime
+  DisableHotpatcher HotpatcherPort EnableHotpatcherRuntime
   DisableCUDAMalloc DisableEnvCheck
 )
 
@@ -255,6 +265,7 @@ PROJECT_sd_trainer_script_MANAGEMENT_SCRIPTS=(
   "settings.ps1:管理设置"
   "download_models.ps1:下载模型"
   "reinstall_pytorch.ps1:重装 PyTorch"
+  "snapshot_manager.ps1:管理环境快照"
   "launch_sd_trainer_script_installer.ps1:获取最新安装器并运行"
 )
 # shellcheck disable=SC2034
@@ -269,12 +280,13 @@ PROJECT_sd_trainer_script_BRANCHES=(
 )
 # shellcheck disable=SC2034
 PROJECT_sd_trainer_script_PARAMS=(
-  CorePrefix InstallPath PyTorchMirrorType InstallPythonVersion InstallBranch
+  CorePrefix InstallPath PyTorchMirrorType InstallPythonVersion
+  RestoreFromSnapshot SnapshotPath DisableSnapshot InstallBranch
   DisablePyPIMirror DisableAutoMirror DisableProxy UseCustomProxy DisableUV
   DisableGithubMirror UseCustomGithubMirror NoPreDownloadModel NoCleanCache
   DisableModelMirror NoPause DisableHuggingFaceMirror UseCustomHuggingFaceMirror
-  DisableCUDAMalloc DisableEnvCheck DisableHotpatcher HotpatcherConfig
-  HotpatcherPort EnableHotpatcherRuntime
+  DisableCUDAMalloc DisableEnvCheck DisableHotpatcher HotpatcherPort
+  EnableHotpatcherRuntime
 )
 
 # shellcheck disable=SC2034
@@ -301,16 +313,17 @@ PROJECT_qwen_tts_webui_MANAGEMENT_SCRIPTS=(
   "terminal.ps1:打开交互终端"
   "settings.ps1:管理设置"
   "reinstall_pytorch.ps1:重装 PyTorch"
+  "snapshot_manager.ps1:管理环境快照"
   "launch_qwen_tts_webui_installer.ps1:获取最新安装器并运行"
 )
 # shellcheck disable=SC2034
 PROJECT_qwen_tts_webui_PARAMS=(
-  CorePrefix InstallPath PyTorchMirrorType InstallPythonVersion DisablePyPIMirror
+  CorePrefix InstallPath PyTorchMirrorType InstallPythonVersion
+  RestoreFromSnapshot SnapshotPath DisableSnapshot DisablePyPIMirror
   DisableAutoMirror DisableProxy UseCustomProxy DisableUV DisableGithubMirror
   UseCustomGithubMirror NoCleanCache DisableModelMirror NoPause
   DisableHuggingFaceMirror UseCustomHuggingFaceMirror DisableHotpatcher
-  HotpatcherConfig HotpatcherPort EnableHotpatcherRuntime DisableCUDAMalloc
-  DisableEnvCheck
+  HotpatcherPort EnableHotpatcherRuntime DisableCUDAMalloc DisableEnvCheck
 )
 
 project_var() {
@@ -386,31 +399,34 @@ management_script_param_entries() {
   local key="$1" script_name="$2"
   case "$key:$script_name" in
     sd_webui:launch.ps1|comfyui:launch.ps1|invokeai:launch.ps1|fooocus:launch.ps1|sd_trainer:launch.ps1|qwen_tts_webui:launch.ps1)
-      printf '%s\n' CorePrefix BuildMode DisablePyPIMirror DisableAutoMirror DisableUpdate DisableProxy UseCustomProxy DisableHuggingFaceMirror UseCustomHuggingFaceMirror DisableGithubMirror UseCustomGithubMirror DisableUV LaunchArg DisableHotpatcher HotpatcherConfig HotpatcherPort EnableHotpatcherRuntime EnableShortcut DisableCUDAMalloc DisableEnvCheck NoPause
+      printf '%s\n' CorePrefix BuildMode DisablePyPIMirror DisableAutoMirror DisableUpdate DisableProxy UseCustomProxy DisableHuggingFaceMirror UseCustomHuggingFaceMirror DisableGithubMirror UseCustomGithubMirror DisableUV LaunchArg DisableHotpatcher HotpatcherPort EnableHotpatcherRuntime EnableShortcut DisableCUDAMalloc DisableEnvCheck NoPause
       ;;
     sd_webui:download_models.ps1|comfyui:download_models.ps1|invokeai:download_models.ps1|fooocus:download_models.ps1|sd_trainer:download_models.ps1|sd_trainer_script:download_models.ps1)
       printf '%s\n' CorePrefix BuildMode BuildWithModel DisableProxy UseCustomProxy DisableUpdate DisableModelMirror DisableAutoMirror NoPause
       ;;
     sd_webui:reinstall_pytorch.ps1|comfyui:reinstall_pytorch.ps1|fooocus:reinstall_pytorch.ps1|sd_trainer:reinstall_pytorch.ps1|sd_trainer_script:reinstall_pytorch.ps1|qwen_tts_webui:reinstall_pytorch.ps1)
-      printf '%s\n' CorePrefix BuildMode BuildWithTorch BuildWithTorchReinstall DisablePyPIMirror DisableAutoMirror DisableUpdate DisableUV DisableProxy UseCustomProxy NoPause
+      printf '%s\n' CorePrefix BuildMode BuildWithTorch BuildWithTorchReinstall DisablePyPIMirror DisableAutoMirror DisableUpdate DisableUV DisableProxy UseCustomProxy DisableSnapshot NoPause
       ;;
     invokeai:reinstall_pytorch.ps1)
-      printf '%s\n' CorePrefix BuildMode BuildWithTorch DisablePyPIMirror DisableAutoMirror DisableUpdate DisableUV DisableProxy UseCustomProxy NoPause
+      printf '%s\n' CorePrefix BuildMode BuildWithTorch DisablePyPIMirror DisableAutoMirror DisableUpdate DisableUV DisableProxy UseCustomProxy DisableSnapshot NoPause
       ;;
     sd_webui:settings.ps1|comfyui:settings.ps1|invokeai:settings.ps1|fooocus:settings.ps1|sd_trainer:settings.ps1|sd_trainer_script:settings.ps1|qwen_tts_webui:settings.ps1)
       printf '%s\n' CorePrefix DisableProxy UseCustomProxy NoPause
       ;;
     sd_webui:switch_branch.ps1|fooocus:switch_branch.ps1|sd_trainer:switch_branch.ps1|sd_trainer_script:switch_branch.ps1)
-      printf '%s\n' CorePrefix BuildMode BuildWithBranch DisableUpdate DisableProxy UseCustomProxy DisableGithubMirror DisableAutoMirror UseCustomGithubMirror NoPause
+      printf '%s\n' CorePrefix BuildMode BuildWithBranch DisableUpdate DisableProxy UseCustomProxy DisableGithubMirror DisableAutoMirror UseCustomGithubMirror DisableSnapshot NoPause
       ;;
     sd_webui:version_manager.ps1|comfyui:version_manager.ps1|invokeai:version_manager.ps1|fooocus:version_manager.ps1|sd_trainer:version_manager.ps1|sd_trainer_script:version_manager.ps1|qwen_tts_webui:version_manager.ps1)
+      printf '%s\n' CorePrefix DisableUpdate DisableProxy UseCustomProxy DisableGithubMirror DisableAutoMirror UseCustomGithubMirror DisableSnapshot NoPause
+      ;;
+    sd_webui:snapshot_manager.ps1|comfyui:snapshot_manager.ps1|invokeai:snapshot_manager.ps1|fooocus:snapshot_manager.ps1|sd_trainer:snapshot_manager.ps1|sd_trainer_script:snapshot_manager.ps1|qwen_tts_webui:snapshot_manager.ps1)
       printf '%s\n' CorePrefix DisableUpdate DisableProxy UseCustomProxy DisableGithubMirror DisableAutoMirror UseCustomGithubMirror NoPause
       ;;
     invokeai:update.ps1)
-      printf '%s\n' CorePrefix BuildMode DisableUpdate DisableProxy UseCustomProxy DisablePyPIMirror DisableAutoMirror DisableUV NoPause
+      printf '%s\n' CorePrefix BuildMode DisableUpdate DisableProxy UseCustomProxy DisablePyPIMirror DisableAutoMirror DisableUV DisableSnapshot NoPause
       ;;
     sd_webui:update.ps1|comfyui:update.ps1|fooocus:update.ps1|sd_trainer:update.ps1|sd_trainer_script:update.ps1|qwen_tts_webui:update.ps1|sd_webui:update_extension.ps1|comfyui:update_node.ps1|invokeai:update_node.ps1)
-      printf '%s\n' CorePrefix BuildMode DisableUpdate DisableProxy UseCustomProxy DisableGithubMirror DisableAutoMirror UseCustomGithubMirror NoPause
+      printf '%s\n' CorePrefix BuildMode DisableUpdate DisableProxy UseCustomProxy DisableGithubMirror DisableAutoMirror UseCustomGithubMirror DisableSnapshot NoPause
       ;;
     sd_webui:terminal.ps1|comfyui:terminal.ps1|invokeai:terminal.ps1|fooocus:terminal.ps1|sd_trainer:terminal.ps1|sd_trainer_script:terminal.ps1|qwen_tts_webui:terminal.ps1)
       printf '%s\n' CorePrefix DisablePyPIMirror DisableAutoMirror DisableGithubMirror UseCustomGithubMirror DisableProxy UseCustomProxy DisableHuggingFaceMirror UseCustomHuggingFaceMirror NoPause

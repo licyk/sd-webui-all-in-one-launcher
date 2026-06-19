@@ -129,6 +129,8 @@ configure_flags() {
   project_supports_param "$key" NoCleanCache && checklist_args+=("NO_CLEAN_CACHE" "不清理安装缓存 -NoCleanCache" "$(flag_state "$NO_CLEAN_CACHE")")
   project_supports_param "$key" DisableModelMirror && checklist_args+=("DISABLE_MODEL_MIRROR" "不用 ModelScope 下载模型 -DisableModelMirror" "$(flag_state "$DISABLE_MODEL_MIRROR")")
   project_supports_param "$key" DisableHuggingFaceMirror && checklist_args+=("DISABLE_HUGGINGFACE_MIRROR" "禁用 HuggingFace 镜像 -DisableHuggingFaceMirror" "$(flag_state "$DISABLE_HUGGINGFACE_MIRROR")")
+  project_supports_param "$key" RestoreFromSnapshot && checklist_args+=("RESTORE_FROM_SNAPSHOT" "启用快照重建 -RestoreFromSnapshot" "$(flag_state "$RESTORE_FROM_SNAPSHOT")")
+  project_supports_param "$key" DisableSnapshot && checklist_args+=("DISABLE_SNAPSHOT" "禁用自动快照 -DisableSnapshot" "$(flag_state "$DISABLE_SNAPSHOT")")
   project_supports_param "$key" DisableHotpatcher && checklist_args+=("DISABLE_HOTPATCHER" "禁用 Hotpatcher -DisableHotpatcher" "$(flag_state "$DISABLE_HOTPATCHER")")
   project_supports_param "$key" EnableHotpatcherRuntime && checklist_args+=("ENABLE_HOTPATCHER_RUNTIME" "启用 Hotpatcher runtime -EnableHotpatcherRuntime" "$(flag_state "$ENABLE_HOTPATCHER_RUNTIME")")
   project_supports_param "$key" DisableCUDAMalloc && checklist_args+=("DISABLE_CUDA_MALLOC" "禁用 CUDA 内存分配器设置 -DisableCUDAMalloc" "$(flag_state "$DISABLE_CUDA_MALLOC")")
@@ -141,7 +143,8 @@ configure_flags() {
 
   selected="$(checklist_select "开关参数" "选择当前安装器运行时的开关参数" "${checklist_args[@]}")" || return 0
   DISABLE_PYPI_MIRROR=0 DISABLE_AUTO_MIRROR=0 DISABLE_PROXY=0 DISABLE_UV=0 DISABLE_GITHUB_MIRROR=0
-  DISABLE_MODEL_MIRROR=0 DISABLE_HUGGINGFACE_MIRROR=0 DISABLE_HOTPATCHER=0
+  DISABLE_MODEL_MIRROR=0 DISABLE_HUGGINGFACE_MIRROR=0 RESTORE_FROM_SNAPSHOT=0 DISABLE_SNAPSHOT=0
+  DISABLE_HOTPATCHER=0
   ENABLE_HOTPATCHER_RUNTIME=0 DISABLE_CUDA_MALLOC=0 DISABLE_ENV_CHECK=0
   NO_PRE_DOWNLOAD_EXTENSION=0 NO_PRE_DOWNLOAD_NODE=0 NO_PRE_DOWNLOAD_MODEL=0
   NO_CLEAN_CACHE=0
@@ -156,6 +159,8 @@ configure_flags() {
   [[ " $selected " == *" NO_CLEAN_CACHE "* ]] && NO_CLEAN_CACHE=1
   [[ " $selected " == *" DISABLE_MODEL_MIRROR "* ]] && DISABLE_MODEL_MIRROR=1
   [[ " $selected " == *" DISABLE_HUGGINGFACE_MIRROR "* ]] && DISABLE_HUGGINGFACE_MIRROR=1
+  [[ " $selected " == *" RESTORE_FROM_SNAPSHOT "* ]] && RESTORE_FROM_SNAPSHOT=1
+  [[ " $selected " == *" DISABLE_SNAPSHOT "* ]] && DISABLE_SNAPSHOT=1
   [[ " $selected " == *" DISABLE_HOTPATCHER "* ]] && DISABLE_HOTPATCHER=1
   [[ " $selected " == *" ENABLE_HOTPATCHER_RUNTIME "* ]] && ENABLE_HOTPATCHER_RUNTIME=1
   [[ " $selected " == *" DISABLE_CUDA_MALLOC "* ]] && DISABLE_CUDA_MALLOC=1
@@ -176,7 +181,7 @@ configure_project() {
     project_supports_param "$key" UseCustomProxy && menu_args+=("proxy" "代理: ${PROXY:-未设置}")
     project_supports_param "$key" UseCustomGithubMirror && menu_args+=("github_mirror" "Github 镜像: ${GITHUB_MIRROR:-默认}")
     project_supports_param "$key" UseCustomHuggingFaceMirror && menu_args+=("hf_mirror" "HuggingFace 镜像: ${HUGGINGFACE_MIRROR:-默认}")
-    project_supports_param "$key" HotpatcherConfig && menu_args+=("hotpatcher_config" "Hotpatcher 配置文件: ${HOTPATCHER_CONFIG:-未设置}")
+    project_supports_param "$key" SnapshotPath && menu_args+=("snapshot_path" "快照重建文件: ${SNAPSHOT_PATH:-未设置}")
     project_supports_param "$key" HotpatcherPort && menu_args+=("hotpatcher_port" "Hotpatcher 通信端口: ${HOTPATCHER_PORT:-未设置}")
     menu_args+=("flags" "开关参数")
     menu_args+=("extra" "主安装器自定义参数: ${EXTRA_INSTALL_ARGS:-无}")
@@ -200,7 +205,7 @@ configure_project() {
       proxy) PROXY="$(input_box "代理" "例如 http://127.0.0.1:10809，留空不传" "${PROXY:-}")" || true ;;
       github_mirror) GITHUB_MIRROR="$(input_box "Github 镜像" "例如 https://ghfast.top/https://github.com，留空不传" "${GITHUB_MIRROR:-}")" || true ;;
       hf_mirror) HUGGINGFACE_MIRROR="$(input_box "HuggingFace 镜像" "例如 https://hf-mirror.com，留空不传" "${HUGGINGFACE_MIRROR:-}")" || true ;;
-      hotpatcher_config) HOTPATCHER_CONFIG="$(input_box "Hotpatcher 配置文件" "传给 -HotpatcherConfig 的配置文件路径，留空不传" "${HOTPATCHER_CONFIG:-}")" || true ;;
+      snapshot_path) SNAPSHOT_PATH="$(input_box "快照重建文件" "传给 -SnapshotPath 的环境快照 JSON 文件路径；启用 -RestoreFromSnapshot 时必填" "${SNAPSHOT_PATH:-}")" || true ;;
       hotpatcher_port) HOTPATCHER_PORT="$(input_box "Hotpatcher 通信端口" "传给 -HotpatcherPort 的端口，范围 1-65535，留空不传" "${HOTPATCHER_PORT:-}")" || true ;;
       flags) configure_flags "$key" || true ;;
       extra) EXTRA_INSTALL_ARGS="$(input_box "主安装器自定义参数" "直接追加给 $(project_installer_file "$key") 的参数" "${EXTRA_INSTALL_ARGS:-}")" || true ;;
@@ -409,6 +414,8 @@ dialog 操作方式
       PyTorch 镜像类型: 传给 -PyTorchMirrorType，例如 cu121、cu124、cpu。
       Python 版本: 传给 -InstallPythonVersion。
       代理和镜像: 用于 Github、HuggingFace、PyPI 等下载加速或网络环境适配。
+      快照重建: 相关结构化参数会原样传给 installer，参数合法性由 installer 判断。
+      热补丁: 当前 installer 只保留禁用、端口和 runtime 开关；不再提供 Hotpatcher 配置文件参数。
       开关参数: 例如禁用代理、禁用镜像、跳过预下载模型、禁用环境检查等。
       主安装器自定义参数: 原样追加给主安装器，适合临时传递未内置的参数。
     「重置 installer 安装设置」只会恢复 installer 参数默认值，不会清除管理脚本参数。

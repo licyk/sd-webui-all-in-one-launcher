@@ -2,7 +2,7 @@
 
 function Get-LauncherParamKind {
     param([string]$Name)
-    if ($Name -in @("BuildMode", "BuildWithLaunch", "BuildWithTorchReinstall", "BuildWithUpdate", "BuildWithUpdateExtension", "BuildWithUpdateNode", "DisablePyPIMirror", "DisableAutoMirror", "DisableUpdate", "DisableProxy", "DisableHuggingFaceMirror", "DisableGithubMirror", "DisableUV", "EnableShortcut", "DisableCUDAMalloc", "DisableEnvCheck", "DisableHotpatcher", "DisableModelMirror", "EnableHotpatcherRuntime", "InstallHanamizuki", "NoCleanCache", "NoPause", "NoPreDownloadExtension", "NoPreDownloadModel", "NoPreDownloadNode", "UseUpdateMode")) {
+    if ($Name -in @("BuildMode", "BuildWithLaunch", "BuildWithTorchReinstall", "BuildWithUpdate", "BuildWithUpdateExtension", "BuildWithUpdateNode", "DisablePyPIMirror", "DisableAutoMirror", "DisableUpdate", "DisableProxy", "DisableHuggingFaceMirror", "DisableGithubMirror", "DisableUV", "EnableShortcut", "DisableCUDAMalloc", "DisableEnvCheck", "DisableHotpatcher", "DisableModelMirror", "DisableSnapshot", "EnableHotpatcherRuntime", "InstallHanamizuki", "NoCleanCache", "NoPause", "NoPreDownloadExtension", "NoPreDownloadModel", "NoPreDownloadNode", "RestoreFromSnapshot", "UseUpdateMode")) {
         return "flag"
     }
     return "value"
@@ -19,8 +19,10 @@ function Get-LauncherParamConfigKey {
         "UseCustomProxy" { "PROXY"; break }
         "UseCustomGithubMirror" { "GITHUB_MIRROR"; break }
         "UseCustomHuggingFaceMirror" { "HUGGINGFACE_MIRROR"; break }
+        "RestoreFromSnapshot" { "RESTORE_FROM_SNAPSHOT"; break }
+        "SnapshotPath" { "SNAPSHOT_PATH"; break }
+        "DisableSnapshot" { "DISABLE_SNAPSHOT"; break }
         "DisableHotpatcher" { "DISABLE_HOTPATCHER"; break }
-        "HotpatcherConfig" { "HOTPATCHER_CONFIG"; break }
         "HotpatcherPort" { "HOTPATCHER_PORT"; break }
         "EnableHotpatcherRuntime" { "ENABLE_HOTPATCHER_RUNTIME"; break }
         "DisablePyPIMirror" { "DISABLE_PYPI_MIRROR"; break }
@@ -69,8 +71,10 @@ function Get-LauncherParamLabel {
         "UseCustomGithubMirror" { "自定义 Github 镜像 -UseCustomGithubMirror"; break }
         "DisableUV" { "禁用 uv -DisableUV"; break }
         "LaunchArg" { "启动参数 -LaunchArg"; break }
+        "RestoreFromSnapshot" { "启用快照重建 -RestoreFromSnapshot"; break }
+        "SnapshotPath" { "快照重建文件 -SnapshotPath"; break }
+        "DisableSnapshot" { "禁用自动快照 -DisableSnapshot"; break }
         "DisableHotpatcher" { "禁用 Hotpatcher -DisableHotpatcher"; break }
-        "HotpatcherConfig" { "Hotpatcher 配置文件 -HotpatcherConfig"; break }
         "HotpatcherPort" { "Hotpatcher 通信端口 -HotpatcherPort"; break }
         "EnableHotpatcherRuntime" { "启用 Hotpatcher runtime -EnableHotpatcherRuntime"; break }
         "EnableShortcut" { "创建快捷方式 -EnableShortcut"; break }
@@ -123,26 +127,28 @@ function New-ProjectRegistry {
     $commonInstallerHost = "https://github.com/licyk/sd-webui-all-in-one"
     $projects = [ordered]@{}
 
-    $installerVisibleBase = @("CorePrefix", "InstallPath", "PyTorchMirrorType", "InstallPythonVersion", "InstallBranch", "DisablePyPIMirror", "DisableAutoMirror", "DisableProxy", "UseCustomProxy", "DisableUV", "DisableGithubMirror", "UseCustomGithubMirror", "NoPreDownloadExtension", "NoPreDownloadNode", "NoPreDownloadModel", "NoCleanCache", "DisableModelMirror", "NoPause", "DisableHuggingFaceMirror", "UseCustomHuggingFaceMirror", "DisableHotpatcher", "HotpatcherConfig", "HotpatcherPort", "EnableHotpatcherRuntime", "DisableCUDAMalloc", "DisableEnvCheck")
-    $installerAllBase = @("CorePrefix", "InstallPath", "PyTorchMirrorType", "InstallPythonVersion", "UseUpdateMode", "DisablePyPIMirror", "DisableAutoMirror", "DisableProxy", "UseCustomProxy", "DisableUV", "DisableGithubMirror", "UseCustomGithubMirror", "InstallBranch", "BuildMode", "BuildWithTorch", "BuildWithTorchReinstall", "BuildWithModel", "BuildWithBranch", "BuildWithUpdate", "BuildWithUpdateExtension", "BuildWithUpdateNode", "BuildWithLaunch", "NoPreDownloadExtension", "NoPreDownloadNode", "NoPreDownloadModel", "PyTorchPackage", "xFormersPackage", "InstallHanamizuki", "NoCleanCache", "DisableModelMirror", "NoPause", "DisableUpdate", "DisableHuggingFaceMirror", "UseCustomHuggingFaceMirror", "LaunchArg", "DisableHotpatcher", "HotpatcherConfig", "HotpatcherPort", "EnableHotpatcherRuntime", "EnableShortcut", "DisableCUDAMalloc", "DisableEnvCheck")
-    $launchScriptParams = @("CorePrefix", "BuildMode", "DisablePyPIMirror", "DisableAutoMirror", "DisableUpdate", "DisableProxy", "UseCustomProxy", "DisableHuggingFaceMirror", "UseCustomHuggingFaceMirror", "DisableGithubMirror", "UseCustomGithubMirror", "DisableUV", "LaunchArg", "DisableHotpatcher", "HotpatcherConfig", "HotpatcherPort", "EnableHotpatcherRuntime", "EnableShortcut", "DisableCUDAMalloc", "DisableEnvCheck", "NoPause")
-    $launchScriptVisible = @("CorePrefix", "BuildMode", "DisablePyPIMirror", "DisableAutoMirror", "DisableUpdate", "DisableProxy", "UseCustomProxy", "DisableHuggingFaceMirror", "UseCustomHuggingFaceMirror", "DisableGithubMirror", "UseCustomGithubMirror", "DisableUV", "LaunchArg", "DisableHotpatcher", "HotpatcherConfig", "HotpatcherPort", "EnableHotpatcherRuntime", "EnableShortcut", "DisableCUDAMalloc", "DisableEnvCheck")
-    $sdTrainerScriptInitParams = @("CorePrefix", "BuildMode", "DisablePyPIMirror", "DisableAutoMirror", "DisableUpdate", "DisableProxy", "UseCustomProxy", "DisableHuggingFaceMirror", "UseCustomHuggingFaceMirror", "DisableGithubMirror", "UseCustomGithubMirror", "DisableUV", "DisableCUDAMalloc", "DisableEnvCheck", "DisableHotpatcher", "HotpatcherConfig", "HotpatcherPort", "EnableHotpatcherRuntime", "NoPause")
+    $installerVisibleBase = @("CorePrefix", "InstallPath", "PyTorchMirrorType", "InstallPythonVersion", "RestoreFromSnapshot", "SnapshotPath", "DisableSnapshot", "InstallBranch", "DisablePyPIMirror", "DisableAutoMirror", "DisableProxy", "UseCustomProxy", "DisableUV", "DisableGithubMirror", "UseCustomGithubMirror", "NoPreDownloadExtension", "NoPreDownloadNode", "NoPreDownloadModel", "NoCleanCache", "DisableModelMirror", "NoPause", "DisableHuggingFaceMirror", "UseCustomHuggingFaceMirror", "DisableHotpatcher", "HotpatcherPort", "EnableHotpatcherRuntime", "DisableCUDAMalloc", "DisableEnvCheck")
+    $installerAllBase = @("CorePrefix", "InstallPath", "PyTorchMirrorType", "InstallPythonVersion", "RestoreFromSnapshot", "SnapshotPath", "DisableSnapshot", "UseUpdateMode", "DisablePyPIMirror", "DisableAutoMirror", "DisableProxy", "UseCustomProxy", "DisableUV", "DisableGithubMirror", "UseCustomGithubMirror", "InstallBranch", "BuildMode", "BuildWithTorch", "BuildWithTorchReinstall", "BuildWithModel", "BuildWithBranch", "BuildWithUpdate", "BuildWithUpdateExtension", "BuildWithUpdateNode", "BuildWithLaunch", "NoPreDownloadExtension", "NoPreDownloadNode", "NoPreDownloadModel", "PyTorchPackage", "xFormersPackage", "InstallHanamizuki", "NoCleanCache", "DisableModelMirror", "NoPause", "DisableUpdate", "DisableHuggingFaceMirror", "UseCustomHuggingFaceMirror", "LaunchArg", "DisableHotpatcher", "HotpatcherPort", "EnableHotpatcherRuntime", "EnableShortcut", "DisableCUDAMalloc", "DisableEnvCheck")
+    $launchScriptParams = @("CorePrefix", "BuildMode", "DisablePyPIMirror", "DisableAutoMirror", "DisableUpdate", "DisableProxy", "UseCustomProxy", "DisableHuggingFaceMirror", "UseCustomHuggingFaceMirror", "DisableGithubMirror", "UseCustomGithubMirror", "DisableUV", "LaunchArg", "DisableHotpatcher", "HotpatcherPort", "EnableHotpatcherRuntime", "EnableShortcut", "DisableCUDAMalloc", "DisableEnvCheck", "NoPause")
+    $launchScriptVisible = @("CorePrefix", "BuildMode", "DisablePyPIMirror", "DisableAutoMirror", "DisableUpdate", "DisableProxy", "UseCustomProxy", "DisableHuggingFaceMirror", "UseCustomHuggingFaceMirror", "DisableGithubMirror", "UseCustomGithubMirror", "DisableUV", "LaunchArg", "DisableHotpatcher", "HotpatcherPort", "EnableHotpatcherRuntime", "EnableShortcut", "DisableCUDAMalloc", "DisableEnvCheck")
+    $sdTrainerScriptInitParams = @("CorePrefix", "BuildMode", "DisablePyPIMirror", "DisableAutoMirror", "DisableUpdate", "DisableProxy", "UseCustomProxy", "DisableHuggingFaceMirror", "UseCustomHuggingFaceMirror", "DisableGithubMirror", "UseCustomGithubMirror", "DisableUV", "DisableCUDAMalloc", "DisableEnvCheck", "DisableHotpatcher", "HotpatcherPort", "EnableHotpatcherRuntime", "NoPause")
     $downloadModelParams = @("CorePrefix", "BuildMode", "BuildWithModel", "DisableProxy", "UseCustomProxy", "DisableUpdate", "DisableModelMirror", "DisableAutoMirror", "NoPause")
     $downloadModelVisible = @("CorePrefix", "BuildMode", "BuildWithModel", "DisableProxy", "UseCustomProxy", "DisableUpdate", "DisableModelMirror", "DisableAutoMirror")
-    $reinstallTorchParams = @("CorePrefix", "BuildMode", "BuildWithTorch", "BuildWithTorchReinstall", "DisablePyPIMirror", "DisableAutoMirror", "DisableUpdate", "DisableUV", "DisableProxy", "UseCustomProxy", "NoPause")
-    $reinstallTorchVisible = @("CorePrefix", "BuildMode", "BuildWithTorch", "BuildWithTorchReinstall", "DisablePyPIMirror", "DisableAutoMirror", "DisableUpdate", "DisableUV", "DisableProxy", "UseCustomProxy")
+    $reinstallTorchParams = @("CorePrefix", "BuildMode", "BuildWithTorch", "BuildWithTorchReinstall", "DisablePyPIMirror", "DisableAutoMirror", "DisableUpdate", "DisableUV", "DisableProxy", "UseCustomProxy", "DisableSnapshot", "NoPause")
+    $reinstallTorchVisible = @("CorePrefix", "BuildMode", "BuildWithTorch", "BuildWithTorchReinstall", "DisablePyPIMirror", "DisableAutoMirror", "DisableUpdate", "DisableUV", "DisableProxy", "UseCustomProxy", "DisableSnapshot")
     $settingsParams = @("CorePrefix", "DisableProxy", "UseCustomProxy", "NoPause")
     $settingsVisible = @("CorePrefix", "DisableProxy", "UseCustomProxy")
-    $switchBranchParams = @("CorePrefix", "BuildMode", "BuildWithBranch", "DisableUpdate", "DisableProxy", "UseCustomProxy", "DisableGithubMirror", "DisableAutoMirror", "UseCustomGithubMirror", "NoPause")
-    $switchBranchVisible = @("CorePrefix", "BuildMode", "BuildWithBranch", "DisableUpdate", "DisableProxy", "UseCustomProxy", "DisableGithubMirror", "DisableAutoMirror", "UseCustomGithubMirror")
-    $versionManagerParams = @("CorePrefix", "DisableUpdate", "DisableProxy", "UseCustomProxy", "DisableGithubMirror", "DisableAutoMirror", "UseCustomGithubMirror", "NoPause")
-    $versionManagerVisible = @("CorePrefix", "DisableUpdate", "DisableProxy", "UseCustomProxy", "DisableGithubMirror", "DisableAutoMirror", "UseCustomGithubMirror")
-    $updateParams = @("CorePrefix", "BuildMode", "DisableUpdate", "DisableProxy", "UseCustomProxy", "DisableGithubMirror", "DisableAutoMirror", "UseCustomGithubMirror", "NoPause")
-    $updateVisible = @("CorePrefix", "BuildMode", "DisableUpdate", "DisableProxy", "UseCustomProxy", "DisableGithubMirror", "DisableAutoMirror", "UseCustomGithubMirror")
-    $invokeAiUpdateParams = @("CorePrefix", "BuildMode", "DisableUpdate", "DisableProxy", "UseCustomProxy", "DisablePyPIMirror", "DisableAutoMirror", "DisableUV", "NoPause")
-    $invokeAiUpdateVisible = @("CorePrefix", "BuildMode", "DisableUpdate", "DisableProxy", "UseCustomProxy", "DisablePyPIMirror", "DisableAutoMirror", "DisableUV")
+    $switchBranchParams = @("CorePrefix", "BuildMode", "BuildWithBranch", "DisableUpdate", "DisableProxy", "UseCustomProxy", "DisableGithubMirror", "DisableAutoMirror", "UseCustomGithubMirror", "DisableSnapshot", "NoPause")
+    $switchBranchVisible = @("CorePrefix", "BuildMode", "BuildWithBranch", "DisableUpdate", "DisableProxy", "UseCustomProxy", "DisableGithubMirror", "DisableAutoMirror", "UseCustomGithubMirror", "DisableSnapshot")
+    $versionManagerParams = @("CorePrefix", "DisableUpdate", "DisableProxy", "UseCustomProxy", "DisableGithubMirror", "DisableAutoMirror", "UseCustomGithubMirror", "DisableSnapshot", "NoPause")
+    $versionManagerVisible = @("CorePrefix", "DisableUpdate", "DisableProxy", "UseCustomProxy", "DisableGithubMirror", "DisableAutoMirror", "UseCustomGithubMirror", "DisableSnapshot")
+    $updateParams = @("CorePrefix", "BuildMode", "DisableUpdate", "DisableProxy", "UseCustomProxy", "DisableGithubMirror", "DisableAutoMirror", "UseCustomGithubMirror", "DisableSnapshot", "NoPause")
+    $updateVisible = @("CorePrefix", "BuildMode", "DisableUpdate", "DisableProxy", "UseCustomProxy", "DisableGithubMirror", "DisableAutoMirror", "UseCustomGithubMirror", "DisableSnapshot")
+    $invokeAiUpdateParams = @("CorePrefix", "BuildMode", "DisableUpdate", "DisableProxy", "UseCustomProxy", "DisablePyPIMirror", "DisableAutoMirror", "DisableUV", "DisableSnapshot", "NoPause")
+    $invokeAiUpdateVisible = @("CorePrefix", "BuildMode", "DisableUpdate", "DisableProxy", "UseCustomProxy", "DisablePyPIMirror", "DisableAutoMirror", "DisableUV", "DisableSnapshot")
     $terminalParams = @("CorePrefix", "DisablePyPIMirror", "DisableAutoMirror", "DisableGithubMirror", "UseCustomGithubMirror", "DisableProxy", "UseCustomProxy", "DisableHuggingFaceMirror", "UseCustomHuggingFaceMirror", "NoPause")
+    $snapshotManagerParams = @("CorePrefix", "DisableUpdate", "DisableProxy", "UseCustomProxy", "DisableGithubMirror", "DisableAutoMirror", "UseCustomGithubMirror", "NoPause")
+    $snapshotManagerVisible = @("CorePrefix", "DisableUpdate", "DisableProxy", "UseCustomProxy", "DisableGithubMirror", "DisableAutoMirror", "UseCustomGithubMirror")
     $launcherInstallerParams = @("NoPause")
 
     $projects.sd_webui = [ordered]@{
@@ -166,7 +172,7 @@ function New-ProjectRegistry {
         Scripts = [ordered]@{
             "launch.ps1" = "启动 Stable Diffusion WebUI"; "update.ps1" = "更新 Stable Diffusion WebUI"; "update_extension.ps1" = "更新扩展"
             "switch_branch.ps1" = "切换分支"; "version_manager.ps1" = "管理 WebUI 和扩展版本"; "terminal.ps1" = "打开交互终端"; "settings.ps1" = "管理设置"
-            "download_models.ps1" = "下载模型"; "reinstall_pytorch.ps1" = "重装 PyTorch"; "launch_stable_diffusion_webui_installer.ps1" = "获取最新安装器并运行"
+            "download_models.ps1" = "下载模型"; "reinstall_pytorch.ps1" = "重装 PyTorch"; "snapshot_manager.ps1" = "管理环境快照"; "launch_stable_diffusion_webui_installer.ps1" = "获取最新安装器并运行"
         }
         ScriptParams = [ordered]@{
             "launch.ps1" = New-LauncherParamSpecs -Names $launchScriptParams -VisibleNames $launchScriptVisible -AutoAppendNames @("NoPause")
@@ -178,6 +184,7 @@ function New-ProjectRegistry {
             "settings.ps1" = New-LauncherParamSpecs -Names $settingsParams -VisibleNames $settingsVisible -AutoAppendNames @("NoPause")
             "download_models.ps1" = New-LauncherParamSpecs -Names $downloadModelParams -VisibleNames $downloadModelVisible -AutoAppendNames @("NoPause")
             "reinstall_pytorch.ps1" = New-LauncherParamSpecs -Names $reinstallTorchParams -VisibleNames $reinstallTorchVisible -AutoAppendNames @("NoPause")
+            "snapshot_manager.ps1" = New-LauncherParamSpecs -Names $snapshotManagerParams -VisibleNames $snapshotManagerVisible -AutoAppendNames @("NoPause")
             "launch_stable_diffusion_webui_installer.ps1" = New-LauncherParamSpecs -Names $launcherInstallerParams -VisibleNames @() -AutoAppendNames @("NoPause")
         }
         Installer = [ordered]@{
@@ -199,7 +206,7 @@ function New-ProjectRegistry {
         Scripts = [ordered]@{
             "launch.ps1" = "启动 ComfyUI"; "update.ps1" = "更新 ComfyUI"; "update_node.ps1" = "更新自定义节点"
             "version_manager.ps1" = "管理 ComfyUI 和自定义节点版本"; "terminal.ps1" = "打开交互终端"; "settings.ps1" = "管理设置"; "download_models.ps1" = "下载模型"
-            "reinstall_pytorch.ps1" = "重装 PyTorch"; "launch_comfyui_installer.ps1" = "获取最新安装器并运行"
+            "reinstall_pytorch.ps1" = "重装 PyTorch"; "snapshot_manager.ps1" = "管理环境快照"; "launch_comfyui_installer.ps1" = "获取最新安装器并运行"
         }
         ScriptParams = [ordered]@{
             "launch.ps1" = New-LauncherParamSpecs -Names $launchScriptParams -VisibleNames $launchScriptVisible -AutoAppendNames @("NoPause")
@@ -210,6 +217,7 @@ function New-ProjectRegistry {
             "settings.ps1" = New-LauncherParamSpecs -Names $settingsParams -VisibleNames $settingsVisible -AutoAppendNames @("NoPause")
             "download_models.ps1" = New-LauncherParamSpecs -Names $downloadModelParams -VisibleNames $downloadModelVisible -AutoAppendNames @("NoPause")
             "reinstall_pytorch.ps1" = New-LauncherParamSpecs -Names $reinstallTorchParams -VisibleNames $reinstallTorchVisible -AutoAppendNames @("NoPause")
+            "snapshot_manager.ps1" = New-LauncherParamSpecs -Names $snapshotManagerParams -VisibleNames $snapshotManagerVisible -AutoAppendNames @("NoPause")
             "launch_comfyui_installer.ps1" = New-LauncherParamSpecs -Names $launcherInstallerParams -VisibleNames @() -AutoAppendNames @("NoPause")
         }
         Installer = [ordered]@{
@@ -231,7 +239,7 @@ function New-ProjectRegistry {
         Scripts = [ordered]@{
             "launch.ps1" = "启动 InvokeAI"; "update.ps1" = "更新 InvokeAI"; "update_node.ps1" = "更新节点"
             "version_manager.ps1" = "管理 InvokeAI 和节点版本"; "terminal.ps1" = "打开交互终端"; "settings.ps1" = "管理设置"; "download_models.ps1" = "下载模型"
-            "reinstall_pytorch.ps1" = "重装 PyTorch"; "launch_invokeai_installer.ps1" = "获取最新安装器并运行"
+            "reinstall_pytorch.ps1" = "重装 PyTorch"; "snapshot_manager.ps1" = "管理环境快照"; "launch_invokeai_installer.ps1" = "获取最新安装器并运行"
         }
         ScriptParams = [ordered]@{
             "launch.ps1" = New-LauncherParamSpecs -Names $launchScriptParams -VisibleNames $launchScriptVisible -AutoAppendNames @("NoPause")
@@ -241,11 +249,12 @@ function New-ProjectRegistry {
             "terminal.ps1" = New-LauncherParamSpecs -Names $terminalParams -VisibleNames @() -AutoAppendNames @("NoPause")
             "settings.ps1" = New-LauncherParamSpecs -Names $settingsParams -VisibleNames $settingsVisible -AutoAppendNames @("NoPause")
             "download_models.ps1" = New-LauncherParamSpecs -Names $downloadModelParams -VisibleNames $downloadModelVisible -AutoAppendNames @("NoPause")
-            "reinstall_pytorch.ps1" = New-LauncherParamSpecs -Names @("CorePrefix", "BuildMode", "BuildWithTorch", "DisablePyPIMirror", "DisableUpdate", "DisableUV", "DisableProxy", "UseCustomProxy", "NoPause") -VisibleNames @("CorePrefix", "BuildMode", "BuildWithTorch", "DisablePyPIMirror", "DisableUpdate", "DisableUV", "DisableProxy", "UseCustomProxy") -AutoAppendNames @("NoPause")
+            "reinstall_pytorch.ps1" = New-LauncherParamSpecs -Names @("CorePrefix", "BuildMode", "BuildWithTorch", "DisablePyPIMirror", "DisableUpdate", "DisableUV", "DisableProxy", "UseCustomProxy", "DisableSnapshot", "NoPause") -VisibleNames @("CorePrefix", "BuildMode", "BuildWithTorch", "DisablePyPIMirror", "DisableUpdate", "DisableUV", "DisableProxy", "UseCustomProxy", "DisableSnapshot") -AutoAppendNames @("NoPause")
+            "snapshot_manager.ps1" = New-LauncherParamSpecs -Names $snapshotManagerParams -VisibleNames $snapshotManagerVisible -AutoAppendNames @("NoPause")
             "launch_invokeai_installer.ps1" = New-LauncherParamSpecs -Names $launcherInstallerParams -VisibleNames @() -AutoAppendNames @("NoPause")
         }
         Installer = [ordered]@{
-            Params = New-LauncherParamSpecs -Names @("CorePrefix", "InstallPath", "PyTorchMirrorType", "InstallPythonVersion", "UseUpdateMode", "DisablePyPIMirror", "DisableAutoMirror", "DisableProxy", "UseCustomProxy", "DisableUV", "DisableGithubMirror", "UseCustomGithubMirror", "BuildMode", "BuildWithTorch", "BuildWithModel", "BuildWithUpdate", "BuildWithUpdateNode", "BuildWithLaunch", "NoPreDownloadModel", "NoCleanCache", "DisableModelMirror", "NoPause", "DisableUpdate", "DisableHuggingFaceMirror", "UseCustomHuggingFaceMirror", "LaunchArg", "DisableHotpatcher", "HotpatcherConfig", "HotpatcherPort", "EnableHotpatcherRuntime", "EnableShortcut", "DisableCUDAMalloc", "DisableEnvCheck") -VisibleNames @($installerVisibleBase | Where-Object { $_ -notin @("InstallBranch", "NoPreDownloadExtension", "NoPreDownloadNode") }) -AutoAppendNames @("NoPause")
+            Params = New-LauncherParamSpecs -Names @("CorePrefix", "InstallPath", "PyTorchMirrorType", "InstallPythonVersion", "RestoreFromSnapshot", "SnapshotPath", "DisableSnapshot", "UseUpdateMode", "DisablePyPIMirror", "DisableAutoMirror", "DisableProxy", "UseCustomProxy", "DisableUV", "DisableGithubMirror", "UseCustomGithubMirror", "BuildMode", "BuildWithTorch", "BuildWithModel", "BuildWithUpdate", "BuildWithUpdateNode", "BuildWithLaunch", "NoPreDownloadModel", "NoCleanCache", "DisableModelMirror", "NoPause", "DisableUpdate", "DisableHuggingFaceMirror", "UseCustomHuggingFaceMirror", "LaunchArg", "DisableHotpatcher", "HotpatcherPort", "EnableHotpatcherRuntime", "EnableShortcut", "DisableCUDAMalloc", "DisableEnvCheck") -VisibleNames @($installerVisibleBase | Where-Object { $_ -notin @("InstallBranch", "NoPreDownloadExtension", "NoPreDownloadNode") }) -AutoAppendNames @("NoPause")
         }
     }
 
@@ -262,7 +271,7 @@ function New-ProjectRegistry {
         Branches = [ordered]@{ fooocus_main = "lllyasviel/Fooocus"; ruined_fooocus_main = "runew0lf/RuinedFooocus"; fooocus_mre_main = "MoonRide303/Fooocus-MRE" }
         Scripts = [ordered]@{
             "launch.ps1" = "启动 Fooocus"; "update.ps1" = "更新 Fooocus"; "switch_branch.ps1" = "切换分支"; "version_manager.ps1" = "管理 Fooocus 版本"
-            "terminal.ps1" = "打开交互终端"; "settings.ps1" = "管理设置"; "download_models.ps1" = "下载模型"; "reinstall_pytorch.ps1" = "重装 PyTorch"; "launch_fooocus_installer.ps1" = "获取最新安装器并运行"
+            "terminal.ps1" = "打开交互终端"; "settings.ps1" = "管理设置"; "download_models.ps1" = "下载模型"; "reinstall_pytorch.ps1" = "重装 PyTorch"; "snapshot_manager.ps1" = "管理环境快照"; "launch_fooocus_installer.ps1" = "获取最新安装器并运行"
         }
         ScriptParams = [ordered]@{
             "launch.ps1" = New-LauncherParamSpecs -Names $launchScriptParams -VisibleNames $launchScriptVisible -AutoAppendNames @("NoPause")
@@ -273,6 +282,7 @@ function New-ProjectRegistry {
             "settings.ps1" = New-LauncherParamSpecs -Names $settingsParams -VisibleNames $settingsVisible -AutoAppendNames @("NoPause")
             "download_models.ps1" = New-LauncherParamSpecs -Names $downloadModelParams -VisibleNames $downloadModelVisible -AutoAppendNames @("NoPause")
             "reinstall_pytorch.ps1" = New-LauncherParamSpecs -Names $reinstallTorchParams -VisibleNames $reinstallTorchVisible -AutoAppendNames @("NoPause")
+            "snapshot_manager.ps1" = New-LauncherParamSpecs -Names $snapshotManagerParams -VisibleNames $snapshotManagerVisible -AutoAppendNames @("NoPause")
             "launch_fooocus_installer.ps1" = New-LauncherParamSpecs -Names $launcherInstallerParams -VisibleNames @() -AutoAppendNames @("NoPause")
         }
         Installer = [ordered]@{
@@ -293,7 +303,7 @@ function New-ProjectRegistry {
         Branches = [ordered]@{ sd_trainer_main = "Akegarasu/SD-Trainer"; kohya_gui_main = "bmaltais/Kohya GUI"; sd_trainer_next_main = "wochenlong/SD-Trainer-Next" }
         Scripts = [ordered]@{
             "launch.ps1" = "启动 SD Trainer"; "update.ps1" = "更新 SD Trainer"; "switch_branch.ps1" = "切换分支"; "version_manager.ps1" = "管理 SD Trainer 版本"
-            "terminal.ps1" = "打开交互终端"; "settings.ps1" = "管理设置"; "download_models.ps1" = "下载模型"; "reinstall_pytorch.ps1" = "重装 PyTorch"; "launch_sd_trainer_installer.ps1" = "获取最新安装器并运行"
+            "terminal.ps1" = "打开交互终端"; "settings.ps1" = "管理设置"; "download_models.ps1" = "下载模型"; "reinstall_pytorch.ps1" = "重装 PyTorch"; "snapshot_manager.ps1" = "管理环境快照"; "launch_sd_trainer_installer.ps1" = "获取最新安装器并运行"
         }
         ScriptParams = [ordered]@{
             "launch.ps1" = New-LauncherParamSpecs -Names $launchScriptParams -VisibleNames $launchScriptVisible -AutoAppendNames @("NoPause")
@@ -304,6 +314,7 @@ function New-ProjectRegistry {
             "settings.ps1" = New-LauncherParamSpecs -Names $settingsParams -VisibleNames $settingsVisible -AutoAppendNames @("NoPause")
             "download_models.ps1" = New-LauncherParamSpecs -Names $downloadModelParams -VisibleNames $downloadModelVisible -AutoAppendNames @("NoPause")
             "reinstall_pytorch.ps1" = New-LauncherParamSpecs -Names $reinstallTorchParams -VisibleNames $reinstallTorchVisible -AutoAppendNames @("NoPause")
+            "snapshot_manager.ps1" = New-LauncherParamSpecs -Names $snapshotManagerParams -VisibleNames $snapshotManagerVisible -AutoAppendNames @("NoPause")
             "launch_sd_trainer_installer.ps1" = New-LauncherParamSpecs -Names $launcherInstallerParams -VisibleNames @() -AutoAppendNames @("NoPause")
         }
         Installer = [ordered]@{
@@ -327,7 +338,7 @@ function New-ProjectRegistry {
         }
         Scripts = [ordered]@{
             "train.ps1" = "运行训练脚本"; "update.ps1" = "更新 SD-Trainer-Script"; "switch_branch.ps1" = "切换分支"; "version_manager.ps1" = "管理 SD-Trainer-Script 版本"
-            "terminal.ps1" = "打开交互终端"; "settings.ps1" = "管理设置"; "download_models.ps1" = "下载模型"; "reinstall_pytorch.ps1" = "重装 PyTorch"; "launch_sd_trainer_script_installer.ps1" = "获取最新安装器并运行"
+            "terminal.ps1" = "打开交互终端"; "settings.ps1" = "管理设置"; "download_models.ps1" = "下载模型"; "reinstall_pytorch.ps1" = "重装 PyTorch"; "snapshot_manager.ps1" = "管理环境快照"; "launch_sd_trainer_script_installer.ps1" = "获取最新安装器并运行"
         }
         ScriptParams = [ordered]@{
             "train.ps1" = @()
@@ -338,6 +349,7 @@ function New-ProjectRegistry {
             "settings.ps1" = New-LauncherParamSpecs -Names $settingsParams -VisibleNames $settingsVisible -AutoAppendNames @("NoPause")
             "download_models.ps1" = New-LauncherParamSpecs -Names $downloadModelParams -VisibleNames $downloadModelVisible -AutoAppendNames @("NoPause")
             "reinstall_pytorch.ps1" = New-LauncherParamSpecs -Names $reinstallTorchParams -VisibleNames $reinstallTorchVisible -AutoAppendNames @("NoPause")
+            "snapshot_manager.ps1" = New-LauncherParamSpecs -Names $snapshotManagerParams -VisibleNames $snapshotManagerVisible -AutoAppendNames @("NoPause")
             "launch_sd_trainer_script_installer.ps1" = New-LauncherParamSpecs -Names $launcherInstallerParams -VisibleNames @() -AutoAppendNames @("NoPause")
             "init.ps1" = New-LauncherParamSpecs -Names $sdTrainerScriptInitParams -VisibleNames @() -AutoAppendNames @("NoPause")
         }
@@ -359,7 +371,7 @@ function New-ProjectRegistry {
         Branches = [ordered]@{}
         Scripts = [ordered]@{
             "launch.ps1" = "启动 Qwen TTS WebUI"; "update.ps1" = "更新 Qwen TTS WebUI"; "version_manager.ps1" = "管理 Qwen TTS WebUI 版本"
-            "terminal.ps1" = "打开交互终端"; "settings.ps1" = "管理设置"; "reinstall_pytorch.ps1" = "重装 PyTorch"; "launch_qwen_tts_webui_installer.ps1" = "获取最新安装器并运行"
+            "terminal.ps1" = "打开交互终端"; "settings.ps1" = "管理设置"; "reinstall_pytorch.ps1" = "重装 PyTorch"; "snapshot_manager.ps1" = "管理环境快照"; "launch_qwen_tts_webui_installer.ps1" = "获取最新安装器并运行"
         }
         ScriptParams = [ordered]@{
             "launch.ps1" = New-LauncherParamSpecs -Names $launchScriptParams -VisibleNames $launchScriptVisible -AutoAppendNames @("NoPause")
@@ -368,10 +380,11 @@ function New-ProjectRegistry {
             "terminal.ps1" = New-LauncherParamSpecs -Names $terminalParams -VisibleNames @() -AutoAppendNames @("NoPause")
             "settings.ps1" = New-LauncherParamSpecs -Names $settingsParams -VisibleNames $settingsVisible -AutoAppendNames @("NoPause")
             "reinstall_pytorch.ps1" = New-LauncherParamSpecs -Names $reinstallTorchParams -VisibleNames $reinstallTorchVisible -AutoAppendNames @("NoPause")
+            "snapshot_manager.ps1" = New-LauncherParamSpecs -Names $snapshotManagerParams -VisibleNames $snapshotManagerVisible -AutoAppendNames @("NoPause")
             "launch_qwen_tts_webui_installer.ps1" = New-LauncherParamSpecs -Names $launcherInstallerParams -VisibleNames @() -AutoAppendNames @("NoPause")
         }
         Installer = [ordered]@{
-            Params = New-LauncherParamSpecs -Names @("CorePrefix", "InstallPath", "PyTorchMirrorType", "InstallPythonVersion", "UseUpdateMode", "DisablePyPIMirror", "DisableAutoMirror", "DisableProxy", "UseCustomProxy", "DisableUV", "DisableGithubMirror", "UseCustomGithubMirror", "BuildMode", "BuildWithTorch", "BuildWithTorchReinstall", "BuildWithUpdate", "BuildWithLaunch", "PyTorchPackage", "xFormersPackage", "NoCleanCache", "DisableModelMirror", "NoPause", "DisableUpdate", "DisableHuggingFaceMirror", "UseCustomHuggingFaceMirror", "LaunchArg", "DisableHotpatcher", "HotpatcherConfig", "HotpatcherPort", "EnableHotpatcherRuntime", "EnableShortcut", "DisableCUDAMalloc", "DisableEnvCheck") -VisibleNames @($installerVisibleBase | Where-Object { $_ -notin @("InstallBranch", "NoPreDownloadExtension", "NoPreDownloadNode", "NoPreDownloadModel") }) -AutoAppendNames @("NoPause")
+            Params = New-LauncherParamSpecs -Names @("CorePrefix", "InstallPath", "PyTorchMirrorType", "InstallPythonVersion", "RestoreFromSnapshot", "SnapshotPath", "DisableSnapshot", "UseUpdateMode", "DisablePyPIMirror", "DisableAutoMirror", "DisableProxy", "UseCustomProxy", "DisableUV", "DisableGithubMirror", "UseCustomGithubMirror", "BuildMode", "BuildWithTorch", "BuildWithTorchReinstall", "BuildWithUpdate", "BuildWithLaunch", "PyTorchPackage", "xFormersPackage", "NoCleanCache", "DisableModelMirror", "NoPause", "DisableUpdate", "DisableHuggingFaceMirror", "UseCustomHuggingFaceMirror", "LaunchArg", "DisableHotpatcher", "HotpatcherPort", "EnableHotpatcherRuntime", "EnableShortcut", "DisableCUDAMalloc", "DisableEnvCheck") -VisibleNames @($installerVisibleBase | Where-Object { $_ -notin @("InstallBranch", "NoPreDownloadExtension", "NoPreDownloadNode", "NoPreDownloadModel") }) -AutoAppendNames @("NoPause")
         }
     }
 

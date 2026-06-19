@@ -718,6 +718,18 @@
 - [x] 移除 GUI 关于页用户协议 `TextBox` 不兼容的 `LineHeight` / `LineStackingStrategy` 属性，避免 Windows WPF 加载时报未知成员。
 - [x] 移除不兼容 TextBox 行高属性后重新运行 GUI 单文件编译、PowerShell 解析检查、XAML XML 解析、`bash -n`、`shellcheck` 和 `git diff --check`，通过。
 - [x] GUI 关于页链接卡片和用户协议正文从 14px 微调为 13px，使字号更接近其他设置与说明区域。
+- [x] 根据当前 `sd-webui-all-in-one/installer` 源码同步 TUI/GUI 参数：主 installer 新增快照重建参数 `-RestoreFromSnapshot` / `-SnapshotPath` / `-DisableSnapshot`，热补丁结构化参数移除不存在的 `-HotpatcherConfig`，保留 `-DisableHotpatcher` / `-HotpatcherPort` / `-EnableHotpatcherRuntime`。
+- [x] 管理脚本参数同步新增支持的 `-DisableSnapshot`，并保持 `launch_*_installer.ps1` 代理脚本只自动追加 `-NoPause`。
+- [x] 曾为 TUI 和 GUI 运行主 installer 前新增快照参数校验：`-RestoreFromSnapshot` 与 `-SnapshotPath` 必须同时提供，且不能和 `-UseUpdateMode` 同时使用；该启动器侧校验已在后续条目移除。
+- [x] 同步快照/热补丁参数后运行 `bash -n install.sh installer_launcher.sh lib/*.sh` 和 `shellcheck install.sh installer_launcher.sh lib/*.sh`，通过。
+- [x] 同步快照/热补丁参数后运行 CLI 配置、参数构造和校验烟测，确认主 installer 会传递新快照参数，缺少 `-SnapshotPath` 会被拦截，`launch_*_installer.ps1` 仍只自动追加 `-NoPause`；该启动器侧拦截已在后续条目移除。
+- [x] 同步快照/热补丁参数后运行 PowerShell 解析检查、XAML XML 解析、GUI 临时单文件编译与解析、GUI 参数构造和校验烟测，均通过；该启动器侧校验已在后续条目移除，当前 Linux 环境缺少 WPF `PresentationFramework`，未做 GUI 窗口实机加载验证。
+- [x] 同步快照/热补丁参数后运行 `git diff --check`，通过。
+- [x] 移除 TUI/GUI 运行 installer 前的快照参数组合校验；启动器只负责传递结构化参数和额外原始参数，参数合法性改由 installer 自行判断。
+- [x] TUI/GUI 管理脚本列表新增 `snapshot_manager.ps1`，并按上游脚本适配 `CorePrefix`、更新/代理/GitHub 镜像相关参数和自动追加 `NoPause`。
+- [x] 移除快照参数预校验并适配 `snapshot_manager.ps1` 后运行 `bash -n install.sh installer_launcher.sh lib/*.sh` 和 `shellcheck install.sh installer_launcher.sh lib/*.sh`，通过。
+- [x] 移除快照参数预校验并适配 `snapshot_manager.ps1` 后运行 Bash 烟测，确认只设置 `RESTORE_FROM_SNAPSHOT=1` 仍会原样传参，`snapshot_manager.ps1` 参数表符合上游，`launch_*_installer.ps1` 仍只自动追加 `NoPause`。
+- [x] 移除快照参数预校验并适配 `snapshot_manager.ps1` 后运行 PowerShell 解析检查、XAML XML 解析、GUI 临时单文件编译与解析、GUI registry 参数烟测和 `git diff --check`，通过；当前 Linux 环境缺少 WPF `PresentationFramework`，未做 GUI 窗口实机加载验证。
 - [ ] 在 Windows PowerShell 5.1 中运行 `installer_launcher_gui.ps1`，验证 WPF 界面可正常启动。
 - [ ] 在 Windows 中验证 GUI 首次启动会创建 AppData / LocalAppData 配置、缓存和日志目录。
 - [ ] 在 Windows 中验证 GUI 安装器下载重试、PowerShell 执行、安装检测、管理脚本运行和项目卸载流程。

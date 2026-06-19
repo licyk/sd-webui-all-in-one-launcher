@@ -38,7 +38,7 @@ installer_param_default_value() {
   local key="$1" param="$2"
   case "$param" in
     InstallBranch) printf '' ;;
-    EnableHotpatcherRuntime) printf '0' ;;
+    RestoreFromSnapshot|EnableHotpatcherRuntime) printf '0' ;;
     Disable*|No*) printf '0' ;;
     *) printf '' ;;
   esac
@@ -125,9 +125,11 @@ reset_project_config_vars() {
   PROXY=""
   GITHUB_MIRROR=""
   HUGGINGFACE_MIRROR=""
-  HOTPATCHER_CONFIG=""
   HOTPATCHER_PORT=""
+  SNAPSHOT_PATH=""
   EXTRA_INSTALL_ARGS=""
+  RESTORE_FROM_SNAPSHOT=0
+  DISABLE_SNAPSHOT=0
   DISABLE_HOTPATCHER=0
   ENABLE_HOTPATCHER_RUNTIME=0
   DISABLE_PYPI_MIRROR=0
@@ -147,7 +149,7 @@ reset_project_config_vars() {
 
 script_param_is_flag() {
   case "$1" in
-    BuildMode|DisablePyPIMirror|DisableAutoMirror|DisableUpdate|DisableProxy|DisableHuggingFaceMirror|DisableGithubMirror|DisableUV|EnableShortcut|DisableCUDAMalloc|DisableEnvCheck|DisableModelMirror|BuildWithTorchReinstall|DisableHotpatcher|EnableHotpatcherRuntime)
+    BuildMode|DisablePyPIMirror|DisableAutoMirror|DisableUpdate|DisableProxy|DisableHuggingFaceMirror|DisableGithubMirror|DisableUV|EnableShortcut|DisableCUDAMalloc|DisableEnvCheck|DisableModelMirror|BuildWithTorchReinstall|DisableHotpatcher|DisableSnapshot|EnableHotpatcherRuntime)
       return 0
       ;;
     *) return 1 ;;
@@ -206,7 +208,9 @@ installer_param_config_var_name() {
     UseCustomProxy) printf 'PROXY' ;;
     UseCustomGithubMirror) printf 'GITHUB_MIRROR' ;;
     UseCustomHuggingFaceMirror) printf 'HUGGINGFACE_MIRROR' ;;
-    HotpatcherConfig) printf 'HOTPATCHER_CONFIG' ;;
+    RestoreFromSnapshot) printf 'RESTORE_FROM_SNAPSHOT' ;;
+    SnapshotPath) printf 'SNAPSHOT_PATH' ;;
+    DisableSnapshot) printf 'DISABLE_SNAPSHOT' ;;
     HotpatcherPort) printf 'HOTPATCHER_PORT' ;;
     DisablePyPIMirror) printf 'DISABLE_PYPI_MIRROR' ;;
     DisableAutoMirror) printf 'DISABLE_AUTO_MIRROR' ;;
@@ -322,7 +326,9 @@ config_key_param_name() {
     PROXY) printf 'UseCustomProxy' ;;
     GITHUB_MIRROR) printf 'UseCustomGithubMirror' ;;
     HUGGINGFACE_MIRROR) printf 'UseCustomHuggingFaceMirror' ;;
-    HOTPATCHER_CONFIG) printf 'HotpatcherConfig' ;;
+    RESTORE_FROM_SNAPSHOT) printf 'RestoreFromSnapshot' ;;
+    SNAPSHOT_PATH) printf 'SnapshotPath' ;;
+    DISABLE_SNAPSHOT) printf 'DisableSnapshot' ;;
     HOTPATCHER_PORT) printf 'HotpatcherPort' ;;
     DISABLE_PYPI_MIRROR) printf 'DisablePyPIMirror' ;;
     DISABLE_AUTO_MIRROR) printf 'DisableAutoMirror' ;;
@@ -354,7 +360,7 @@ set_project_config_key() {
   local key="$1" config_key="$2" value="$3"
   load_project_config "$key"
   case "$config_key" in
-    INSTALL_PATH|INSTALL_BRANCH|CORE_PREFIX|PYTORCH_MIRROR_TYPE|PYTHON_VERSION|PROXY|GITHUB_MIRROR|HUGGINGFACE_MIRROR|HOTPATCHER_CONFIG|HOTPATCHER_PORT|EXTRA_INSTALL_ARGS|DISABLE_HOTPATCHER|ENABLE_HOTPATCHER_RUNTIME|DISABLE_PYPI_MIRROR|DISABLE_AUTO_MIRROR|DISABLE_PROXY|DISABLE_UV|DISABLE_GITHUB_MIRROR|DISABLE_MODEL_MIRROR|DISABLE_HUGGINGFACE_MIRROR|DISABLE_CUDA_MALLOC|DISABLE_ENV_CHECK|NO_PRE_DOWNLOAD_EXTENSION|NO_PRE_DOWNLOAD_NODE|NO_PRE_DOWNLOAD_MODEL|NO_CLEAN_CACHE)
+    INSTALL_PATH|INSTALL_BRANCH|CORE_PREFIX|PYTORCH_MIRROR_TYPE|PYTHON_VERSION|PROXY|GITHUB_MIRROR|HUGGINGFACE_MIRROR|RESTORE_FROM_SNAPSHOT|SNAPSHOT_PATH|DISABLE_SNAPSHOT|HOTPATCHER_PORT|EXTRA_INSTALL_ARGS|DISABLE_HOTPATCHER|ENABLE_HOTPATCHER_RUNTIME|DISABLE_PYPI_MIRROR|DISABLE_AUTO_MIRROR|DISABLE_PROXY|DISABLE_UV|DISABLE_GITHUB_MIRROR|DISABLE_MODEL_MIRROR|DISABLE_HUGGINGFACE_MIRROR|DISABLE_CUDA_MALLOC|DISABLE_ENV_CHECK|NO_PRE_DOWNLOAD_EXTENSION|NO_PRE_DOWNLOAD_NODE|NO_PRE_DOWNLOAD_MODEL|NO_CLEAN_CACHE)
       config_key_supported_by_project "$key" "$config_key" || die "$(project_name "$key") 不支持配置项: $config_key"
       printf -v "$config_key" '%s' "$value"
       save_project_config "$key"
@@ -390,9 +396,11 @@ EOF
   config_key_supported_by_project "$key" PROXY && printf 'PROXY=%s\n' "${PROXY:-}"
   config_key_supported_by_project "$key" GITHUB_MIRROR && printf 'GITHUB_MIRROR=%s\n' "${GITHUB_MIRROR:-}"
   config_key_supported_by_project "$key" HUGGINGFACE_MIRROR && printf 'HUGGINGFACE_MIRROR=%s\n' "${HUGGINGFACE_MIRROR:-}"
+  config_key_supported_by_project "$key" RESTORE_FROM_SNAPSHOT && printf 'RESTORE_FROM_SNAPSHOT=%s\n' "${RESTORE_FROM_SNAPSHOT:-0}"
+  config_key_supported_by_project "$key" SNAPSHOT_PATH && printf 'SNAPSHOT_PATH=%s\n' "${SNAPSHOT_PATH:-}"
+  config_key_supported_by_project "$key" DISABLE_SNAPSHOT && printf 'DISABLE_SNAPSHOT=%s\n' "${DISABLE_SNAPSHOT:-0}"
   config_key_supported_by_project "$key" DISABLE_AUTO_MIRROR && printf 'DISABLE_AUTO_MIRROR=%s\n' "${DISABLE_AUTO_MIRROR:-0}"
   config_key_supported_by_project "$key" DISABLE_HOTPATCHER && printf 'DISABLE_HOTPATCHER=%s\n' "${DISABLE_HOTPATCHER:-0}"
-  config_key_supported_by_project "$key" HOTPATCHER_CONFIG && printf 'HOTPATCHER_CONFIG=%s\n' "${HOTPATCHER_CONFIG:-}"
   config_key_supported_by_project "$key" HOTPATCHER_PORT && printf 'HOTPATCHER_PORT=%s\n' "${HOTPATCHER_PORT:-}"
   config_key_supported_by_project "$key" ENABLE_HOTPATCHER_RUNTIME && printf 'ENABLE_HOTPATCHER_RUNTIME=%s\n' "${ENABLE_HOTPATCHER_RUNTIME:-0}"
   printf 'EXTRA_INSTALL_ARGS=%s\n' "${EXTRA_INSTALL_ARGS:-}"

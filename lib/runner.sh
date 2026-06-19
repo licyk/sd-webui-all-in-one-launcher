@@ -108,6 +108,9 @@ build_installer_args() {
   project_supports_param "$key" CorePrefix && [[ -n "${CORE_PREFIX:-}" ]] && output_ref+=("-CorePrefix" "$CORE_PREFIX")
   project_supports_param "$key" PyTorchMirrorType && [[ -n "${PYTORCH_MIRROR_TYPE:-}" ]] && output_ref+=("-PyTorchMirrorType" "$PYTORCH_MIRROR_TYPE")
   project_supports_param "$key" InstallPythonVersion && [[ -n "${PYTHON_VERSION:-}" ]] && output_ref+=("-InstallPythonVersion" "$PYTHON_VERSION")
+  project_supports_param "$key" RestoreFromSnapshot && [[ "${RESTORE_FROM_SNAPSHOT:-0}" == "1" ]] && output_ref+=("-RestoreFromSnapshot")
+  project_supports_param "$key" SnapshotPath && [[ -n "${SNAPSHOT_PATH:-}" ]] && output_ref+=("-SnapshotPath" "$SNAPSHOT_PATH")
+  project_supports_param "$key" DisableSnapshot && [[ "${DISABLE_SNAPSHOT:-0}" == "1" ]] && output_ref+=("-DisableSnapshot")
   project_supports_param "$key" InstallBranch && [[ -n "${INSTALL_BRANCH:-}" ]] && output_ref+=("-InstallBranch" "$INSTALL_BRANCH")
   project_supports_param "$key" DisablePyPIMirror && [[ "${DISABLE_PYPI_MIRROR:-0}" == "1" ]] && output_ref+=("-DisablePyPIMirror")
   project_supports_param "$key" DisableAutoMirror && [[ "${DISABLE_AUTO_MIRROR:-0}" == "1" ]] && output_ref+=("-DisableAutoMirror")
@@ -124,7 +127,6 @@ build_installer_args() {
   project_supports_param "$key" DisableHuggingFaceMirror && [[ "${DISABLE_HUGGINGFACE_MIRROR:-0}" == "1" ]] && output_ref+=("-DisableHuggingFaceMirror")
   project_supports_param "$key" UseCustomHuggingFaceMirror && [[ -n "${HUGGINGFACE_MIRROR:-}" ]] && output_ref+=("-UseCustomHuggingFaceMirror" "$HUGGINGFACE_MIRROR")
   project_supports_param "$key" DisableHotpatcher && [[ "${DISABLE_HOTPATCHER:-0}" == "1" ]] && output_ref+=("-DisableHotpatcher")
-  project_supports_param "$key" HotpatcherConfig && [[ -n "${HOTPATCHER_CONFIG:-}" ]] && output_ref+=("-HotpatcherConfig" "$HOTPATCHER_CONFIG")
   project_supports_param "$key" HotpatcherPort && [[ -n "${HOTPATCHER_PORT:-}" ]] && output_ref+=("-HotpatcherPort" "$HOTPATCHER_PORT")
   project_supports_param "$key" EnableHotpatcherRuntime && [[ "${ENABLE_HOTPATCHER_RUNTIME:-0}" == "1" ]] && output_ref+=("-EnableHotpatcherRuntime")
   project_supports_param "$key" DisableCUDAMalloc && [[ "${DISABLE_CUDA_MALLOC:-0}" == "1" ]] && output_ref+=("-DisableCUDAMalloc")
@@ -174,6 +176,9 @@ EOF
   project_supports_param "$key" CorePrefix && printf '  CORE_PREFIX=%s\n' "${CORE_PREFIX:-}"
   project_supports_param "$key" PyTorchMirrorType && printf '  PYTORCH_MIRROR_TYPE=%s\n' "${PYTORCH_MIRROR_TYPE:-}"
   project_supports_param "$key" InstallPythonVersion && printf '  PYTHON_VERSION=%s\n' "${PYTHON_VERSION:-}"
+  project_supports_param "$key" RestoreFromSnapshot && printf '  RESTORE_FROM_SNAPSHOT=%s\n' "${RESTORE_FROM_SNAPSHOT:-0}"
+  project_supports_param "$key" SnapshotPath && printf '  SNAPSHOT_PATH=%s\n' "${SNAPSHOT_PATH:-}"
+  project_supports_param "$key" DisableSnapshot && printf '  DISABLE_SNAPSHOT=%s\n' "${DISABLE_SNAPSHOT:-0}"
   project_supports_param "$key" UseCustomProxy && printf '  PROXY=%s\n' "${PROXY:-}"
   project_supports_param "$key" UseCustomGithubMirror && printf '  GITHUB_MIRROR=%s\n' "${GITHUB_MIRROR:-}"
   project_supports_param "$key" UseCustomHuggingFaceMirror && printf '  HUGGINGFACE_MIRROR=%s\n' "${HUGGINGFACE_MIRROR:-}"
@@ -399,9 +404,9 @@ script_param_label() {
     DisableUV) printf '禁用 uv -DisableUV' ;;
     LaunchArg) printf '启动参数 -LaunchArg' ;;
     DisableHotpatcher) printf '禁用 Hotpatcher -DisableHotpatcher' ;;
-    HotpatcherConfig) printf 'Hotpatcher 配置文件 -HotpatcherConfig' ;;
     HotpatcherPort) printf 'Hotpatcher 通信端口 -HotpatcherPort' ;;
     EnableHotpatcherRuntime) printf '启用 Hotpatcher runtime -EnableHotpatcherRuntime' ;;
+    DisableSnapshot) printf '禁用自动快照 -DisableSnapshot' ;;
     EnableShortcut) printf '创建快捷方式 -EnableShortcut' ;;
     DisableCUDAMalloc) printf '禁用 CUDA 内存分配器 -DisableCUDAMalloc' ;;
     DisableEnvCheck) printf '禁用环境检查 -DisableEnvCheck' ;;
