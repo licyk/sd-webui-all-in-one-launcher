@@ -586,5 +586,4 @@ shellcheck install.sh installer_launcher.sh lib/*.sh
 
 - [架构文档](docs/architecture.md)
 - [GUI 编译器文档](docs/gui-compiler.md)
-- [TODO 状态板](docs/todo.md)
 - [项目协作规则](AGENTS.md)

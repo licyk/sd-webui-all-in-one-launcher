@@ -20,8 +20,6 @@ The dependency bootstrap entry point is `install.sh`. The Bash launcher entry po
 - `lib/menus.sh`: TUI menus, configuration flows, main-menu status/help text.
 - `lib/cli.sh`: command-line dispatch and usage text.
 
-`docs/todo.md` is part of the workflow. Update it whenever you modify behavior, tests, or documentation.
-
 ## Windows GUI Rules
 
 - `installer_launcher_gui.ps1` is Windows-only and should use PowerShell/WPF, not Bash.
@@ -292,6 +290,6 @@ bash --noprofile --norc -u -c 'source lib/bootstrap.sh; dialog_menu_size h w mh 
 
 ## Documentation Rules
 
-- Keep `docs/todo.md` updated for every change.
+- No TODO document is required for routine changes. Do not recreate `docs/todo.md` as part of the workflow.
 - Update TUI help text when user-facing behavior changes.
 - Keep `AGENTS.md` current when project conventions change.
