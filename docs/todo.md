@@ -75,6 +75,7 @@
 - [x] TUI/CLI 与 GUI 的 SD Trainer Installer 分支列表已新增 `sd_trainer_next_main`（`wochenlong/SD-Trainer-Next`）。
 - [x] TUI 和 GUI 安装分支选择新增“默认分支”选项，选中时保存为空并在运行安装器时不传 `-InstallBranch`。
 - [x] TUI 版本提升到 `0.3.10`，GUI 版本提升到 `0.3.18`。
+- [x] RVC Next WebUI 适配后，TUI 版本提升到 `0.3.12`，GUI 版本提升到 `0.3.21`。
 
 ## 配置与项目选择
 
