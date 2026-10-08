@@ -388,6 +388,36 @@ function New-ProjectRegistry {
         }
     }
 
+    $projects.rvc_next_webui = [ordered]@{
+        Key = "rvc_next_webui"; Name = "RVC Next WebUI Installer"; InstallerFile = "rvc_next_webui_installer.ps1"
+        InstallerUrls = @(
+            "$commonInstallerHost/releases/download/rvc_next_webui_installer/rvc_next_webui_installer.ps1",
+            "https://gitee.com/licyk/sd-webui-all-in-one/releases/download/rvc_next_webui_installer/rvc_next_webui_installer.ps1",
+            "$commonInstallerHost/raw/main/installer/rvc_next_webui_installer.ps1",
+            "https://gitee.com/licyk/sd-webui-all-in-one/raw/main/installer/rvc_next_webui_installer.ps1",
+            "https://gitlab.com/licyk/sd-webui-all-in-one/-/raw/main/installer/rvc_next_webui_installer.ps1"
+        )
+        DefaultDir = "rvc-next-webui"; DefaultBranch = ""
+        Branches = [ordered]@{}
+        Scripts = [ordered]@{
+            "launch.ps1" = "启动 RVC Next WebUI"; "update.ps1" = "更新 RVC Next WebUI"; "version_manager.ps1" = "管理 RVC Next WebUI 版本"
+            "terminal.ps1" = "打开交互终端"; "settings.ps1" = "管理设置"; "reinstall_pytorch.ps1" = "重装 PyTorch"; "snapshot_manager.ps1" = "管理环境快照"; "launch_rvc_next_webui_installer.ps1" = "获取最新安装器并运行"
+        }
+        ScriptParams = [ordered]@{
+            "launch.ps1" = New-LauncherParamSpecs -Names $launchScriptParams -VisibleNames $launchScriptVisible -AutoAppendNames @("NoPause")
+            "update.ps1" = New-LauncherParamSpecs -Names $updateParams -VisibleNames $updateVisible -AutoAppendNames @("NoPause")
+            "version_manager.ps1" = New-LauncherParamSpecs -Names $versionManagerParams -VisibleNames $versionManagerVisible -AutoAppendNames @("NoPause")
+            "terminal.ps1" = New-LauncherParamSpecs -Names $terminalParams -VisibleNames @() -AutoAppendNames @("NoPause")
+            "settings.ps1" = New-LauncherParamSpecs -Names $settingsParams -VisibleNames $settingsVisible -AutoAppendNames @("NoPause")
+            "reinstall_pytorch.ps1" = New-LauncherParamSpecs -Names $reinstallTorchParams -VisibleNames $reinstallTorchVisible -AutoAppendNames @("NoPause")
+            "snapshot_manager.ps1" = New-LauncherParamSpecs -Names $snapshotManagerParams -VisibleNames $snapshotManagerVisible -AutoAppendNames @("NoPause")
+            "launch_rvc_next_webui_installer.ps1" = New-LauncherParamSpecs -Names $launcherInstallerParams -VisibleNames @() -AutoAppendNames @("NoPause")
+        }
+        Installer = [ordered]@{
+            Params = New-LauncherParamSpecs -Names @("CorePrefix", "InstallPath", "PyTorchMirrorType", "InstallPythonVersion", "RestoreFromSnapshot", "SnapshotPath", "DisableSnapshot", "UseUpdateMode", "DisablePyPIMirror", "DisableAutoMirror", "DisableProxy", "UseCustomProxy", "DisableUV", "DisableGithubMirror", "UseCustomGithubMirror", "BuildMode", "BuildWithTorch", "BuildWithTorchReinstall", "BuildWithUpdate", "BuildWithLaunch", "PyTorchPackage", "xFormersPackage", "NoCleanCache", "NoPause", "DisableUpdate", "DisableHuggingFaceMirror", "UseCustomHuggingFaceMirror", "LaunchArg", "DisableHotpatcher", "HotpatcherPort", "EnableHotpatcherRuntime", "EnableShortcut", "DisableCUDAMalloc", "DisableEnvCheck") -VisibleNames @($installerVisibleBase | Where-Object { $_ -notin @("InstallBranch", "NoPreDownloadExtension", "NoPreDownloadNode", "NoPreDownloadModel", "DisableModelMirror") }) -AutoAppendNames @("NoPause")
+        }
+    }
+
     return $projects
 }
 

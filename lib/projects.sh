@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # shellcheck disable=SC2034
 
-PROJECT_KEYS=(sd_webui comfyui invokeai fooocus sd_trainer sd_trainer_script qwen_tts_webui)
+PROJECT_KEYS=(sd_webui comfyui invokeai fooocus sd_trainer sd_trainer_script qwen_tts_webui rvc_next_webui)
 
 # Project definitions are resolved through indirect expansion helpers.
 # shellcheck disable=SC2034
@@ -326,6 +326,43 @@ PROJECT_qwen_tts_webui_PARAMS=(
   HotpatcherPort EnableHotpatcherRuntime DisableCUDAMalloc DisableEnvCheck
 )
 
+# shellcheck disable=SC2034
+PROJECT_rvc_next_webui_NAME="RVC Next WebUI Installer"
+# shellcheck disable=SC2034
+PROJECT_rvc_next_webui_INSTALLER_URL="https://github.com/licyk/sd-webui-all-in-one/releases/download/rvc_next_webui_installer/rvc_next_webui_installer.ps1"
+# shellcheck disable=SC2034
+PROJECT_rvc_next_webui_INSTALLER_URLS=(
+  "https://github.com/licyk/sd-webui-all-in-one/releases/download/rvc_next_webui_installer/rvc_next_webui_installer.ps1"
+  "https://gitee.com/licyk/sd-webui-all-in-one/releases/download/rvc_next_webui_installer/rvc_next_webui_installer.ps1"
+  "https://github.com/licyk/sd-webui-all-in-one/raw/main/installer/rvc_next_webui_installer.ps1"
+  "https://gitee.com/licyk/sd-webui-all-in-one/raw/main/installer/rvc_next_webui_installer.ps1"
+  "https://gitlab.com/licyk/sd-webui-all-in-one/-/raw/main/installer/rvc_next_webui_installer.ps1"
+)
+# shellcheck disable=SC2034
+PROJECT_rvc_next_webui_INSTALLER_FILE="rvc_next_webui_installer.ps1"
+# shellcheck disable=SC2034
+PROJECT_rvc_next_webui_DEFAULT_DIR="rvc-next-webui"
+# shellcheck disable=SC2034
+PROJECT_rvc_next_webui_MANAGEMENT_SCRIPTS=(
+  "launch.ps1:启动 RVC Next WebUI"
+  "update.ps1:更新 RVC Next WebUI"
+  "version_manager.ps1:管理 RVC Next WebUI 版本"
+  "terminal.ps1:打开交互终端"
+  "settings.ps1:管理设置"
+  "reinstall_pytorch.ps1:重装 PyTorch"
+  "snapshot_manager.ps1:管理环境快照"
+  "launch_rvc_next_webui_installer.ps1:获取最新安装器并运行"
+)
+# shellcheck disable=SC2034
+PROJECT_rvc_next_webui_PARAMS=(
+  CorePrefix InstallPath PyTorchMirrorType InstallPythonVersion
+  RestoreFromSnapshot SnapshotPath DisableSnapshot DisablePyPIMirror
+  DisableAutoMirror DisableProxy UseCustomProxy DisableUV DisableGithubMirror
+  UseCustomGithubMirror NoCleanCache NoPause DisableHuggingFaceMirror
+  UseCustomHuggingFaceMirror DisableHotpatcher HotpatcherPort
+  EnableHotpatcherRuntime DisableCUDAMalloc DisableEnvCheck
+)
+
 project_var() {
   local key="$1" suffix="$2" var
   [[ -n "$key" ]] || return 1
@@ -398,40 +435,40 @@ project_supports_param() {
 management_script_param_entries() {
   local key="$1" script_name="$2"
   case "$key:$script_name" in
-    sd_webui:launch.ps1|comfyui:launch.ps1|invokeai:launch.ps1|fooocus:launch.ps1|sd_trainer:launch.ps1|qwen_tts_webui:launch.ps1)
+    sd_webui:launch.ps1|comfyui:launch.ps1|invokeai:launch.ps1|fooocus:launch.ps1|sd_trainer:launch.ps1|qwen_tts_webui:launch.ps1|rvc_next_webui:launch.ps1)
       printf '%s\n' CorePrefix BuildMode DisablePyPIMirror DisableAutoMirror DisableUpdate DisableProxy UseCustomProxy DisableHuggingFaceMirror UseCustomHuggingFaceMirror DisableGithubMirror UseCustomGithubMirror DisableUV LaunchArg DisableHotpatcher HotpatcherPort EnableHotpatcherRuntime EnableShortcut DisableCUDAMalloc DisableEnvCheck NoPause
       ;;
     sd_webui:download_models.ps1|comfyui:download_models.ps1|invokeai:download_models.ps1|fooocus:download_models.ps1|sd_trainer:download_models.ps1|sd_trainer_script:download_models.ps1)
       printf '%s\n' CorePrefix BuildMode BuildWithModel DisableProxy UseCustomProxy DisableUpdate DisableModelMirror DisableAutoMirror NoPause
       ;;
-    sd_webui:reinstall_pytorch.ps1|comfyui:reinstall_pytorch.ps1|fooocus:reinstall_pytorch.ps1|sd_trainer:reinstall_pytorch.ps1|sd_trainer_script:reinstall_pytorch.ps1|qwen_tts_webui:reinstall_pytorch.ps1)
+    sd_webui:reinstall_pytorch.ps1|comfyui:reinstall_pytorch.ps1|fooocus:reinstall_pytorch.ps1|sd_trainer:reinstall_pytorch.ps1|sd_trainer_script:reinstall_pytorch.ps1|qwen_tts_webui:reinstall_pytorch.ps1|rvc_next_webui:reinstall_pytorch.ps1)
       printf '%s\n' CorePrefix BuildMode BuildWithTorch BuildWithTorchReinstall DisablePyPIMirror DisableAutoMirror DisableUpdate DisableUV DisableProxy UseCustomProxy DisableSnapshot NoPause
       ;;
     invokeai:reinstall_pytorch.ps1)
       printf '%s\n' CorePrefix BuildMode BuildWithTorch DisablePyPIMirror DisableAutoMirror DisableUpdate DisableUV DisableProxy UseCustomProxy DisableSnapshot NoPause
       ;;
-    sd_webui:settings.ps1|comfyui:settings.ps1|invokeai:settings.ps1|fooocus:settings.ps1|sd_trainer:settings.ps1|sd_trainer_script:settings.ps1|qwen_tts_webui:settings.ps1)
+    sd_webui:settings.ps1|comfyui:settings.ps1|invokeai:settings.ps1|fooocus:settings.ps1|sd_trainer:settings.ps1|sd_trainer_script:settings.ps1|qwen_tts_webui:settings.ps1|rvc_next_webui:settings.ps1)
       printf '%s\n' CorePrefix DisableProxy UseCustomProxy NoPause
       ;;
     sd_webui:switch_branch.ps1|fooocus:switch_branch.ps1|sd_trainer:switch_branch.ps1|sd_trainer_script:switch_branch.ps1)
       printf '%s\n' CorePrefix BuildMode BuildWithBranch DisableUpdate DisableProxy UseCustomProxy DisableGithubMirror DisableAutoMirror UseCustomGithubMirror DisableSnapshot NoPause
       ;;
-    sd_webui:version_manager.ps1|comfyui:version_manager.ps1|invokeai:version_manager.ps1|fooocus:version_manager.ps1|sd_trainer:version_manager.ps1|sd_trainer_script:version_manager.ps1|qwen_tts_webui:version_manager.ps1)
+    sd_webui:version_manager.ps1|comfyui:version_manager.ps1|invokeai:version_manager.ps1|fooocus:version_manager.ps1|sd_trainer:version_manager.ps1|sd_trainer_script:version_manager.ps1|qwen_tts_webui:version_manager.ps1|rvc_next_webui:version_manager.ps1)
       printf '%s\n' CorePrefix DisableUpdate DisableProxy UseCustomProxy DisableGithubMirror DisableAutoMirror UseCustomGithubMirror DisableSnapshot NoPause
       ;;
-    sd_webui:snapshot_manager.ps1|comfyui:snapshot_manager.ps1|invokeai:snapshot_manager.ps1|fooocus:snapshot_manager.ps1|sd_trainer:snapshot_manager.ps1|sd_trainer_script:snapshot_manager.ps1|qwen_tts_webui:snapshot_manager.ps1)
+    sd_webui:snapshot_manager.ps1|comfyui:snapshot_manager.ps1|invokeai:snapshot_manager.ps1|fooocus:snapshot_manager.ps1|sd_trainer:snapshot_manager.ps1|sd_trainer_script:snapshot_manager.ps1|qwen_tts_webui:snapshot_manager.ps1|rvc_next_webui:snapshot_manager.ps1)
       printf '%s\n' CorePrefix DisableUpdate DisableProxy UseCustomProxy DisableGithubMirror DisableAutoMirror UseCustomGithubMirror NoPause
       ;;
     invokeai:update.ps1)
       printf '%s\n' CorePrefix BuildMode DisableUpdate DisableProxy UseCustomProxy DisablePyPIMirror DisableAutoMirror DisableUV DisableSnapshot NoPause
       ;;
-    sd_webui:update.ps1|comfyui:update.ps1|fooocus:update.ps1|sd_trainer:update.ps1|sd_trainer_script:update.ps1|qwen_tts_webui:update.ps1|sd_webui:update_extension.ps1|comfyui:update_node.ps1|invokeai:update_node.ps1)
+    sd_webui:update.ps1|comfyui:update.ps1|fooocus:update.ps1|sd_trainer:update.ps1|sd_trainer_script:update.ps1|qwen_tts_webui:update.ps1|rvc_next_webui:update.ps1|sd_webui:update_extension.ps1|comfyui:update_node.ps1|invokeai:update_node.ps1)
       printf '%s\n' CorePrefix BuildMode DisableUpdate DisableProxy UseCustomProxy DisableGithubMirror DisableAutoMirror UseCustomGithubMirror DisableSnapshot NoPause
       ;;
-    sd_webui:terminal.ps1|comfyui:terminal.ps1|invokeai:terminal.ps1|fooocus:terminal.ps1|sd_trainer:terminal.ps1|sd_trainer_script:terminal.ps1|qwen_tts_webui:terminal.ps1)
+    sd_webui:terminal.ps1|comfyui:terminal.ps1|invokeai:terminal.ps1|fooocus:terminal.ps1|sd_trainer:terminal.ps1|sd_trainer_script:terminal.ps1|qwen_tts_webui:terminal.ps1|rvc_next_webui:terminal.ps1)
       printf '%s\n' CorePrefix DisablePyPIMirror DisableAutoMirror DisableGithubMirror UseCustomGithubMirror DisableProxy UseCustomProxy DisableHuggingFaceMirror UseCustomHuggingFaceMirror NoPause
       ;;
-    sd_webui:launch_stable_diffusion_webui_installer.ps1|comfyui:launch_comfyui_installer.ps1|invokeai:launch_invokeai_installer.ps1|fooocus:launch_fooocus_installer.ps1|sd_trainer:launch_sd_trainer_installer.ps1|sd_trainer_script:launch_sd_trainer_script_installer.ps1|qwen_tts_webui:launch_qwen_tts_webui_installer.ps1)
+    sd_webui:launch_stable_diffusion_webui_installer.ps1|comfyui:launch_comfyui_installer.ps1|invokeai:launch_invokeai_installer.ps1|fooocus:launch_fooocus_installer.ps1|sd_trainer:launch_sd_trainer_installer.ps1|sd_trainer_script:launch_sd_trainer_script_installer.ps1|qwen_tts_webui:launch_qwen_tts_webui_installer.ps1|rvc_next_webui:launch_rvc_next_webui_installer.ps1)
       printf '%s\n' NoPause
       ;;
     sd_trainer_script:train.ps1)

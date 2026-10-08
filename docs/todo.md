@@ -3,7 +3,7 @@
 ## 当前状态
 
 - [x] 项目已完成多文件模块化重构，入口为 `installer_launcher.sh`，主逻辑位于 `lib/`。
-- [x] 支持 7 个安装器：SD WebUI、ComfyUI、InvokeAI、Fooocus、SD Trainer、SD Trainer Script、Qwen TTS WebUI。
+- [x] 支持 8 个安装器：SD WebUI、ComfyUI、InvokeAI、Fooocus、SD Trainer、SD Trainer Script、Qwen TTS WebUI、RVC Next WebUI。
 - [x] TUI 和 CLI 都基于当前项目配置运行，`CURRENT_PROJECT` 默认为空，首次使用需选择安装器。
 - [x] 安装器每次运行前都会重新下载到缓存目录，确保使用最新脚本。
 - [x] 安装器支持多个下载源，按顺序重试，任意一个下载成功即可继续执行。
@@ -101,6 +101,7 @@
 - [x] `sd_trainer_script` installer 参数表不再包含 `-EnableShortcut`；其他仍支持该参数的 `launch.ps1` 管理脚本继续保留该选项。
 - [x] 根据 `installer_docs.txt` 新增 `-DisableAutoMirror` 结构化配置与参数传递；`launch_*_installer.ps1` 继续只作为安装器代理脚本处理，不展开完整 installer 参数。
 - [x] 按新 installer 文档补齐项目能力表：ComfyUI、Fooocus、SD Trainer 支持 `-DisableCUDAMalloc` / `-DisableEnvCheck`，Qwen TTS WebUI 支持 `-DisableModelMirror`，并修正 GUI 中多余的 ComfyUI / SD WebUI 参数注册。
+- [x] 已按 RVC Next WebUI Installer 源码接入 TUI/CLI 与 GUI 项目注册表；支持其 8 个直接管理脚本，未加入安装分支或模型预下载参数，安装器代理脚本仅自动追加 `-NoPause`。
 - [x] `NoPause` 不再作为用户配置项；运行安装器和管理脚本时始终自动追加 `-NoPause`，并避免重复添加。
 - [x] 运行安装器时显式传入 `-InstallPath`，未配置时使用 `$HOME/<项目默认目录>`。
 - [x] 安装分支为空时使用安装器默认分支，不向 PowerShell 安装器传入 `-InstallBranch`。
@@ -293,7 +294,7 @@
 ## Windows GUI
 
 - [x] 新增 `installer_launcher_gui.ps1`，使用 PowerShell/WPF 实现 Windows 图形界面。
-- [x] GUI 版内置 7 个项目的安装器下载源、默认目录、分支、管理脚本和支持参数。
+- [x] GUI 版内置 8 个项目的安装器下载源、默认目录、分支、管理脚本和支持参数。
 - [x] GUI 版使用 Windows 原生路径保存配置、缓存和日志。
 - [x] GUI 主界面包含项目选择、安装状态、动态安装器配置、管理脚本、启动器设置和日志输出。
 - [x] GUI 已移除顶部手动“刷新状态”按钮，改为每隔 15 秒自动刷新当前项目安装状态。
@@ -302,7 +303,7 @@
 - [x] GUI 版执行 PowerShell 脚本时优先使用 `pwsh`，找不到时回退到 `powershell`。
 - [x] GUI 版执行安装器和管理脚本时打开独立 PowerShell 控制台，并在非零退出时保留窗口提示用户查看输出。
 - [x] GUI 版支持 `launch.ps1` 和 `terminal.ps1` 的运行前提示。
-- [x] TUI/GUI 已新增 `version_manager.ps1` 管理脚本入口；Stable Diffusion WebUI、ComfyUI、InvokeAI 标注为版本和扩展/节点管理，Fooocus、Qwen TTS WebUI、SD Trainer、SD Trainer Script 仅标注为版本管理。
+- [x] TUI/GUI 已新增 `version_manager.ps1` 管理脚本入口；Stable Diffusion WebUI、ComfyUI、InvokeAI 标注为版本和扩展/节点管理，Fooocus、Qwen TTS WebUI、RVC Next WebUI、SD Trainer、SD Trainer Script 仅标注为版本管理。
 - [x] `version_manager.ps1` 参数配置已按 `version_manager_docs.md` 接入通用参数：`CorePrefix`、`DisableUpdate`、`DisableProxy`、`UseCustomProxy`、`DisableGithubMirror`、`UseCustomGithubMirror` 和自动追加 `NoPause`。
 - [x] GUI 版支持项目卸载，卸载前使用警告确认和倒计时最终确认，倒计时结束后才可执行删除。
 - [x] GUI 版支持 `auto` / `manual` / `off` 三种代理模式。
@@ -464,7 +465,7 @@
 - [x] 验证 GNOME 系统代理读取可生成 `http://host:port` 地址。
 - [x] 验证 `install.sh` dry-run 在已有代理环境变量时会跳过系统代理检测。
 - [x] 验证 CLI 帮助中包含 `install-launcher --yes` 示例。
-- [x] 验证 `list-projects` 可列出全部 7 个安装器。
+- [x] 验证 `list-projects` 可列出全部 8 个安装器。
 - [x] 验证空配置下直接运行需要项目上下文的命令会提示先选择安装器。
 - [x] 验证 `set-main CURRENT_PROJECT comfyui` 后可正常显示项目配置。
 - [x] 验证 `set-main CURRENT_PROJECT null` / `NULL` 可清空当前项目。

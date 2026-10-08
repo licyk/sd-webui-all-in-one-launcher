@@ -75,6 +75,7 @@ function Start-App {
         sd_trainer = "Trainer"
         sd_trainer_script = "Scripts"
         qwen_tts_webui = "Qwen TTS"
+        rvc_next_webui = "RVC Next"
     }
     foreach ($key in $script:Projects.Keys) {
         $shortName = $script:Projects[$key].Name

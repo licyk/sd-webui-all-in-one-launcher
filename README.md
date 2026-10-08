@@ -25,6 +25,7 @@
 - SD Trainer
 - SD Trainer Script
 - Qwen TTS WebUI
+- RVC Next WebUI
 
 主要能力：
 
